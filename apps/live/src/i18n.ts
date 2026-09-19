@@ -295,7 +295,23 @@ const resources = {
       from: 'Origem…',
       to: 'Destino…',
       connect: 'Conectar',
-      noRoutes: 'Nenhum caminho mapeado ainda.'
+      noRoutes: 'Nenhum caminho mapeado ainda.',
+      smartSuggestion: 'SUGESTÃO INTELIGENTE',
+      applySuggestion: 'Usar este mapa',
+      templates: {
+        holyricsArena: {
+          title: 'Holyrics → Arena → LED',
+          description: 'Detectei Holyrics e Resolume em computadores conectados. Posso montar um mapa inicial usando NDI entre eles. Revise o transporte depois caso sua instalação use captura de tela ou HDMI.'
+        },
+        holyricsDisplay: {
+          title: 'Holyrics → telão principal',
+          description: 'Detectei um ambiente simples com Holyrics. Este mapa mantém o Holyrics como motor de apresentação e o MillionsNest Live como camada de controle.'
+        },
+        propresenterDisplay: {
+          title: 'ProPresenter → telão principal',
+          description: 'Detectei ProPresenter sem um processador visual intermediário. Este mapa representa a saída direta para o telão e pode ser refinado depois.'
+        }
+      }
     },
     topology: {
       kicker: 'SISTEMA AO VIVO',
@@ -669,7 +685,23 @@ const resources = {
       from: 'Source…',
       to: 'Destination…',
       connect: 'Connect',
-      noRoutes: 'No signal path mapped yet.'
+      noRoutes: 'No signal path mapped yet.',
+      smartSuggestion: 'SMART SUGGESTION',
+      applySuggestion: 'Use this map',
+      templates: {
+        holyricsArena: {
+          title: 'Holyrics → Arena → LED',
+          description: 'Holyrics and Resolume were detected on connected computers. I can create a starter map using NDI between them. Review the transport later if your installation uses screen capture or HDMI.'
+        },
+        holyricsDisplay: {
+          title: 'Holyrics → main display',
+          description: 'A simple Holyrics environment was detected. This map keeps Holyrics as the presentation engine and MillionsNest Live as the control layer.'
+        },
+        propresenterDisplay: {
+          title: 'ProPresenter → main display',
+          description: 'ProPresenter was detected without an intermediate visual processor. This map represents direct display output and can be refined later.'
+        }
+      }
     },
     topology: {
       kicker: 'LIVE SYSTEM',
@@ -1043,7 +1075,23 @@ const resources = {
       from: 'Origen…',
       to: 'Destino…',
       connect: 'Conectar',
-      noRoutes: 'Todavía no hay caminos de señal mapeados.'
+      noRoutes: 'Todavía no hay caminos de señal mapeados.',
+      smartSuggestion: 'SUGERENCIA INTELIGENTE',
+      applySuggestion: 'Usar este mapa',
+      templates: {
+        holyricsArena: {
+          title: 'Holyrics → Arena → LED',
+          description: 'Se detectaron Holyrics y Resolume en computadoras conectadas. Puedo crear un mapa inicial usando NDI entre ellos. Revise el transporte después si su instalación usa captura de pantalla o HDMI.'
+        },
+        holyricsDisplay: {
+          title: 'Holyrics → pantalla principal',
+          description: 'Se detectó un entorno simple con Holyrics. Este mapa mantiene Holyrics como motor de presentación y MillionsNest Live como capa de control.'
+        },
+        propresenterDisplay: {
+          title: 'ProPresenter → pantalla principal',
+          description: 'Se detectó ProPresenter sin un procesador visual intermedio. Este mapa representa una salida directa a pantalla y puede refinarse después.'
+        }
+      }
     },
     topology: {
       kicker: 'SISTEMA EN VIVO',
