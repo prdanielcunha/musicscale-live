@@ -1395,8 +1395,12 @@ async function start(): Promise<void> {
     }
 
     if (req.method === 'GET' && url.pathname === '/local/connect-qr.svg') {
-      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
-      const ip = lanAddresses()[0] || '127.0.0.1';
+      // The QR contains only the same LAN URL already shown on the local console.
+      // Do not require loopback here: when the console is opened through this
+      // computer's LAN address, the browser request is not seen as 127.0.0.1.
+      const socketAddress = (req.socket.localAddress || '').replace(/^::ffff:/, '');
+      const lan = lanAddresses();
+      const ip = lan.includes(socketAddress) ? socketAddress : (lan[0] || '127.0.0.1');
       const target = `http://${ip}:${PORT}/`;
       const svg = await qrToString(target, {
         type: 'svg',
