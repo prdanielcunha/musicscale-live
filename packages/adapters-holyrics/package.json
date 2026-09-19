@@ -1,5 +1,5 @@
 {
-  "name": "@musicscale-live/adapter-holyrics",
+  "name": "@millionsnest/live-adapter-holyrics",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
-    "@musicscale-live/domain": "0.0.1"
+    "@millionsnest/live-domain": "0.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

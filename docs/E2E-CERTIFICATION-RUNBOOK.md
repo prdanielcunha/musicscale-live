@@ -1,8 +1,8 @@
-# MusicScale Live — E2E LAN / Offline Certification Runbook
+# MillionsNest Live — E2E LAN / Offline Certification Runbook
 
 Este runbook transforma os gates do Blueprint v0.1 em uma prova física reproduzível. Ele não substitui testes automatizados: certifica aquilo que CI não consegue provar — rede real, hardware real, providers reais, toque em tablet e queda de internet.
 
-> Regra de segurança: durante a certificação, o software original (Holyrics, Resolume Arena ou ProPresenter) deve permanecer operável manualmente. MusicScale Live nunca pode ser o único caminho para manter o culto funcionando.
+> Regra de segurança: durante a certificação, o software original (Holyrics, Resolume Arena ou ProPresenter) deve permanecer operável manualmente. MillionsNest Live nunca pode ser o único caminho para manter o culto funcionando.
 
 ## 1. Evidências obrigatórias
 
@@ -26,10 +26,10 @@ Não incluir tokens, senhas ou credenciais no relatório.
 Antes de cada cenário:
 
 1. Iniciar todos os providers.
-2. Iniciar o MusicScale Live Node em cada computador necessário.
+2. Iniciar o MillionsNest Live Node em cada computador necessário.
 3. Abrir o console local do Node em `http://127.0.0.1:4317/node`.
 4. Confirmar que provider configurado aparece como conectado.
-5. Abrir MusicScale Live no tablet.
+5. Abrir MillionsNest Live no tablet.
 6. Parear via QR/PIN.
 7. Abrir a escala real de teste.
 8. Executar o preflight.
@@ -74,7 +74,7 @@ Topologia prioritária de certificação:
 
 `Tablet → Live Node B → Resolume Arena PC → LED/telão`
 
-O sinal visual continua usando o media plane já adotado pela igreja (NDI/captura/etc.). O MusicScale Live coordena control plane; não transporta o vídeo pela cloud.
+O sinal visual continua usando o media plane já adotado pela igreja (NDI/captura/etc.). O MillionsNest Live coordena control plane; não transporta o vídeo pela cloud.
 
 ### Setup
 

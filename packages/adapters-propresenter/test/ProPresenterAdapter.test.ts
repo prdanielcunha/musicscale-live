@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LiveCommand } from '@musicscale-live/domain';
+import type { LiveCommand } from '@millionsnest/live-domain';
 import { ProPresenterAdapter } from '../src/ProPresenterAdapter';
 import type {
   ProPresenterApi,

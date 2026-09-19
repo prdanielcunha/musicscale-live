@@ -99,8 +99,8 @@ export function App() {
     return (
       <main className="login-shell">
         <section className="login-panel">
-          <div className="brand-kicker">MUSICSCALE / LIVE</div>
-          <h1>MusicScale <strong>LIVE</strong></h1>
+          <div className="brand-kicker">MILLIONSNEST / LIVE</div>
+          <h1>MillionsNest <strong>LIVE</strong></h1>
           <p>{t('sameEcosystem')}</p>
           <button className="primary" onClick={login}>{t('signIn')}</button>
         </section>
@@ -125,7 +125,7 @@ export function App() {
     ].filter(Boolean).join(' ')}>
       <header className="topbar">
         <div>
-          <div className="brand-kicker">MUSICSCALE / LIVE</div>
+          <div className="brand-kicker">MILLIONSNEST / LIVE</div>
           <strong>{t('brand')}</strong>
         </div>
         <div className="top-actions">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { matchExternalSong, type SongIdentity } from '@musicscale-live/domain';
+import { matchExternalSong, type SongIdentity } from '@millionsnest/live-domain';
 import type { SharedScale } from './musicScaleBridge';
 import { buildServicePlan } from './servicePlanBuilder';
 import { liveFeatureFlags } from './featureFlags';

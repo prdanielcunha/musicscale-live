@@ -1,5 +1,5 @@
 {
-  "name": "@musicscale-live/firestore-rules-test",
+  "name": "@millionsnest/live-firestore-rules-test",
   "version": "0.0.1",
   "private": true,
   "type": "module",

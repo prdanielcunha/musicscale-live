@@ -1,8 +1,8 @@
-# MusicScale Live
+# MillionsNest Live
 
-Implementação executável do **MusicScale Live**, derivada do Blueprint Mestre v0.1.
+Implementação executável do **MillionsNest Live**, derivada do Blueprint Mestre v0.1.
 
-Este é o repositório canônico e independente do MusicScale Live. O produto continua compartilhando identidade, organização, escalas, repertório, permissões e assinatura com o ecossistema MillionsNest/MusicScale, mas possui bundle, deploy, runtime local e ciclo de engenharia próprios.
+Este é o repositório canônico e independente do MillionsNest Live. O produto continua compartilhando identidade, organização, escalas, repertório, permissões e assinatura com o ecossistema MillionsNest/MusicScale, mas possui bundle, deploy, runtime local e ciclo de engenharia próprios.
 
 > Estado atual: fundação técnica em desenvolvimento ativo. O repositório é público, mas os packages permanecem `private: true` para impedir publicação acidental no npm. Repositório público não implica licença de redistribuição; uma licença explícita será definida separadamente.
 
@@ -11,7 +11,7 @@ Este é o repositório canônico e independente do MusicScale Live. O produto co
 - LAN-first, cloud-synced e offline-capable.
 - Provider-agnostic: Holyrics, ProPresenter e Resolume são adapters, nunca o domínio.
 - Control Plane separado do Media Plane.
-- PWA Live/Studio + MusicScale Live Node.
+- PWA Live/Studio + MillionsNest Live Node.
 - PT/EN/ES desde o início.
 - Segurança fail-closed, tenant-scoped e comandos idempotentes.
 - Mesmo Firebase/Auth/Firestore canônico do MusicScale/MillionsNest.
@@ -44,7 +44,7 @@ npm run dev:node
 
 ## Pacotes alpha do Live Node
 
-O workflow manual **Build Live Node alpha packages** valida typecheck/testes, compila a PWA, gera o executável SEA e publica artefatos temporários para Windows x64, macOS x64 e Linux x64. Os pacotes incluem SHA-256.
+O workflow manual **Build Live Node alpha packages** valida typecheck/testes, compila a PWA, gera o executável SEA e publica artefatos temporários para Windows x64, macOS arm64 e Linux x64. Os pacotes incluem SHA-256.
 
 Esses artefatos são **alpha e não assinados**. Não devem ser tratados como distribuição pública final antes de Authenticode no Windows e Developer ID + notarização no macOS.
 
@@ -53,7 +53,7 @@ Esses artefatos são **alpha e não assinados**. Não devem ser tratados como di
 1. Inicie o Live Node no computador de produção.
 2. Abra `http://127.0.0.1:4317/node` nesse computador.
 3. Configure o provider local desejado (Holyrics, Resolume Arena ou ProPresenter) usando apenas endpoints da LAN/loopback.
-4. Use o QR exibido no console para abrir o MusicScale Live em um tablet/celular da mesma LAN.
+4. Use o QR exibido no console para abrir o MillionsNest Live em um tablet/celular da mesma LAN.
 5. Faça o pareamento com o PIN temporário exibido apenas no computador do Node.
 6. No Studio conectado à nuvem, execute o preflight da próxima escala. Correspondências seguras são vinculadas automaticamente; ambiguidades exigem escolha humana.
 7. Quando o preflight fica resolvido, o ServicePlan + ProviderLinks são armazenados no Node. O modo Local Recovery passa a operar o culto mesmo sem Firebase/internet.
@@ -68,7 +68,7 @@ As credenciais/configurações web do Firebase presentes no client não são tra
 
 ## Estado dos gates
 
-- **Phase 0 — Foundation:** base de engenharia concluída; repositório dedicado agora criado e canônico. Restam gates externos de Hosting dedicado, RBAC cloud final, Rules/emulator e QA em dispositivos reais.
+- **Phase 0 — Foundation:** base de engenharia concluída; Hosting dedicado `mn-live-555464791734` e domínio `live.millionsnest.com` já foram provisionados. Restam RBAC cloud final, Rules/emulator e QA em dispositivos reais.
 - **Phase 1 — LAN / Offline:** caminho local implementado em código e matriz de artefatos criada; falta certificação física Windows/macOS + iPad/Android e teste real de queda de internet.
 - **Phase 2 — Holyrics:** adapter profundo implementado em código; falta matriz em instalação Holyrics real.
 - **Resolume Arena / ProPresenter:** adapters já existem e seguem o mesmo domínio neutro; continuam sujeitos aos respectivos gates de hardware/API.

@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "millionsnest"
+  },
+  "targets": {
+    "millionsnest": {
+      "hosting": {
+        "millionsnest-live": [
+          "mn-live-555464791734"
+        ]
+      }
+    }
   }
 }

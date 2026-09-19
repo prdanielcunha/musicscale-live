@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Capability, Scene, SceneAction } from '@musicscale-live/domain';
+import type { Capability, Scene, SceneAction } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
 import { liveFeatureFlags } from './featureFlags';
 import {

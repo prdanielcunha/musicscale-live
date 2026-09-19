@@ -3,7 +3,7 @@ import type {
   CommandResult,
   LiveCommand,
   SceneExecutionRequest
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 import { SceneExecutor } from '../src/sceneExecutor';
 
 function request(): SceneExecutionRequest {

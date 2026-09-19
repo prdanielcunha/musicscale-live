@@ -13,7 +13,7 @@ import type {
   SceneExecutionRequest,
   SceneExecutionResult,
   ServicePlan
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 
 export interface PeerNodeStatus {
   nodeId: string;
@@ -336,13 +336,24 @@ export async function detectSameOriginLiveNode(): Promise<boolean> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 1200);
   try {
-    const response = await fetch('/.well-known/musicscale-live-node', {
-      cache: 'no-store',
-      signal: controller.signal
-    });
-    if (!response.ok) return false;
-    const body = await response.json().catch(() => null);
-    return body?.product === 'MusicScale Live Node';
+    for (const path of [
+      '/.well-known/millionsnest-live-node',
+      '/.well-known/musicscale-live-node'
+    ]) {
+      const response = await fetch(path, {
+        cache: 'no-store',
+        signal: controller.signal
+      }).catch(() => null);
+      if (!response?.ok) continue;
+      const body = await response.json().catch(() => null);
+      if (
+        body?.product === 'MillionsNest Live Node' ||
+        body?.product === 'MusicScale Live Node'
+      ) {
+        return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   } finally {

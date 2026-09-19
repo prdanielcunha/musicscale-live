@@ -6,7 +6,7 @@ import {
   type PairingCompleteResponse,
   type ProviderHealth,
   type ProviderKind
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 import { FederatedProviderAdapter, fetchPeerProviders, makeFederatedProviderId, type PeerProviderSnapshot } from './federatedProvider';
 import { normalizeLanPeerUrl } from './networkPolicy';
 import { PeerNodeStore, type PeerNodeRecord } from './peerNodeStore';
@@ -108,6 +108,38 @@ async function fetchJson<T>(
   }
 }
 
+async function discoverPeerNode(
+  fetchImpl: FetchLike,
+  baseUrl: string
+): Promise<PeerDiscovery> {
+  let lastError: unknown = null;
+  for (const path of [
+    '/.well-known/millionsnest-live-node',
+    '/.well-known/musicscale-live-node'
+  ]) {
+    try {
+      const discovery = await fetchJson<PeerDiscovery>(
+        fetchImpl,
+        `${baseUrl}${path}`,
+        {},
+        2500
+      );
+      if (
+        (discovery.product === 'MillionsNest Live Node' ||
+          discovery.product === 'MusicScale Live Node') &&
+        discovery.nodeId &&
+        discovery.protocolVersion === 1
+      ) {
+        return discovery;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (lastError instanceof Error) throw lastError;
+  throw new Error('peer_not_musicscale_live_node');
+}
+
 function sanitizeProviderSnapshot(
   value: PeerProviderSnapshot,
   expectedNodeId: string
@@ -192,26 +224,13 @@ export class PeerFederation {
     }
 
     const baseUrl = normalizeLanPeerUrl(request.baseUrl);
-    const discovery = await fetchJson<PeerDiscovery>(
-      this.fetchImpl,
-      `${baseUrl}/.well-known/musicscale-live-node`,
-      {},
-      2500
-    );
-
-    if (
-      discovery.product !== 'MusicScale Live Node' ||
-      !discovery.nodeId ||
-      discovery.protocolVersion !== 1
-    ) {
-      throw new Error('peer_not_musicscale_live_node');
-    }
+    const discovery = await discoverPeerNode(this.fetchImpl, baseUrl);
     if (discovery.nodeId === this.options.localNodeId) {
       throw new Error('peer_cannot_be_self');
     }
 
     const deviceId = `live-node:${this.options.localNodeId}`;
-    const deviceName = `MusicScale Live Node · ${this.options.localDisplayName}`;
+    const deviceName = `MillionsNest Live Node · ${this.options.localDisplayName}`;
     const challenge = await fetchJson<PairingChallenge>(
       this.fetchImpl,
       `${baseUrl}/pairing/request`,

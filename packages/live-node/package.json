@@ -1,5 +1,5 @@
 {
-  "name": "@musicscale-live/node",
+  "name": "@millionsnest/live-node",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -12,11 +12,11 @@
     "package:sea": "npm run build && node scripts/build-sea.mjs"
   },
   "dependencies": {
-    "@musicscale-live/domain": "0.0.1",
-    "@musicscale-live/adapter-holyrics": "0.0.1",
+    "@millionsnest/live-domain": "0.0.1",
+    "@millionsnest/live-adapter-holyrics": "0.0.1",
     "qrcode": "^1.5.4",
-    "@musicscale-live/adapter-resolume": "0.0.1",
-    "@musicscale-live/adapter-propresenter": "0.0.1"
+    "@millionsnest/live-adapter-resolume": "0.0.1",
+    "@millionsnest/live-adapter-propresenter": "0.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

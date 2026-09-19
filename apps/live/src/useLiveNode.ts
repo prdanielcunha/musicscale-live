@@ -16,7 +16,7 @@ import type {
   Scene,
   SceneExecutionResult,
   ServicePlan
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 import {
   clearLiveNodeCredential,
   loadLiveNodeCredential,

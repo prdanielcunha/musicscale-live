@@ -1,4 +1,4 @@
-import type { LiveNodeTransportKind } from '@musicscale-live/domain';
+import type { LiveNodeTransportKind } from '@millionsnest/live-domain';
 import {
   mixedContentWouldBlock,
   normalizePrivateNodeUrl

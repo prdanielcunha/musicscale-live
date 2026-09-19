@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { LiveCommand } from '@musicscale-live/domain';
+import type { LiveCommand } from '@millionsnest/live-domain';
 import { FederatedProviderAdapter } from '../src/federatedProvider';
 import type { PeerNodeRecord } from '../src/peerNodeStore';
 

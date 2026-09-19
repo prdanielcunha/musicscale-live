@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import type { LiveNodeRuntimeState } from '@musicscale-live/domain';
+import type { LiveNodeRuntimeState } from '@millionsnest/live-domain';
 
 export class RuntimeStateStore {
   private state: LiveNodeRuntimeState;
