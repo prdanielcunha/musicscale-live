@@ -23,8 +23,8 @@
 - Single-executable SEA build pipeline.
 - Windows alpha installer with user autostart + private-network firewall onboarding.
 - macOS alpha installer with LaunchAgent autostart.
-- Cross-platform release workflow prepared for Windows/macOS artifacts.
-- Linux SEA executable is built and smoke-tested on every foundation CI run.
+- Manual native-runner packaging matrix for Windows x64, macOS x64 and Linux x64.
+- SHA-256 manifest included with each alpha artifact.
 - Automated tests for pairing scope, persistence, crash recovery, network policy, diagnostics and provider config.
 
 ## Offline operating path now implemented
@@ -35,8 +35,9 @@ The cloud is no longer a hard runtime dependency after the plan has been prepare
 
 ## Gate still required before declaring Phase 1 production-ready
 
-- Execute and validate the prepared Windows/macOS release matrix on native hosted runners; the workflow exists but has not yet been manually dispatched from this branch.
-- Add signed, verified auto-update only after the dedicated repository + signing identities exist.
+- Execute and validate the native packaging matrix from the canonical repository.
+- Add Authenticode signing on Windows and Developer ID + notarization on macOS before public installer distribution.
+- Add signed, verified auto-update only after signing identities and release policy are ready.
 - Replace private-file provider token fallback with OS credential vault on supported platforms.
 - Real LAN test on:
   - Windows production PC + iPad;
@@ -49,4 +50,4 @@ The cloud is no longer a hard runtime dependency after the plan has been prepare
 
 ## Next engineering slice
 
-Finish packaging/diagnostics, then continue Phase 2 Holyrics deep integration against real Holyrics instances before widening to Resolume and ProPresenter.
+Run the packaging matrix and physical LAN/offline certification, then continue provider validation against real Holyrics, Resolume Arena and ProPresenter installations. The provider-neutral domain must not change to accommodate one product.

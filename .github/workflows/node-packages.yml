@@ -1,0 +1,137 @@
+name: Build Live Node alpha packages
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/live-node/**'
+      - 'apps/live/**'
+      - 'distribution/**'
+      - 'package.json'
+      - '.github/workflows/node-packages.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: musicscale-live-node-packages
+  cancel-in-progress: false
+
+jobs:
+  package:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            artifact: musicscale-live-node-windows-x64
+          - name: macOS x64
+            os: macos-14
+            artifact: musicscale-live-node-macos-x64
+          - name: Linux x64
+            os: ubuntu-latest
+            artifact: musicscale-live-node-linux-x64
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install workspace dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and contract tests
+        run: npm test
+
+      - name: Build Live PWA
+        run: npm run build --workspace=@musicscale-live/web
+
+      - name: Build single-executable Live Node
+        run: npm run package:sea --workspace=@musicscale-live/node
+
+      - name: Stage Windows package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "musicscale-live-node"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $out "web") | Out-Null
+          Copy-Item "packages/live-node/dist/MusicScaleLiveNode.exe" (Join-Path $out "MusicScaleLiveNode.exe") -Force
+          Copy-Item "apps/live/dist/*" (Join-Path $out "web") -Recurse -Force
+          Copy-Item "distribution/windows/install.ps1" (Join-Path $out "install.ps1") -Force
+          Copy-Item "distribution/windows/uninstall.ps1" (Join-Path $out "uninstall.ps1") -Force
+          Copy-Item "distribution/README-INSTALL.md" (Join-Path $out "README-INSTALL.md") -Force
+          $hash = (Get-FileHash (Join-Path $out "MusicScaleLiveNode.exe") -Algorithm SHA256).Hash.ToLower()
+          "$hash  MusicScaleLiveNode.exe" | Set-Content (Join-Path $out "SHA256SUMS.txt")
+          "PACKAGE_DIR=$out" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Stage Unix package
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/musicscale-live-node"
+          mkdir -p "$out/web"
+          cp packages/live-node/dist/MusicScaleLiveNode "$out/MusicScaleLiveNode"
+          chmod +x "$out/MusicScaleLiveNode"
+          cp -R apps/live/dist/. "$out/web/"
+          cp distribution/README-INSTALL.md "$out/README-INSTALL.md"
+
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            cp distribution/macos/install.command "$out/install.command"
+            cp distribution/macos/uninstall.command "$out/uninstall.command"
+            chmod +x "$out/install.command" "$out/uninstall.command"
+          fi
+
+          (
+            cd "$out"
+            shasum -a 256 MusicScaleLiveNode > SHA256SUMS.txt
+          )
+          echo "PACKAGE_DIR=$out" >> "$GITHUB_ENV"
+
+      - name: Smoke executable
+        shell: bash
+        if: runner.os != 'Windows'
+        run: |
+          set -euo pipefail
+          "$PACKAGE_DIR/MusicScaleLiveNode" --help >/tmp/musicscale-live-node-smoke.log 2>&1 &
+          pid=$!
+          sleep 2
+          if ! kill -0 "$pid" 2>/dev/null; then
+            cat /tmp/musicscale-live-node-smoke.log
+            exit 1
+          fi
+          kill "$pid" || true
+
+      - name: Smoke executable on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath (Join-Path $env:PACKAGE_DIR "MusicScaleLiveNode.exe") -PassThru
+          Start-Sleep -Seconds 2
+          if ($proc.HasExited) {
+            throw "MusicScale Live Node exited during smoke startup."
+          }
+          Stop-Process -Id $proc.Id -Force
+
+      - name: Upload unsigned alpha package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ env.PACKAGE_DIR }}
+          if-no-files-found: error
+          retention-days: 14
