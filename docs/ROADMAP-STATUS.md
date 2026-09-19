@@ -10,14 +10,14 @@ Status labels:
 ## Phase 0 — Foundation & Product Contract
 **Status: foundation-ready**
 
-Implemented: dedicated repository/deploy boundary; neutral Provider/Capability domain; Event Bus, command/idempotency/error contracts; PT/EN/ES Live/Studio foundation; threat model, telemetry, secret guard and CI.
+Implemented: dedicated repository/deploy boundary; neutral Provider/Capability domain; Event Bus, command/idempotency/error contracts; PT/EN/ES Live/Studio foundation; threat model, telemetry, secret guard and CI; MillionsNest Live rebrand with rolling compatibility; dedicated Firebase Hosting `mn-live-555464791734`; official domain `live.millionsnest.com`; WIF-restricted production pipeline and official-domain smoke gate.
 
-Open: dedicated Hosting validation from this repository; final cloud RBAC + Firestore Rules before Live writes; public contract versioning; real-device responsive QA.
+Open: final cloud RBAC + Firestore Rules before broader Live writes; public contract versioning; real-device responsive QA.
 
 ## Phase 1 — Live Core + Node
 **Status: foundation-ready / physical certification open**
 
-Implemented: Live Node runtime; scoped pairing/revocation/rate limiting; LAN + same-origin Local Recovery; cache/crash recovery/reconnect; provider routing; diagnostics; SEA packaging/alpha installers; offline ServicePlan/ProviderLinks.
+Implemented: Live Node runtime; scoped pairing/revocation/rate limiting; LAN + same-origin Local Recovery; cache/crash recovery/reconnect; provider routing; human-friendly Studio diagnostics; SEA packaging/alpha installers; offline ServicePlan/ProviderLinks; multi-Node LAN federation with namespaced remote providers, peer health/failure isolation and authenticated routing; neutral persisted signal topology metadata.
 
 Open: native packaging certification; Windows/macOS/iPad/Android physical matrix; internet-cut test; signing/notarization; OS credential vault.
 
@@ -31,21 +31,21 @@ Open: real supported Holyrics versions; same/cross-PC latency; real display/play
 ## Phase 3 — Live UX Production
 **Status: partial, advanced**
 
-Implemented: provider-neutral NOW/NEXT; Program/Preview/TAKE; prepared song/Bible/media cues; linked presentation + visual TAKE via Scene; ServicePlan horizon; routing ambiguity warning; guarded clear/safety; keyboard shortcuts; provider health/observed state; request/scene surfaces; responsive Local Recovery.
+Implemented: provider-neutral NOW/NEXT; Program/Preview/TAKE; prepared song/Bible/media cues; linked presentation + visual TAKE via Scene; Culto Preparado + first-class Modo Livre; ServicePlan horizon; routing ambiguity warning; guarded clear/safety; keyboard shortcuts; provider health/observed state; request/scene surfaces; responsive Local Recovery; focused Studio sections (overview, preparation, computers, routes, inputs/outputs, scenes, diagnostics).
 
 Open: volunteer usability without Studio; iPad/Android touch QA; layout/latency measurement; Pastor/Conductor acceptance against live providers; accessibility certification.
 
 ## Phase 4 — Media, Live Drop & Collaboration
 **Status: partial**
 
-Implemented: provider media search/open; prepared media cue + thumbnail support; local Request inbox/status; ServicePlan domain supports non-song items.
+Implemented: provider media search/open; prepared media cue + thumbnail support; local Request inbox/status; ServicePlan domain supports non-song items; neutral Sources / Inputs / Outputs topology for NDI, capture, HDMI, Spout, Syphon and other media-plane paths; smart topology suggestions for common Holyrics/Arena/ProPresenter setups.
 
 Open: Live Drop quarantine/transfer/cache; universal library aggregator; retention/permissions; complete neutral Announcement/Message domain; collaboration E2E.
 
 ## Phase 5 — Resolume Arena Tier A
 **Status: partial; adapter implemented, hardware gate open**
 
-Implemented: dedicated Visual adapter; REST configuration; composition/layer/clip state; trigger/open capabilities; thumbnail/monitor snapshot capabilities where exposed; visual routing; armed visual cue; linked TAKE; independent health/state.
+Implemented: dedicated Visual adapter; REST configuration; composition/layer/clip state; trigger/open capabilities; thumbnail/monitor snapshot capabilities where exposed; visual routing; armed visual cue; linked TAKE; independent health/state; multi-PC Node federation foundation; explicit Holyrics → Arena → LED signal-map suggestion without coupling control to NDI.
 
 Open: REST/WebSocket real-version validation; Holyrics PC → Arena PC → LED physical topology; final-output snapshot; effects/parameters safety; section-to-visual persistence; restart/offline degradation.
 
@@ -83,6 +83,6 @@ Do not skip ahead to autonomous “wow” automation.
 
 The next product proof remains:
 
-`MusicScale → ServicePlan/ProviderLinks → Live Node → routed provider(s) → TAKE → observed state`
+`MusicScale or Modo Livre → Live Node federation → routed capability/provider(s) → TAKE → observed state`
 
 Validate it on real LAN hardware, then cut internet and prove that the prepared service keeps operating locally. The current church topology — Holyrics on one PC, Resolume Arena on another, final LED/output downstream — is a certification profile, not a hard-coded architecture.
