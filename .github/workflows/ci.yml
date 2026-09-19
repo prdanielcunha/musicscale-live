@@ -1,0 +1,64 @@
+name: MusicScale Live CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: musicscale-live-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Public repository credential guard
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          forbidden_files="$(find . -type f \
+            \( -name '.env' -o -name '.env.*' -o -name '*.pem' -o -name '*.p12' -o -name '*.pfx' -o -name '*service-account*.json' -o -name '*serviceAccount*.json' \) \
+            -not -path './.git/*' -print)"
+
+          if [[ -n "$forbidden_files" ]]; then
+            echo "::error::Credential-like files are forbidden in this public repository:"
+            echo "$forbidden_files"
+            exit 1
+          fi
+
+          if grep -RIEq \
+            --exclude-dir=.git \
+            '(-----BEGIN ([A-Z ]+ )?PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|sk-(proj-)?[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|"private_key"[[:space:]]*:)' \
+            .; then
+            echo "::error::Credential-like material detected."
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install workspace dependencies
+        run: npm run setup
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and contract tests
+        run: npm test
+
+      - name: Build PWA and Live Node
+        run: npm run build
