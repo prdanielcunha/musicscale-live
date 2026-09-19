@@ -27,7 +27,7 @@ export function LocalRecoveryView({
     : 'local-device:unpaired';
   const effectiveMode = mode === 'service' && plan ? 'service' : 'free';
   const liveSessionId = effectiveMode === 'service' && plan
-    ? controller.nodeState?.state.activeLiveSessionId || `service-plan:${plan.id}`
+    ? `service-plan:${plan.id}`
     : `local-free:${controller.credential?.binding.liveSystemId || 'unpaired'}:${freeSessionId}`;
 
   return (
@@ -145,6 +145,7 @@ export function LocalRecoveryView({
                 plan={plan}
                 providerLinks={providerLinks}
                 actorId={actorId}
+                liveSessionId={liveSessionId}
               />
             ) : (
               <section className="local-empty local-free-ready">
