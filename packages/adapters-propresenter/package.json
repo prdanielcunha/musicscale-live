@@ -11,7 +11,7 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
-    "@musicscale-live/domain": "file:../domain"
+    "@musicscale-live/domain": "0.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
