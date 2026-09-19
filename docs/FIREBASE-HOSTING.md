@@ -44,3 +44,7 @@ O pipeline de produção deve:
 3. publicar somente `hosting:millionsnest-live`;
 4. smoke-testar o fallback e o domínio oficial;
 5. executar produção somente a partir da branch `production`.
+
+## Autorização de deploy
+
+O repositório `prdanielcunha/musicscale-live` está autorizado no WIF `mn-prod-github` exclusivamente para a branch `production`, com impersonação do `mn-web-deployer`. Esse vínculo é necessário para que o pipeline publique o build real no Hosting dedicado.
