@@ -44,7 +44,7 @@ npm run dev:node
 
 ## Pacotes alpha do Live Node
 
-O workflow manual **Build Live Node alpha packages** valida typecheck/testes, compila a PWA, gera o executável SEA e publica artefatos temporários para Windows x64, macOS x64 e Linux x64. Os pacotes incluem SHA-256.
+O workflow manual **Build Live Node alpha packages** valida typecheck/testes, compila a PWA, gera o executável SEA e publica artefatos temporários para Windows x64, macOS arm64 e Linux x64. Os pacotes incluem SHA-256.
 
 Esses artefatos são **alpha e não assinados**. Não devem ser tratados como distribuição pública final antes de Authenticode no Windows e Developer ID + notarização no macOS.
 
@@ -68,7 +68,7 @@ As credenciais/configurações web do Firebase presentes no client não são tra
 
 ## Estado dos gates
 
-- **Phase 0 — Foundation:** base de engenharia concluída; repositório dedicado agora criado e canônico. Restam gates externos de Hosting dedicado, RBAC cloud final, Rules/emulator e QA em dispositivos reais.
+- **Phase 0 — Foundation:** base de engenharia concluída; Hosting dedicado `mn-live-555464791734` e domínio `live.millionsnest.com` já foram provisionados. Restam RBAC cloud final, Rules/emulator e QA em dispositivos reais.
 - **Phase 1 — LAN / Offline:** caminho local implementado em código e matriz de artefatos criada; falta certificação física Windows/macOS + iPad/Android e teste real de queda de internet.
 - **Phase 2 — Holyrics:** adapter profundo implementado em código; falta matriz em instalação Holyrics real.
 - **Resolume Arena / ProPresenter:** adapters já existem e seguem o mesmo domínio neutro; continuam sujeitos aos respectivos gates de hardware/API.
