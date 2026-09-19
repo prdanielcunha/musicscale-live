@@ -73,6 +73,7 @@ jobs:
           Copy-Item "packages/live-node/dist/MillionsNestLiveNode.exe" (Join-Path $out "MillionsNestLiveNode.exe") -Force
           Copy-Item "apps/live/dist/*" (Join-Path $out "web") -Recurse -Force
           Copy-Item "distribution/windows/install.ps1" (Join-Path $out "install.ps1") -Force
+          Copy-Item "distribution/windows/INSTALAR-MILLIONSNEST-LIVE.cmd" (Join-Path $out "INSTALAR-MILLIONSNEST-LIVE.cmd") -Force
           Copy-Item "distribution/windows/uninstall.ps1" (Join-Path $out "uninstall.ps1") -Force
           Copy-Item "distribution/README-INSTALL.md" (Join-Path $out "README-INSTALL.md") -Force
           $hash = (Get-FileHash (Join-Path $out "MillionsNestLiveNode.exe") -Algorithm SHA256).Hash.ToLower()
