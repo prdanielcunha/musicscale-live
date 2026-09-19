@@ -187,6 +187,111 @@ export function SignalTopologyStudio({
     output: endpoints.filter(item => item.role === 'output')
   };
 
+  const suggestedTemplate = useMemo(() => {
+    if (endpoints.length > 0 || links.length > 0) return null;
+
+    const holyrics = providers.find(provider => provider.providerKey === 'holyrics');
+    const resolume = providers.find(provider => provider.providerKey === 'resolume');
+    const propresenter = providers.find(provider => provider.providerKey === 'propresenter');
+
+    if (holyrics && resolume) {
+      const sourceId = 'suggested_holyrics_program';
+      const inputId = 'suggested_arena_input';
+      const outputId = 'suggested_main_led';
+      return {
+        key: 'holyricsArena',
+        endpoints: [
+          {
+            id: sourceId,
+            name: 'Holyrics Program',
+            role: 'source',
+            kind: 'provider',
+            nodeId: holyrics.nodeId || undefined,
+            providerId: holyrics.providerId,
+            enabled: true
+          },
+          {
+            id: inputId,
+            name: 'Arena Presentation Input',
+            role: 'input',
+            kind: 'ndi',
+            nodeId: resolume.nodeId || undefined,
+            providerId: resolume.providerId,
+            enabled: true
+          },
+          {
+            id: outputId,
+            name: 'LED Principal',
+            role: 'output',
+            kind: 'led',
+            nodeId: resolume.nodeId || undefined,
+            enabled: true
+          }
+        ] as SignalEndpoint[],
+        links: [
+          {
+            id: 'suggested_holyrics_to_arena',
+            fromEndpointId: sourceId,
+            toEndpointId: inputId,
+            transport: 'ndi',
+            enabled: true
+          },
+          {
+            id: 'suggested_arena_to_led',
+            fromEndpointId: inputId,
+            toEndpointId: outputId,
+            transport: 'internal',
+            enabled: true
+          }
+        ] as SignalLink[]
+      };
+    }
+
+    const presenter = holyrics || propresenter;
+    if (presenter) {
+      const sourceId = 'suggested_presentation_program';
+      const outputId = 'suggested_main_display';
+      return {
+        key: presenter.providerKey === 'holyrics' ? 'holyricsDisplay' : 'propresenterDisplay',
+        endpoints: [
+          {
+            id: sourceId,
+            name: presenter.displayName || 'Presentation Program',
+            role: 'source',
+            kind: 'provider',
+            nodeId: presenter.nodeId || undefined,
+            providerId: presenter.providerId,
+            enabled: true
+          },
+          {
+            id: outputId,
+            name: 'Telão Principal',
+            role: 'output',
+            kind: 'display',
+            nodeId: presenter.nodeId || undefined,
+            enabled: true
+          }
+        ] as SignalEndpoint[],
+        links: [
+          {
+            id: 'suggested_presentation_to_display',
+            fromEndpointId: sourceId,
+            toEndpointId: outputId,
+            transport: 'internal',
+            enabled: true
+          }
+        ] as SignalLink[]
+      };
+    }
+
+    return null;
+  }, [endpoints.length, links.length, providers]);
+
+  const applySuggestedTemplate = async () => {
+    if (!suggestedTemplate || saving) return;
+    await commit(suggestedTemplate.endpoints, suggestedTemplate.links);
+  };
+
   return (
     <section className="signal-topology panel">
       <div className="signal-topology-head">
@@ -211,6 +316,24 @@ export function SignalTopologyStudio({
         <strong>{t('signalTopology.controlVsMediaTitle')}</strong>
         <span>{t('signalTopology.controlVsMedia')}</span>
       </div>
+
+      {suggestedTemplate && (
+        <div className="signal-suggestion">
+          <div>
+            <span className="eyebrow">{t('signalTopology.smartSuggestion')}</span>
+            <strong>{t(`signalTopology.templates.${suggestedTemplate.key}.title`)}</strong>
+            <p>{t(`signalTopology.templates.${suggestedTemplate.key}.description`)}</p>
+          </div>
+          <button
+            type="button"
+            className="secondary"
+            disabled={saving}
+            onClick={() => void applySuggestedTemplate()}
+          >
+            {saving ? t('signalTopology.saving') : t('signalTopology.applySuggestion')}
+          </button>
+        </div>
+      )}
 
       <div className="signal-endpoint-groups">
         {(['source', 'input', 'output'] as SignalEndpointRole[]).map(role => (
