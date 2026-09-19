@@ -7,7 +7,7 @@ import type {
   PairingDevice,
   PairingRequest,
   PairingScope
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 
 interface ChallengeRecord extends PairingScope, PairingDevice {
   challengeId: string;
