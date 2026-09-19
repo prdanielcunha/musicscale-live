@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LiveControlPanel } from './LiveControlPanel';
 import { LiveNodeSetup } from './LiveNodeSetup';
@@ -15,6 +16,8 @@ export function LocalRecoveryView({
   controller: Controller;
 }) {
   const { t, i18n } = useTranslation();
+  const [mode, setMode] = useState<'service' | 'free'>('service');
+  const [freeSessionId] = useState(() => crypto.randomUUID());
   const connected = controller.state === 'connected' && Boolean(controller.credential);
   const liveFocus = useLiveFocus(connected);
   const plan = controller.nodeState?.state.servicePlan || null;
@@ -22,9 +25,10 @@ export function LocalRecoveryView({
   const actorId = controller.credential
     ? `local-device:${controller.credential.binding.deviceId}`
     : 'local-device:unpaired';
-  const liveSessionId =
-    controller.nodeState?.state.activeLiveSessionId ||
-    (plan ? `service-plan:${plan.id}` : 'local-recovery');
+  const effectiveMode = mode === 'service' && plan ? 'service' : 'free';
+  const liveSessionId = effectiveMode === 'service' && plan
+    ? controller.nodeState?.state.activeLiveSessionId || `service-plan:${plan.id}`
+    : `local-free:${controller.credential?.binding.liveSystemId || 'unpaired'}:${freeSessionId}`;
 
   return (
     <div className={[
@@ -100,7 +104,42 @@ export function LocalRecoveryView({
               </article>
             </section>
 
-            {plan ? (
+            <section className="local-recovery-mode-card">
+              <div>
+                <span className="eyebrow">{t('localRecovery.operationMode')}</span>
+                <strong>
+                  {effectiveMode === 'service'
+                    ? t('liveWorkspace.serviceMode')
+                    : t('liveWorkspace.freeMode')}
+                </strong>
+                <p>
+                  {effectiveMode === 'service'
+                    ? t('localRecovery.preparedModeDescription')
+                    : t('localRecovery.freeModeDescription')}
+                </p>
+              </div>
+              <div className="live-session-mode" role="group" aria-label={t('liveWorkspace.modeLabel')}>
+                <button
+                  type="button"
+                  className={effectiveMode === 'service' ? 'active' : ''}
+                  disabled={!plan}
+                  onClick={() => setMode('service')}
+                >
+                  <small>{t('liveWorkspace.prepared')}</small>
+                  <strong>{t('liveWorkspace.serviceMode')}</strong>
+                </button>
+                <button
+                  type="button"
+                  className={effectiveMode === 'free' ? 'active' : ''}
+                  onClick={() => setMode('free')}
+                >
+                  <small>{t('liveWorkspace.noPlan')}</small>
+                  <strong>{t('liveWorkspace.freeMode')}</strong>
+                </button>
+              </div>
+            </section>
+
+            {effectiveMode === 'service' && plan ? (
               <OfflineRunOfShow
                 controller={controller}
                 plan={plan}
@@ -115,11 +154,12 @@ export function LocalRecoveryView({
               </section>
             )}
 
-            <LiveCueCoordinatorProvider>
+            <LiveCueCoordinatorProvider key={liveSessionId}>
               <LiveControlPanel
                 controller={controller}
                 actorId={actorId}
                 liveSessionId={liveSessionId}
+                servicePlanEnabled={effectiveMode === 'service'}
               />
               <VisualControlPanel
                 controller={controller}
