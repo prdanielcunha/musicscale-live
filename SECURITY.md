@@ -1,6 +1,6 @@
 # Security Policy
 
-MusicScale Live is under active development and currently shares parts of the MillionsNest/MusicScale identity and data boundary.
+MillionsNest Live is under active development and currently shares parts of the MillionsNest/MusicScale identity and data boundary.
 
 ## Reporting a vulnerability
 
