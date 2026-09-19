@@ -11,6 +11,7 @@ import type {
   PairingRequest,
   PairingScope,
   ProviderLink,
+  ProviderRouteGroup,
   SafetyLevel,
   Scene,
   SceneExecutionResult,
@@ -38,6 +39,7 @@ import {
   requestPeerNodePairing,
   removePeerNode,
   revokeNodePairing,
+  setNodeProviderRoute,
   submitNodeLiveRequest,
   updateNodeLiveRequestStatus,
   type LiveNodeApiError,
@@ -255,6 +257,21 @@ export function useLiveNode() {
     }
   }, [credential, refreshState]);
 
+  const setProviderRoute = useCallback(async (
+    group: ProviderRouteGroup,
+    providerId: string | null
+  ) => {
+    if (!credential) throw new Error('node_not_paired');
+    const response = await setNodeProviderRoute(
+      credential.baseUrl,
+      credential.token,
+      group,
+      providerId
+    );
+    const refreshed = await refreshState();
+    return { ...response, state: refreshed };
+  }, [credential, refreshState]);
+
   const submitRequest = useCallback(async (input: {
     liveSessionId: string;
     actorId: string;
@@ -460,6 +477,7 @@ export function useLiveNode() {
     beginPeerPairing,
     finishPeerPairing,
     forgetPeerNode,
+    setProviderRoute,
     executeCommand,
     executeScene,
     fetchOutputSnapshot,
