@@ -72,11 +72,23 @@ export interface PairingCompleteResponse {
   binding: PairingBinding;
 }
 
+export type LiveSessionMode = 'service' | 'free';
+
+export interface ActiveLiveSession {
+  id: string;
+  mode: LiveSessionMode;
+  label?: string;
+  servicePlanId?: string;
+  activatedAt: string;
+  activatedBy: string;
+}
+
 export interface LiveNodeRuntimeState {
   revision: number;
   nodeId: string;
   updatedAt: string;
   activeLiveSessionId: string | null;
+  activeSession: ActiveLiveSession | null;
   activeServiceItemId: string | null;
   providerObservedState: Record<string, Record<string, unknown>>;
   servicePlan: ServicePlan | null;
