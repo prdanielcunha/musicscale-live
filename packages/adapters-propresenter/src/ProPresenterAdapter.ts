@@ -5,7 +5,7 @@ import type {
   ProviderAdapter,
   ProviderDescriptor,
   ProviderState
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 import type { ProPresenterApi } from './ProPresenterHttpClient';
 
 const PROPRESENTER_CAPABILITIES: Capability[] = [
