@@ -10,6 +10,7 @@ import { loadNextScale, loadSharedContext, type SharedContext, type SharedScale 
 import { ScalePreflight } from './ScalePreflight';
 import { SystemTopologyPanel } from './SystemTopologyPanel';
 import { SignalTopologyStudio } from './SignalTopologyStudio';
+import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { PeerNodeStudio } from './PeerNodeStudio';
 import { VisualControlPanel } from './VisualControlPanel';
 import { LiveCueCoordinatorProvider } from './LiveCueCoordinator';
@@ -253,6 +254,10 @@ export function App() {
 
         {surface === 'studio' && liveNode.state === 'connected' && (
           <SignalTopologyStudio controller={liveNode} />
+        )}
+
+        {surface === 'studio' && liveNode.state === 'connected' && (
+          <DiagnosticsPanel controller={liveNode} />
         )}
 
         {surface === 'studio' && liveNode.state === 'connected' && (

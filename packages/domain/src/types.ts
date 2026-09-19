@@ -5,6 +5,8 @@ export const CAPABILITIES = [
   'presentation.take',
   'presentation.clear',
   'presentation.screen.mode',
+  'presentation.background.read',
+  'presentation.background.set',
   'bible.search',
   'bible.present',
   'songs.search',

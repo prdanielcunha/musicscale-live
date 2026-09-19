@@ -42,6 +42,45 @@ interface PreparedProgramCue {
   previewDataUrl?: string;
 }
 
+interface BackgroundOption {
+  id: string;
+  type?: string;
+  name: string;
+  thumbnail?: string;
+  tags?: string[];
+}
+
+function backgroundThumbnailUrl(value: string | undefined): string | undefined {
+  if (!value?.trim()) return undefined;
+  const normalized = value.trim();
+  if (normalized.startsWith('data:image/')) return normalized;
+  const mime = normalized.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
+  return `data:${mime};base64,${normalized}`;
+}
+
+function getBackgroundOptions(results: CommandResult[]): BackgroundOption[] {
+  for (const result of results) {
+    const raw = result.observedState?.backgrounds;
+    if (!Array.isArray(raw)) continue;
+    return raw
+      .filter(value => value && typeof value === 'object')
+      .map(value => {
+        const item = value as Record<string, unknown>;
+        return {
+          id: String(item.id || ''),
+          type: item.type ? String(item.type) : undefined,
+          name: String(item.name || item.id || ''),
+          thumbnail: backgroundThumbnailUrl(
+            typeof item.thumbnail === 'string' ? item.thumbnail : undefined
+          ),
+          tags: Array.isArray(item.tags) ? item.tags.map(String) : undefined
+        };
+      })
+      .filter(item => item.id && item.name);
+  }
+  return [];
+}
+
 function getSongResults(results: CommandResult[]): SearchSongResult[] {
   const raw = results
     .flatMap(result => {
@@ -169,6 +208,10 @@ export function LiveControlPanel({
   const [toolMode, setToolMode] = useState<ToolMode>('song');
   const [preparedCue, setPreparedCue] = useState<PreparedProgramCue | null>(null);
   const [previewPresentation, setPreviewPresentation] = useState<Record<string, unknown> | null>(null);
+  const [selectedSlideIndex, setSelectedSlideIndex] = useState<number | null>(null);
+  const [backgroundPickerOpen, setBackgroundPickerOpen] = useState(false);
+  const [backgrounds, setBackgrounds] = useState<BackgroundOption[]>([]);
+  const [selectedBackground, setSelectedBackground] = useState<BackgroundOption | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [clearArmed, setClearArmed] = useState(false);
@@ -225,6 +268,8 @@ export function LiveControlPanel({
 
   const can = (capability: Capability) => capabilitySet.has(capability);
   const canPreviewSnapshot = capabilitySet.has('preview.snapshot');
+  const canBackgroundRead = capabilitySet.has('presentation.background.read');
+  const canBackgroundSet = capabilitySet.has('presentation.background.set');
   const presentationProviders = providers.filter(provider =>
     (provider.health === 'online' || provider.health === 'degraded') &&
     provider.capabilities.some(capability =>
@@ -250,6 +295,9 @@ export function LiveControlPanel({
 
   useEffect(() => {
     setPreparedCue(null);
+    setSelectedSlideIndex(null);
+    setBackgroundPickerOpen(false);
+    setSelectedBackground(null);
     setMessage(null);
     setClearArmed(false);
   }, [liveSessionId]);
@@ -329,9 +377,49 @@ export function LiveControlPanel({
     }
   }
 
-  async function setScreenMode(mode: 'normal' | 'wallpaper' | 'blank' | 'black') {
+  async function applyScreenMode(mode: 'normal' | 'wallpaper' | 'blank' | 'black') {
     if (!can('presentation.screen.mode')) return;
     await run(`screen-mode:${mode}`, 'presentation.screen.mode', { mode });
+  }
+
+  async function openBackgroundPicker() {
+    setBackgroundPickerOpen(true);
+    if (!canBackgroundRead || busy !== null) return;
+
+    const results = await run('background-library', 'presentation.background.read', {});
+    const options = getBackgroundOptions(results);
+    setBackgrounds(options);
+
+    const currentId = results
+      .map(result => result.observedState?.currentBackground)
+      .find(value => value && typeof value === 'object') as Record<string, unknown> | undefined;
+    const active = options.find(option => option.id === String(currentId?.id || ''));
+    if (active) setSelectedBackground(active);
+  }
+
+  async function handleScreenMode(mode: 'normal' | 'wallpaper' | 'blank' | 'black') {
+    if (mode === 'wallpaper') {
+      await openBackgroundPicker();
+      return;
+    }
+    await applyScreenMode(mode);
+  }
+
+  async function takeSelectedBackground() {
+    if (!selectedBackground || !canBackgroundSet || busy !== null) return;
+    const results = await run(
+      'background-take',
+      'presentation.background.set',
+      { id: selectedBackground.id, type: selectedBackground.type }
+    );
+    if (!results.some(result => result.accepted)) return;
+    await applyScreenMode('wallpaper');
+    setBackgroundPickerOpen(false);
+  }
+
+  async function showCurrentBackgroundFallback() {
+    await applyScreenMode('wallpaper');
+    setBackgroundPickerOpen(false);
   }
 
   async function refreshPresentationPreview() {
@@ -406,6 +494,20 @@ export function LiveControlPanel({
     const results = await run(action, 'presentation.navigation', { action });
     const presentation = getPresentationFromResults(results);
     if (presentation) setPreviewPresentation(presentation);
+  }
+
+  async function goToSlide(index: number) {
+    if (!can('presentation.navigation') || !Number.isInteger(index) || index < 0) return;
+    const results = await run(
+      `goto:${index}`,
+      'presentation.navigation',
+      { action: 'goto', index }
+    );
+    const presentation = getPresentationFromResults(results);
+    if (presentation) setPreviewPresentation(presentation);
+    if (results.some(result => result.accepted)) {
+      setSelectedSlideIndex(null);
+    }
   }
 
   function prepareServiceItem() {
@@ -589,6 +691,10 @@ export function LiveControlPanel({
       await takePreparedCue();
       return;
     }
+    if (selectedSlideIndex !== null) {
+      await goToSlide(selectedSlideIndex);
+      return;
+    }
     await navigatePresentation('next');
   }
 
@@ -634,21 +740,24 @@ export function LiveControlPanel({
   const slides = Array.isArray(effectivePresentation?.slides)
     ? effectivePresentation.slides as Array<Record<string, unknown>>
     : [];
-  const currentSlide = Number.isFinite(slideNumber) && slideNumber > 0
-    ? slides[slideNumber - 1]
+  const currentSlideIndex = Number.isFinite(slideNumber) && slideNumber > 0
+    ? slideNumber - 1
+    : -1;
+  const currentSlide = currentSlideIndex >= 0 ? slides[currentSlideIndex] : undefined;
+  const nextSlide = currentSlideIndex >= 0 ? slides[currentSlideIndex + 1] : undefined;
+  const manuallySelectedSlide = selectedSlideIndex !== null
+    ? slides[selectedSlideIndex]
     : undefined;
-  const nextSlide = Number.isFinite(slideNumber) && slideNumber > 0
-    ? slides[slideNumber]
-    : undefined;
+  const previewSlide = manuallySelectedSlide || nextSlide;
   const currentSlideText = currentSlide?.text ? String(currentSlide.text) : '';
-  const nextSlideText = nextSlide?.text ? String(nextSlide.text) : '';
+  const previewSlideText = previewSlide?.text ? String(previewSlide.text) : '';
   const currentSlidePreview = slidePreviewUrl(currentSlide);
-  const nextSlidePreview = slidePreviewUrl(nextSlide);
+  const previewSlidePreview = slidePreviewUrl(previewSlide);
   const currentSlideDescription = currentSlide?.slide_description
     ? String(currentSlide.slide_description)
     : '';
-  const nextSlideDescription = nextSlide?.slide_description
-    ? String(nextSlide.slide_description)
+  const previewSlideDescription = previewSlide?.slide_description
+    ? String(previewSlide.slide_description)
     : '';
   const currentScreenMode = String(
     providers.find(provider => provider.observed?.screenMode)?.observed?.screenMode || 'normal'
@@ -660,7 +769,7 @@ export function LiveControlPanel({
       void navigatePresentation('previous');
     },
     onNext: () => {
-      void takePrimaryNext();
+      void navigatePresentation('next');
     }
   });
 
@@ -693,6 +802,22 @@ export function LiveControlPanel({
       )}
 
       <div className="live-control-grid">
+        <div className="live-tool-dock" role="tablist" aria-label={t('liveControls.tools')}>
+          {(['song','bible','media','stage'] as ToolMode[]).map(mode => (
+            <button
+              key={mode}
+              role="tab"
+              aria-selected={toolMode === mode}
+              className={toolMode === mode ? 'active' : ''}
+              disabled={!toolAvailability[mode]}
+              onClick={() => setToolMode(mode)}
+            >
+              <span>{t(`liveControls.toolTabs.${mode}`)}</span>
+              <small>{toolAvailability[mode] ? t('liveControls.available') : t('liveControls.unavailable')}</small>
+            </button>
+          ))}
+        </div>
+
         <article className="operator-card program-card">
           <div className="operator-card-head">
             <div>
@@ -746,12 +871,12 @@ export function LiveControlPanel({
             <section className="deck-monitor deck-monitor-next">
               <header>
                 <div>
-                  <strong>{t('liveControls.nextSlide')}</strong>
+                  <strong>{selectedSlideIndex !== null ? t('liveControls.selectedSlide') : t('liveControls.nextSlide')}</strong>
                   <small>{t('liveControls.previewLabel')}</small>
                 </div>
                 <div className="deck-next-meta">
                   {preparedCue?.subtitle && <em>{preparedCue.subtitle}</em>}
-                  {!preparedCue?.subtitle && nextSlideDescription && <em>{nextSlideDescription}</em>}
+                  {!preparedCue?.subtitle && previewSlideDescription && <em>{previewSlideDescription}</em>}
                   {cueCoordinator?.armedVisualCue && (
                     <em className="linked-cue-badge">
                       {t('liveControls.visualLinked')} · {cueCoordinator.armedVisualCue.clipName}
@@ -783,12 +908,12 @@ export function LiveControlPanel({
                     <strong>{preparedCue.title}</strong>
                     <span>{preparedCue.subtitle || t('liveControls.prepared')}</span>
                   </div>
-                ) : nextSlidePreview ? (
-                  <img src={nextSlidePreview} alt={t('liveControls.nextSlide')} />
+                ) : previewSlidePreview ? (
+                  <img src={previewSlidePreview} alt={t('liveControls.nextSlide')} />
                 ) : (
                   <div className="deck-text-fallback">
                     <small>{t('liveControls.upNext')}</small>
-                    <p>{nextSlideText || t('liveControls.endOfPresentation')}</p>
+                    <p>{previewSlideText || t('liveControls.endOfPresentation')}</p>
                   </div>
                 )}
               </div>
@@ -796,13 +921,13 @@ export function LiveControlPanel({
                 <span>
                   {preparedCue
                     ? t('liveControls.preparedReady')
-                    : nextSlideText || t('liveControls.endOfPresentation')}
+                    : previewSlideText || t('liveControls.endOfPresentation')}
                 </span>
                 <button
                   className="deck-take"
                   disabled={
                     busy !== null ||
-                    (!preparedCue && (!nextSlide || !can('presentation.navigation')))
+                    (!preparedCue && (!previewSlide || !can('presentation.navigation')))
                   }
                   onClick={() => void takePrimaryNext()}
                 >
@@ -818,13 +943,77 @@ export function LiveControlPanel({
             </section>
           </div>
 
+          {slides.length > 0 && (
+            <div className="slide-rail-shell">
+              <div className="slide-rail-head">
+                <strong>{t('liveControls.slides')}</strong>
+                <span>{t('liveControls.slideHint')}</span>
+              </div>
+              <div className="slide-rail" role="listbox" aria-label={t('liveControls.slides')}>
+                {slides.map((slide, index) => {
+                  const thumbnail = slidePreviewUrl(slide);
+                  const text = slide?.text ? String(slide.text) : '';
+                  const isCurrent = index === currentSlideIndex;
+                  const isSelected = index === selectedSlideIndex;
+                  return (
+                    <button
+                      key={`slide-${index}`}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      className={[
+                        'slide-rail-card',
+                        isCurrent ? 'current' : '',
+                        isSelected ? 'selected' : ''
+                      ].filter(Boolean).join(' ')}
+                      onClick={() => setSelectedSlideIndex(isCurrent ? null : index)}
+                      onDoubleClick={() => void goToSlide(index)}
+                      disabled={busy !== null}
+                    >
+                      <span className="slide-rail-number">{index + 1}</span>
+                      <div className="slide-rail-preview">
+                        {thumbnail ? (
+                          <img src={thumbnail} alt="" />
+                        ) : (
+                          <p>{text || '—'}</p>
+                        )}
+                      </div>
+                      <small>
+                        {isCurrent
+                          ? t('liveControls.onAir')
+                          : isSelected
+                            ? t('liveControls.ready')
+                            : text || t('liveControls.slide', { number: index + 1 })}
+                      </small>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="live-command-strip">
-            <button
-              disabled={!can('presentation.navigation') || busy !== null}
-              onClick={() => void navigatePresentation('previous')}
-            >
-              <kbd>←</kbd> {t('liveControls.previous')}
-            </button>
+            <div className="transport-primary" aria-label={t('liveControls.navigation')}>
+              <button
+                disabled={!can('presentation.navigation') || busy !== null || currentSlideIndex <= 0}
+                onClick={() => void goToSlide(0)}
+              >
+                <kbd>↤</kbd> {t('liveControls.start')}
+              </button>
+              <button
+                disabled={!can('presentation.navigation') || busy !== null}
+                onClick={() => void navigatePresentation('previous')}
+              >
+                <kbd>←</kbd> {t('liveControls.previous')}
+              </button>
+              <button
+                className="next-primary"
+                disabled={!can('presentation.navigation') || busy !== null || !nextSlide}
+                onClick={() => void navigatePresentation('next')}
+              >
+                {t('liveControls.next')} <kbd>→</kbd>
+              </button>
+            </div>
             {can('presentation.screen.mode') && (
               <div className="screen-mode-controls">
                 {(['normal','wallpaper','blank','black'] as const).map(mode => (
@@ -832,7 +1021,7 @@ export function LiveControlPanel({
                     key={mode}
                     className={currentScreenMode === mode ? 'active' : ''}
                     disabled={busy !== null}
-                    onClick={() => void setScreenMode(mode)}
+                    onClick={() => void handleScreenMode(mode)}
                   >
                     {t(`liveControls.screenModes.${mode}`)}
                   </button>
@@ -847,6 +1036,85 @@ export function LiveControlPanel({
               {clearArmed ? t('liveControls.confirmClear') : t('liveControls.clear')}
             </button>
           </div>
+
+          {backgroundPickerOpen && (
+            <section className="background-picker" aria-label={t('liveControls.backgroundTitle')}>
+              <header>
+                <div>
+                  <strong>{t('liveControls.backgroundTitle')}</strong>
+                  <span>{t('liveControls.backgroundHint')}</span>
+                </div>
+                <button type="button" onClick={() => setBackgroundPickerOpen(false)}>
+                  {t('liveControls.close')}
+                </button>
+              </header>
+
+              {canBackgroundRead ? (
+                <div className="background-picker-body">
+                  <div className="background-library">
+                    {backgrounds.map(background => (
+                      <button
+                        type="button"
+                        key={background.id}
+                        className={selectedBackground?.id === background.id ? 'selected' : ''}
+                        onClick={() => setSelectedBackground(background)}
+                        disabled={busy !== null}
+                      >
+                        <div>
+                          {background.thumbnail ? (
+                            <img src={background.thumbnail} alt="" />
+                          ) : (
+                            <span>{background.name.slice(0, 1).toUpperCase()}</span>
+                          )}
+                        </div>
+                        <strong>{background.name}</strong>
+                      </button>
+                    ))}
+                    {!backgrounds.length && busy !== 'background-library' && (
+                      <p className="background-empty">{t('liveControls.noBackgrounds')}</p>
+                    )}
+                  </div>
+
+                  <aside className="background-take-card">
+                    {selectedBackground ? (
+                      <>
+                        <div className="background-selected-preview">
+                          {selectedBackground.thumbnail ? (
+                            <img src={selectedBackground.thumbnail} alt="" />
+                          ) : (
+                            <span>{selectedBackground.name}</span>
+                          )}
+                        </div>
+                        <strong>{selectedBackground.name}</strong>
+                        <small>{t('liveControls.backgroundSelectionSafe')}</small>
+                        <button
+                          className="background-take-button"
+                          type="button"
+                          disabled={!canBackgroundSet || busy !== null}
+                          onClick={() => void takeSelectedBackground()}
+                        >
+                          {t('liveControls.putBackgroundOnAir')}
+                        </button>
+                      </>
+                    ) : (
+                      <p>{t('liveControls.chooseBackground')}</p>
+                    )}
+                  </aside>
+                </div>
+              ) : (
+                <div className="background-safe-fallback">
+                  <p>{t('liveControls.backgroundFallback')}</p>
+                  <button
+                    type="button"
+                    disabled={busy !== null}
+                    onClick={() => void showCurrentBackgroundFallback()}
+                  >
+                    {t('liveControls.showCurrentBackground')}
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
         </article>
 
 
@@ -885,22 +1153,6 @@ export function LiveControlPanel({
             </button>
           </div>
         )}
-
-        <div className="live-tool-dock" role="tablist" aria-label={t('liveControls.tools')}>
-          {(['song','bible','media','stage'] as ToolMode[]).map(mode => (
-            <button
-              key={mode}
-              role="tab"
-              aria-selected={toolMode === mode}
-              className={toolMode === mode ? 'active' : ''}
-              disabled={!toolAvailability[mode]}
-              onClick={() => setToolMode(mode)}
-            >
-              <span>{t(`liveControls.toolTabs.${mode}`)}</span>
-              <small>{toolAvailability[mode] ? t('liveControls.available') : t('liveControls.unavailable')}</small>
-            </button>
-          ))}
-        </div>
 
         {toolMode === 'song' && toolAvailability.song && (
         <article className="operator-card live-tool-card">

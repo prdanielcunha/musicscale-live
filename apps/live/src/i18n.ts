@@ -260,6 +260,74 @@ const resources = {
       pinHint: 'O PIN expira rapidamente e confirma fisicamente que você está conectando o computador certo.',
       confirm: 'Confirmar computador'
     },
+    diagnostics: {
+      kicker: 'DIAGNÓSTICO',
+      title: 'Saiba exatamente o que está pronto',
+      description: 'Verificação operacional do ambiente ao vivo, com linguagem simples para encontrar rapidamente o ponto que precisa de atenção.',
+      overall: 'Estado do ambiente',
+      states: { ok: 'Tudo pronto', warning: 'Pronto com atenção', critical: 'Ação necessária' },
+      cards: {
+        node: 'Controle local',
+        providers: 'Providers',
+        computers: 'Computadores',
+        routing: 'Roteamento',
+        signal: 'Mapa de sinal',
+        offline: 'Continuidade offline'
+      },
+      values: {
+        localReady: 'Pronto',
+        thisComputer: 'Este computador',
+        providersOnline: 'providers disponíveis',
+        computersOffline_one: '{{count}} computador offline',
+        computersOffline_other: '{{count}} computadores offline',
+        computersReady: 'rede do ambiente pronta',
+        clear: 'Claro',
+        routesNeedChoice: 'funções aguardando escolha',
+        routesReady: 'sem ambiguidade',
+        signalPointsLinks: 'pontos · conexões',
+        prepared: 'Preparado',
+        freeOnly: 'Modo Livre',
+        offlinePlanReady: 'roteiro armazenado localmente',
+        freeModeStillWorks: 'operação livre continua localmente'
+      },
+      readyTitle: 'Ambiente operacionalmente pronto',
+      readyHint: 'O caminho local está claro e não encontrei alertas de operação.',
+      attentionTitle: 'Há pontos que merecem atenção',
+      attentionHint: 'O culto pode continuar em muitos cenários, mas estes itens devem ser revisados antes da operação principal.',
+      refresh: 'Verificar novamente',
+      refreshing: 'Verificando…',
+      copyReport: 'Copiar relatório seguro',
+      copied: 'Relatório copiado',
+      issues: {
+        noProviders: {
+          title: 'Nenhum provider disponível',
+          description: 'Conecte Holyrics, ProPresenter, Resolume ou outro provider compatível antes de operar o Live.'
+        },
+        providersOffline: {
+          title_one: '{{count}} provider indisponível',
+          title_other: '{{count}} providers indisponíveis',
+          description: 'Os demais podem continuar funcionando. Verifique apenas o computador ou app que perdeu comunicação.'
+        },
+        peersOffline: {
+          title_one: '{{count}} computador sem comunicação',
+          title_other: '{{count}} computadores sem comunicação',
+          description: 'A falha fica isolada ao Node afetado. Os outros computadores continuam operando pela LAN.'
+        },
+        ambiguousRoutes: {
+          title_one: '{{count}} função precisa de uma escolha',
+          title_other: '{{count}} funções precisam de uma escolha',
+          description: 'Há mais de um provider capaz de executar a mesma função. Defina o principal no roteamento do Studio.'
+        },
+        signalDisconnected: {
+          title: 'Mapa de sinal sem conexões',
+          description: 'Existem fontes ou saídas cadastradas, mas ainda não foi descrito como o sinal percorre a instalação.'
+        },
+        noOfflinePlan: {
+          title: 'Nenhum culto preparado em cache',
+          description: 'O Modo Livre continua funcionando localmente. Para ter também o roteiro offline, faça o preflight do culto.'
+        }
+      }
+    },
     signalTopology: {
       kicker: 'SIGNAL MAP',
       title: 'Fontes, entradas e saídas',
@@ -423,6 +491,23 @@ const resources = {
       screenModes: { normal: 'Normal', wallpaper: 'Fundo', blank: 'Vazio', black: 'Preto' },
       previous: 'Anterior',
       next: 'Próximo',
+      start: 'Início',
+      navigation: 'Navegação da apresentação',
+      slides: 'Slides',
+      slide: 'Slide {{number}}',
+      slideHint: '1 clique prepara · 2 cliques colocam no ar',
+      selectedSlide: 'Selecionado',
+      onAir: 'NO AR',
+      ready: 'PRONTO',
+      backgroundTitle: 'Escolher fundo',
+      backgroundHint: 'Escolha com segurança. Nada muda no telão até você confirmar.',
+      backgroundSelectionSafe: 'Este fundo está apenas na prévia. O telão ainda não foi alterado.',
+      chooseBackground: 'Selecione um fundo para visualizar antes de colocar no ar.',
+      putBackgroundOnAir: 'Colocar fundo no ar',
+      noBackgrounds: 'Nenhum fundo disponível com as permissões atuais.',
+      backgroundFallback: 'Este provider não permite pré-visualizar a biblioteca de fundos. Você ainda pode mostrar o fundo que já está selecionado nele, mas somente após esta confirmação.',
+      showCurrentBackground: 'Mostrar fundo atual',
+      close: 'Fechar',
       clear: 'Limpar',
       confirmClear: 'Confirmar limpar',
       song: 'Música',
@@ -650,6 +735,74 @@ const resources = {
       pinHint: 'The PIN expires quickly and physically confirms that you are connecting the intended computer.',
       confirm: 'Confirm computer'
     },
+    diagnostics: {
+      kicker: 'DIAGNOSTICS',
+      title: 'Know exactly what is ready',
+      description: 'Operational health for the live environment in plain language, so the team can find the point that needs attention quickly.',
+      overall: 'Environment status',
+      states: { ok: 'Everything ready', warning: 'Ready with attention', critical: 'Action required' },
+      cards: {
+        node: 'Local control',
+        providers: 'Providers',
+        computers: 'Computers',
+        routing: 'Routing',
+        signal: 'Signal map',
+        offline: 'Offline continuity'
+      },
+      values: {
+        localReady: 'Ready',
+        thisComputer: 'This computer',
+        providersOnline: 'providers available',
+        computersOffline_one: '{{count}} computer offline',
+        computersOffline_other: '{{count}} computers offline',
+        computersReady: 'environment network ready',
+        clear: 'Clear',
+        routesNeedChoice: 'functions waiting for a choice',
+        routesReady: 'no ambiguity',
+        signalPointsLinks: 'points · connections',
+        prepared: 'Prepared',
+        freeOnly: 'Free Mode',
+        offlinePlanReady: 'service plan cached locally',
+        freeModeStillWorks: 'free operation remains local'
+      },
+      readyTitle: 'Environment is operationally ready',
+      readyHint: 'The local path is clear and no operational alerts were found.',
+      attentionTitle: 'A few points need attention',
+      attentionHint: 'The service can keep running in many scenarios, but review these items before the main operation.',
+      refresh: 'Check again',
+      refreshing: 'Checking…',
+      copyReport: 'Copy safe report',
+      copied: 'Report copied',
+      issues: {
+        noProviders: {
+          title: 'No provider available',
+          description: 'Connect Holyrics, ProPresenter, Resolume or another compatible provider before operating Live.'
+        },
+        providersOffline: {
+          title_one: '{{count}} provider unavailable',
+          title_other: '{{count}} providers unavailable',
+          description: 'The others can keep working. Check only the computer or app that lost communication.'
+        },
+        peersOffline: {
+          title_one: '{{count}} computer without communication',
+          title_other: '{{count}} computers without communication',
+          description: 'The failure remains isolated to the affected Node. Other computers keep operating over the LAN.'
+        },
+        ambiguousRoutes: {
+          title_one: '{{count}} function needs a choice',
+          title_other: '{{count}} functions need a choice',
+          description: 'More than one provider can execute the same function. Choose the primary one in Studio routing.'
+        },
+        signalDisconnected: {
+          title: 'Signal map has no connections',
+          description: 'Sources or outputs exist, but the installation signal path has not been described yet.'
+        },
+        noOfflinePlan: {
+          title: 'No prepared service cached',
+          description: 'Free Mode still works locally. To keep the service plan offline too, run service preflight.'
+        }
+      }
+    },
     signalTopology: {
       kicker: 'SIGNAL MAP',
       title: 'Sources, inputs and outputs',
@@ -813,6 +966,23 @@ const resources = {
       screenModes: { normal: 'Normal', wallpaper: 'Wallpaper', blank: 'Blank', black: 'Black' },
       previous: 'Previous',
       next: 'Next',
+      start: 'Start',
+      navigation: 'Presentation navigation',
+      slides: 'Slides',
+      slide: 'Slide {{number}}',
+      slideHint: 'Single click prepares · double click puts on air',
+      selectedSlide: 'Selected',
+      onAir: 'ON AIR',
+      ready: 'READY',
+      backgroundTitle: 'Choose background',
+      backgroundHint: 'Choose safely. Nothing changes on air until you confirm.',
+      backgroundSelectionSafe: 'This background is only in Preview. Program has not changed.',
+      chooseBackground: 'Select a background to preview before putting it on air.',
+      putBackgroundOnAir: 'Put background on air',
+      noBackgrounds: 'No backgrounds are available with the current permissions.',
+      backgroundFallback: 'This provider cannot preview its background library. You can still show the background already selected there, but only after this confirmation.',
+      showCurrentBackground: 'Show current background',
+      close: 'Close',
       clear: 'Clear',
       confirmClear: 'Confirm clear',
       song: 'Song',
@@ -1040,6 +1210,74 @@ const resources = {
       pinHint: 'El PIN expira rápidamente y confirma físicamente que está conectando la computadora correcta.',
       confirm: 'Confirmar computadora'
     },
+    diagnostics: {
+      kicker: 'DIAGNÓSTICO',
+      title: 'Sepa exactamente qué está listo',
+      description: 'Verificación operativa del entorno en vivo con lenguaje simple para encontrar rápido el punto que necesita atención.',
+      overall: 'Estado del entorno',
+      states: { ok: 'Todo listo', warning: 'Listo con atención', critical: 'Acción necesaria' },
+      cards: {
+        node: 'Control local',
+        providers: 'Providers',
+        computers: 'Computadoras',
+        routing: 'Ruteo',
+        signal: 'Mapa de señal',
+        offline: 'Continuidad offline'
+      },
+      values: {
+        localReady: 'Listo',
+        thisComputer: 'Esta computadora',
+        providersOnline: 'providers disponibles',
+        computersOffline_one: '{{count}} computadora offline',
+        computersOffline_other: '{{count}} computadoras offline',
+        computersReady: 'red del entorno lista',
+        clear: 'Claro',
+        routesNeedChoice: 'funciones esperando elección',
+        routesReady: 'sin ambigüedad',
+        signalPointsLinks: 'puntos · conexiones',
+        prepared: 'Preparado',
+        freeOnly: 'Modo Libre',
+        offlinePlanReady: 'plan almacenado localmente',
+        freeModeStillWorks: 'la operación libre continúa localmente'
+      },
+      readyTitle: 'Entorno operativamente listo',
+      readyHint: 'El camino local está claro y no encontré alertas operativas.',
+      attentionTitle: 'Hay puntos que requieren atención',
+      attentionHint: 'El culto puede continuar en muchos escenarios, pero revise estos elementos antes de la operación principal.',
+      refresh: 'Verificar nuevamente',
+      refreshing: 'Verificando…',
+      copyReport: 'Copiar informe seguro',
+      copied: 'Informe copiado',
+      issues: {
+        noProviders: {
+          title: 'No hay provider disponible',
+          description: 'Conecte Holyrics, ProPresenter, Resolume u otro provider compatible antes de operar Live.'
+        },
+        providersOffline: {
+          title_one: '{{count}} provider no disponible',
+          title_other: '{{count}} providers no disponibles',
+          description: 'Los demás pueden seguir funcionando. Revise solo la computadora o app que perdió comunicación.'
+        },
+        peersOffline: {
+          title_one: '{{count}} computadora sin comunicación',
+          title_other: '{{count}} computadoras sin comunicación',
+          description: 'La falla queda aislada al Node afectado. Las otras computadoras continúan operando por LAN.'
+        },
+        ambiguousRoutes: {
+          title_one: '{{count}} función necesita una elección',
+          title_other: '{{count}} funciones necesitan una elección',
+          description: 'Hay más de un provider capaz de ejecutar la misma función. Defina el principal en el ruteo de Studio.'
+        },
+        signalDisconnected: {
+          title: 'Mapa de señal sin conexiones',
+          description: 'Hay fuentes o salidas registradas, pero todavía no se describió cómo recorre la señal la instalación.'
+        },
+        noOfflinePlan: {
+          title: 'No hay culto preparado en caché',
+          description: 'Modo Libre sigue funcionando localmente. Para mantener también el plan offline, ejecute el preflight del culto.'
+        }
+      }
+    },
     signalTopology: {
       kicker: 'SIGNAL MAP',
       title: 'Fuentes, entradas y salidas',
@@ -1203,6 +1441,23 @@ const resources = {
       screenModes: { normal: 'Normal', wallpaper: 'Fondo', blank: 'Vacío', black: 'Negro' },
       previous: 'Anterior',
       next: 'Siguiente',
+      start: 'Inicio',
+      navigation: 'Navegación de la presentación',
+      slides: 'Slides',
+      slide: 'Slide {{number}}',
+      slideHint: '1 clic prepara · 2 clics ponen al aire',
+      selectedSlide: 'Seleccionado',
+      onAir: 'AL AIRE',
+      ready: 'LISTO',
+      backgroundTitle: 'Elegir fondo',
+      backgroundHint: 'Elija con seguridad. Nada cambia al aire hasta confirmar.',
+      backgroundSelectionSafe: 'Este fondo está solo en Preview. Program todavía no cambió.',
+      chooseBackground: 'Seleccione un fondo para verlo antes de ponerlo al aire.',
+      putBackgroundOnAir: 'Poner fondo al aire',
+      noBackgrounds: 'No hay fondos disponibles con los permisos actuales.',
+      backgroundFallback: 'Este provider no permite previsualizar su biblioteca de fondos. Aún puede mostrar el fondo ya seleccionado allí, pero solo después de esta confirmación.',
+      showCurrentBackground: 'Mostrar fondo actual',
+      close: 'Cerrar',
       clear: 'Limpiar',
       confirmClear: 'Confirmar limpiar',
       song: 'Canción',
