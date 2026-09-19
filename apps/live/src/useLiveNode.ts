@@ -15,7 +15,8 @@ import type {
   SafetyLevel,
   Scene,
   SceneExecutionResult,
-  ServicePlan
+  ServicePlan,
+  SignalTopology
 } from '@millionsnest/live-domain';
 import {
   clearLiveNodeCredential,
@@ -39,6 +40,7 @@ import {
   requestPeerNodePairing,
   removePeerNode,
   revokeNodePairing,
+  saveNodeSignalTopology,
   setNodeProviderRoute,
   submitNodeLiveRequest,
   updateNodeLiveRequestStatus,
@@ -272,6 +274,19 @@ export function useLiveNode() {
     return { ...response, state: refreshed };
   }, [credential, refreshState]);
 
+  const saveSignalTopology = useCallback(async (
+    topology: Pick<SignalTopology, 'endpoints' | 'links'>
+  ) => {
+    if (!credential) throw new Error('node_not_paired');
+    const response = await saveNodeSignalTopology(
+      credential.baseUrl,
+      credential.token,
+      topology
+    );
+    await refreshState();
+    return response.topology;
+  }, [credential, refreshState]);
+
   const submitRequest = useCallback(async (input: {
     liveSessionId: string;
     actorId: string;
@@ -478,6 +493,7 @@ export function useLiveNode() {
     finishPeerPairing,
     forgetPeerNode,
     setProviderRoute,
+    saveSignalTopology,
     executeCommand,
     executeScene,
     fetchOutputSnapshot,

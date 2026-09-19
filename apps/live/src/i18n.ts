@@ -30,7 +30,15 @@ const nodeErrors = {
     peer_pairing_pin_invalid: 'Digite o código de 6 dígitos mostrado no outro computador.',
     peer_pairing_failed: 'Não foi possível conectar os dois computadores.',
     peer_remove_failed: 'Não foi possível remover este computador.',
-    peer_request_failed: 'O outro Live Node recusou ou não concluiu a solicitação.'
+    peer_request_failed: 'O outro Live Node recusou ou não concluiu a solicitação.',
+    invalid_signal_topology: 'O mapa de sinal contém dados inválidos.',
+    invalid_signal_endpoint: 'Revise o ponto de sinal antes de salvar.',
+    invalid_signal_link: 'Revise a conexão de sinal antes de salvar.',
+    signal_topology_limit_exceeded: 'Este mapa de sinal passou do limite seguro de pontos ou conexões.',
+    duplicate_signal_endpoint: 'Há dois pontos de sinal com o mesmo identificador.',
+    duplicate_signal_link: 'Há duas conexões de sinal com o mesmo identificador.',
+    signal_link_endpoint_missing: 'Uma conexão aponta para um ponto que não existe mais.',
+    invalid_signal_direction: 'O fluxo deve seguir de uma fonte/entrada para uma entrada/saída.'
   },
   en: {
     node_unreachable: 'This Live Node could not be reached on the local network.',
@@ -59,7 +67,15 @@ const nodeErrors = {
     peer_pairing_pin_invalid: 'Enter the 6-digit code shown on the other computer.',
     peer_pairing_failed: 'The two computers could not be connected.',
     peer_remove_failed: 'This computer could not be removed.',
-    peer_request_failed: 'The other Live Node rejected or did not complete the request.'
+    peer_request_failed: 'The other Live Node rejected or did not complete the request.',
+    invalid_signal_topology: 'The signal map contains invalid data.',
+    invalid_signal_endpoint: 'Review the signal endpoint before saving.',
+    invalid_signal_link: 'Review the signal connection before saving.',
+    signal_topology_limit_exceeded: 'This signal map exceeded the safe endpoint or connection limit.',
+    duplicate_signal_endpoint: 'Two signal endpoints share the same identifier.',
+    duplicate_signal_link: 'Two signal connections share the same identifier.',
+    signal_link_endpoint_missing: 'A connection points to an endpoint that no longer exists.',
+    invalid_signal_direction: 'Signal must flow from a source/input toward an input/output.'
   },
   es: {
     node_unreachable: 'No pude alcanzar este Live Node en la red local.',
@@ -88,7 +104,15 @@ const nodeErrors = {
     peer_pairing_pin_invalid: 'Ingrese el código de 6 dígitos mostrado en la otra computadora.',
     peer_pairing_failed: 'No fue posible conectar las dos computadoras.',
     peer_remove_failed: 'No fue posible quitar esta computadora.',
-    peer_request_failed: 'El otro Live Node rechazó o no completó la solicitud.'
+    peer_request_failed: 'El otro Live Node rechazó o no completó la solicitud.',
+    invalid_signal_topology: 'El mapa de señal contiene datos inválidos.',
+    invalid_signal_endpoint: 'Revise el punto de señal antes de guardar.',
+    invalid_signal_link: 'Revise la conexión de señal antes de guardar.',
+    signal_topology_limit_exceeded: 'Este mapa de señal superó el límite seguro de puntos o conexiones.',
+    duplicate_signal_endpoint: 'Dos puntos de señal comparten el mismo identificador.',
+    duplicate_signal_link: 'Dos conexiones de señal comparten el mismo identificador.',
+    signal_link_endpoint_missing: 'Una conexión apunta a un punto que ya no existe.',
+    invalid_signal_direction: 'La señal debe ir de una fuente/entrada hacia una entrada/salida.'
   }
 };
 
@@ -235,6 +259,59 @@ const resources = {
       enterRemotePin: 'Digite o código mostrado no outro computador',
       pinHint: 'O PIN expira rapidamente e confirma fisicamente que você está conectando o computador certo.',
       confirm: 'Confirmar computador'
+    },
+    signalTopology: {
+      kicker: 'SIGNAL MAP',
+      title: 'Fontes, entradas e saídas',
+      description: 'Descreva o caminho real do vídeo e do sinal entre computadores, apps e telas sem acoplar o Live a uma tecnologia específica.',
+      endpoints: 'Pontos',
+      links: 'Conexões',
+      controlVsMediaTitle: 'Controle e vídeo continuam separados',
+      controlVsMedia: 'O MillionsNest Live coordena apps e estados pela LAN. NDI, captura de tela, HDMI, Spout, Syphon e outros caminhos continuam no media plane da instalação.',
+      thisComputer: 'Este computador',
+      roles: { source: 'Fontes', input: 'Entradas / processamento', output: 'Saídas' },
+      kinds: {
+        provider: 'Saída de app/provider', ndi: 'NDI', 'screen-capture': 'Captura de tela',
+        'window-capture': 'Captura de janela', 'hdmi-capture': 'Captura HDMI', spout: 'Spout',
+        syphon: 'Syphon', camera: 'Câmera', browser: 'Browser source', display: 'Display',
+        projector: 'Projetor', led: 'Painel LED', stream: 'Transmissão', recording: 'Gravação', other: 'Outro'
+      },
+      transports: {
+        internal: 'Interno', ndi: 'NDI', 'screen-capture': 'Captura de tela',
+        'window-capture': 'Captura de janela', hdmi: 'HDMI', spout: 'Spout',
+        syphon: 'Syphon', network: 'Rede / IP', other: 'Outro'
+      },
+      remove: 'Remover',
+      empty: { source: 'Nenhuma fonte mapeada.', input: 'Nenhuma entrada/processador mapeado.', output: 'Nenhuma saída mapeada.' },
+      addEndpoint: 'Adicionar ponto de sinal',
+      addEndpointHint: 'Mapeie o que existe fisicamente. Isso não faz o Node transportar frames de vídeo.',
+      endpointName: 'Ex.: Holyrics Program, Arena Input, LED Principal',
+      anyComputer: 'Computador não definido',
+      noProvider: 'Sem provider vinculado',
+      saving: 'Salvando…',
+      add: 'Adicionar',
+      routesTitle: 'Caminhos do sinal',
+      routesHint: 'Conecte os pontos na mesma ordem em que o sinal percorre a instalação.',
+      from: 'Origem…',
+      to: 'Destino…',
+      connect: 'Conectar',
+      noRoutes: 'Nenhum caminho mapeado ainda.',
+      smartSuggestion: 'SUGESTÃO INTELIGENTE',
+      applySuggestion: 'Usar este mapa',
+      templates: {
+        holyricsArena: {
+          title: 'Holyrics → Arena → LED',
+          description: 'Detectei Holyrics e Resolume em computadores conectados. Posso montar um mapa inicial usando NDI entre eles. Revise o transporte depois caso sua instalação use captura de tela ou HDMI.'
+        },
+        holyricsDisplay: {
+          title: 'Holyrics → telão principal',
+          description: 'Detectei um ambiente simples com Holyrics. Este mapa mantém o Holyrics como motor de apresentação e o MillionsNest Live como camada de controle.'
+        },
+        propresenterDisplay: {
+          title: 'ProPresenter → telão principal',
+          description: 'Detectei ProPresenter sem um processador visual intermediário. Este mapa representa a saída direta para o telão e pode ser refinado depois.'
+        }
+      }
     },
     topology: {
       kicker: 'SISTEMA AO VIVO',
@@ -573,6 +650,59 @@ const resources = {
       pinHint: 'The PIN expires quickly and physically confirms that you are connecting the intended computer.',
       confirm: 'Confirm computer'
     },
+    signalTopology: {
+      kicker: 'SIGNAL MAP',
+      title: 'Sources, inputs and outputs',
+      description: 'Describe the real video and signal path between computers, apps and displays without coupling Live to one technology.',
+      endpoints: 'Endpoints',
+      links: 'Connections',
+      controlVsMediaTitle: 'Control and video stay separate',
+      controlVsMedia: 'MillionsNest Live coordinates apps and state over the LAN. NDI, screen capture, HDMI, Spout, Syphon and other paths remain in the installation media plane.',
+      thisComputer: 'This computer',
+      roles: { source: 'Sources', input: 'Inputs / processing', output: 'Outputs' },
+      kinds: {
+        provider: 'App/provider output', ndi: 'NDI', 'screen-capture': 'Screen capture',
+        'window-capture': 'Window capture', 'hdmi-capture': 'HDMI capture', spout: 'Spout',
+        syphon: 'Syphon', camera: 'Camera', browser: 'Browser source', display: 'Display',
+        projector: 'Projector', led: 'LED wall', stream: 'Stream', recording: 'Recording', other: 'Other'
+      },
+      transports: {
+        internal: 'Internal', ndi: 'NDI', 'screen-capture': 'Screen capture',
+        'window-capture': 'Window capture', hdmi: 'HDMI', spout: 'Spout',
+        syphon: 'Syphon', network: 'Network / IP', other: 'Other'
+      },
+      remove: 'Remove',
+      empty: { source: 'No sources mapped.', input: 'No inputs/processors mapped.', output: 'No outputs mapped.' },
+      addEndpoint: 'Add signal endpoint',
+      addEndpointHint: 'Map what physically exists. This does not make the Node transport video frames.',
+      endpointName: 'e.g. Presentation Program, Visual Input, Main LED',
+      anyComputer: 'Computer not defined',
+      noProvider: 'No linked provider',
+      saving: 'Saving…',
+      add: 'Add',
+      routesTitle: 'Signal paths',
+      routesHint: 'Connect endpoints in the same order the signal travels through the installation.',
+      from: 'Source…',
+      to: 'Destination…',
+      connect: 'Connect',
+      noRoutes: 'No signal path mapped yet.',
+      smartSuggestion: 'SMART SUGGESTION',
+      applySuggestion: 'Use this map',
+      templates: {
+        holyricsArena: {
+          title: 'Holyrics → Arena → LED',
+          description: 'Holyrics and Resolume were detected on connected computers. I can create a starter map using NDI between them. Review the transport later if your installation uses screen capture or HDMI.'
+        },
+        holyricsDisplay: {
+          title: 'Holyrics → main display',
+          description: 'A simple Holyrics environment was detected. This map keeps Holyrics as the presentation engine and MillionsNest Live as the control layer.'
+        },
+        propresenterDisplay: {
+          title: 'ProPresenter → main display',
+          description: 'ProPresenter was detected without an intermediate visual processor. This map represents direct display output and can be refined later.'
+        }
+      }
+    },
     topology: {
       kicker: 'LIVE SYSTEM',
       title: 'Everything connected, nothing guessed',
@@ -909,6 +1039,59 @@ const resources = {
       enterRemotePin: 'Ingrese el código mostrado en la otra computadora',
       pinHint: 'El PIN expira rápidamente y confirma físicamente que está conectando la computadora correcta.',
       confirm: 'Confirmar computadora'
+    },
+    signalTopology: {
+      kicker: 'SIGNAL MAP',
+      title: 'Fuentes, entradas y salidas',
+      description: 'Describa el camino real del video y la señal entre computadoras, apps y pantallas sin acoplar Live a una tecnología específica.',
+      endpoints: 'Puntos',
+      links: 'Conexiones',
+      controlVsMediaTitle: 'Control y video siguen separados',
+      controlVsMedia: 'MillionsNest Live coordina apps y estados por LAN. NDI, captura de pantalla, HDMI, Spout, Syphon y otros caminos permanecen en el media plane de la instalación.',
+      thisComputer: 'Esta computadora',
+      roles: { source: 'Fuentes', input: 'Entradas / procesamiento', output: 'Salidas' },
+      kinds: {
+        provider: 'Salida de app/provider', ndi: 'NDI', 'screen-capture': 'Captura de pantalla',
+        'window-capture': 'Captura de ventana', 'hdmi-capture': 'Captura HDMI', spout: 'Spout',
+        syphon: 'Syphon', camera: 'Cámara', browser: 'Browser source', display: 'Display',
+        projector: 'Proyector', led: 'Panel LED', stream: 'Transmisión', recording: 'Grabación', other: 'Otro'
+      },
+      transports: {
+        internal: 'Interno', ndi: 'NDI', 'screen-capture': 'Captura de pantalla',
+        'window-capture': 'Captura de ventana', hdmi: 'HDMI', spout: 'Spout',
+        syphon: 'Syphon', network: 'Red / IP', other: 'Otro'
+      },
+      remove: 'Quitar',
+      empty: { source: 'No hay fuentes mapeadas.', input: 'No hay entradas/procesadores mapeados.', output: 'No hay salidas mapeadas.' },
+      addEndpoint: 'Agregar punto de señal',
+      addEndpointHint: 'Mapee lo que existe físicamente. Esto no hace que el Node transporte frames de video.',
+      endpointName: 'Ej.: Presentación Program, Arena Input, LED Principal',
+      anyComputer: 'Computadora no definida',
+      noProvider: 'Sin provider vinculado',
+      saving: 'Guardando…',
+      add: 'Agregar',
+      routesTitle: 'Caminos de señal',
+      routesHint: 'Conecte los puntos en el mismo orden en que la señal recorre la instalación.',
+      from: 'Origen…',
+      to: 'Destino…',
+      connect: 'Conectar',
+      noRoutes: 'Todavía no hay caminos de señal mapeados.',
+      smartSuggestion: 'SUGERENCIA INTELIGENTE',
+      applySuggestion: 'Usar este mapa',
+      templates: {
+        holyricsArena: {
+          title: 'Holyrics → Arena → LED',
+          description: 'Se detectaron Holyrics y Resolume en computadoras conectadas. Puedo crear un mapa inicial usando NDI entre ellos. Revise el transporte después si su instalación usa captura de pantalla o HDMI.'
+        },
+        holyricsDisplay: {
+          title: 'Holyrics → pantalla principal',
+          description: 'Se detectó un entorno simple con Holyrics. Este mapa mantiene Holyrics como motor de presentación y MillionsNest Live como capa de control.'
+        },
+        propresenterDisplay: {
+          title: 'ProPresenter → pantalla principal',
+          description: 'Se detectó ProPresenter sin un procesador visual intermedio. Este mapa representa una salida directa a pantalla y puede refinarse después.'
+        }
+      }
     },
     topology: {
       kicker: 'SISTEMA EN VIVO',

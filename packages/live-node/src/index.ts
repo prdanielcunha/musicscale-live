@@ -28,6 +28,7 @@ import { ProviderConfigStore } from './providerConfigStore';
 import { ProviderRoutingStore } from './providerRoutingStore';
 import { PeerNodeStore } from './peerNodeStore';
 import { PeerFederation } from './peerFederation';
+import { SignalTopologyStore } from './signalTopologyStore';
 import { buildLiveNodeDiagnostics } from './diagnostics';
 import { isTrustedLiveWebOrigin } from './networkPolicy';
 import { SceneExecutor } from './sceneExecutor';
@@ -93,6 +94,7 @@ const runtimeState = new RuntimeStateStore(join(STATE_DIR, 'runtime.json'), node
 const providerConfigStore = new ProviderConfigStore(join(STATE_DIR, 'providers.json'));
 const providerRoutingStore = new ProviderRoutingStore(join(STATE_DIR, 'routing.json'));
 const peerNodeStore = new PeerNodeStore(join(STATE_DIR, 'peers.json'));
+const signalTopologyStore = new SignalTopologyStore(join(STATE_DIR, 'signal-topology.json'));
 const peerFederation = new PeerFederation({
   localNodeId: nodeId,
   localDisplayName: hostname(),
@@ -1290,6 +1292,7 @@ async function start(): Promise<void> {
   await providerConfigStore.load();
   await providerRoutingStore.load();
   await peerNodeStore.load();
+  await signalTopologyStore.load();
   await registerHolyricsProvider();
   await registerResolumeProvider();
   await registerProPresenterProvider();
@@ -1744,6 +1747,22 @@ async function start(): Promise<void> {
       });
     }
 
+    if (req.method === 'GET' && url.pathname === '/signal-topology') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      return send(res, 200, {
+        nodeId,
+        topology: await signalTopologyStore.load()
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/signal-topology') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      const topology = await signalTopologyStore.replace(await readJson(req));
+      return send(res, 200, { nodeId, topology });
+    }
+
     if (req.method === 'GET' && url.pathname === '/state') {
       const session = await authorize(req);
       if (!session) return send(res, 401, { error: 'unauthorized' });
@@ -1767,7 +1786,8 @@ async function start(): Promise<void> {
         state,
         providers,
         routing: await providerRoutingStore.all(),
-        peers: peerFederation.publicStatus()
+        peers: peerFederation.publicStatus(),
+        signalTopology: await signalTopologyStore.load()
       });
     }
 
@@ -2029,7 +2049,7 @@ async function start(): Promise<void> {
       message === 'stale_service_plan' ? 409 :
       message.includes('expired') ? 410 :
       message.includes('attempts_exceeded') ? 429 :
-      message.includes('pin_invalid') || message.startsWith('invalid_') ? 400 :
+      message.includes('pin_invalid') || message.startsWith('invalid_') || message.startsWith('signal_') || message.startsWith('duplicate_signal_') ? 400 :
       500;
     return send(res, status, { error: message });
   }
