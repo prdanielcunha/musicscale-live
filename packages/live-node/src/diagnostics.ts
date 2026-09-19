@@ -1,7 +1,7 @@
 import type {
   CapabilitySnapshot,
   LiveNodeRuntimeState
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 
 export interface LiveNodeDiagnosticInput {
   nodeId: string;
