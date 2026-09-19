@@ -9,6 +9,7 @@ import { liveFeatureFlags } from './featureFlags';
 import { loadNextScale, loadSharedContext, type SharedContext, type SharedScale } from './musicScaleBridge';
 import { ScalePreflight } from './ScalePreflight';
 import { SystemTopologyPanel } from './SystemTopologyPanel';
+import { SignalTopologyStudio } from './SignalTopologyStudio';
 import { PeerNodeStudio } from './PeerNodeStudio';
 import { VisualControlPanel } from './VisualControlPanel';
 import { LiveCueCoordinatorProvider } from './LiveCueCoordinator';
@@ -248,6 +249,10 @@ export function App() {
 
         {surface === 'studio' && liveNode.state === 'connected' && (
           <SystemTopologyPanel controller={liveNode} />
+        )}
+
+        {surface === 'studio' && liveNode.state === 'connected' && (
+          <SignalTopologyStudio controller={liveNode} />
         )}
 
         {surface === 'studio' && liveNode.state === 'connected' && scale && (
