@@ -66,49 +66,58 @@ jobs:
           set -euo pipefail
           firebase deploy             --project "$PROJECT_ID"             --only "hosting:$HOSTING_TARGET"             --non-interactive
 
-      - name: Wait for official domain readiness
+      - name: Smoke Firebase fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          BODY="$(mktemp)"
+          STATUS="$(curl --silent --show-error --location \
+            --retry 8 --retry-delay 2 --retry-all-errors \
+            --connect-timeout 10 --max-time 60 \
+            --output "$BODY" --write-out '%{http_code}' \
+            "$FIREBASE_URL/")"
+          test "$STATUS" = '200'
+          grep -Eiq '<!doctype html|<html' "$BODY"
+          grep -Fq 'MillionsNest Live' "$BODY"
+
+      - name: Inspect official domain routing
+        id: domain
         shell: bash
         run: |
           set -euo pipefail
           ACCESS_TOKEN="$(gcloud auth print-access-token)"
           URL="https://firebasehosting.googleapis.com/v1beta1/projects/$PROJECT_ID/sites/mn-live-555464791734/customDomains/live.millionsnest.com"
 
-          for attempt in $(seq 1 36); do
-            curl --fail --silent --show-error               -H "Authorization: Bearer $ACCESS_TOKEN"               "$URL" >/tmp/live-domain.json
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            "$URL" >/tmp/live-domain.json
 
-            OWNERSHIP="$(jq -r '.ownershipState // ""' /tmp/live-domain.json)"
-            HOST="$(jq -r '.hostState // ""' /tmp/live-domain.json)"
-            CERT="$(jq -r '.cert.state // ""' /tmp/live-domain.json)"
+          OWNERSHIP="$(jq -r '.ownershipState // ""' /tmp/live-domain.json)"
+          HOST="$(jq -r '.hostState // ""' /tmp/live-domain.json)"
+          CERT="$(jq -r '.cert.state // ""' /tmp/live-domain.json)"
 
-            echo "attempt=$attempt ownership=$OWNERSHIP host=$HOST cert=$CERT"
+          echo "ownership=$OWNERSHIP host=$HOST cert=$CERT"
 
-            if [ "$OWNERSHIP" = "OWNERSHIP_ACTIVE" ] &&                [ "$HOST" = "HOST_ACTIVE" ] &&                [ "$CERT" = "CERT_ACTIVE" ]; then
-              exit 0
-            fi
+          test "$OWNERSHIP" = "OWNERSHIP_ACTIVE"
+          test "$HOST" = "HOST_ACTIVE"
 
-            sleep 10
-          done
+          echo "cert_state=$CERT" >> "$GITHUB_OUTPUT"
 
-          echo "Official domain did not become ready within the deployment window." >&2
-          jq '{ownershipState,hostState,reconciling,certState:(.cert.state // null),issues}' /tmp/live-domain.json >&2
-          exit 1
-
-      - name: Smoke Firebase fallback
-        shell: bash
-        run: |
-          set -euo pipefail
-          BODY="$(mktemp)"
-          STATUS="$(curl --silent --show-error --location             --retry 8 --retry-delay 2 --retry-all-errors             --connect-timeout 10 --max-time 60             --output "$BODY" --write-out '%{http_code}'             "$FIREBASE_URL/")"
-          test "$STATUS" = '200'
-          grep -Eiq '<!doctype html|<html' "$BODY"
-          grep -Fq 'MillionsNest Live' "$BODY"
+          if [ "$CERT" != "CERT_ACTIVE" ]; then
+            echo "::notice title=Custom domain certificate::$OFFICIAL_URL is routed to the correct Firebase site; certificate state is $CERT and will continue propagating asynchronously."
+          fi
 
       - name: Smoke official custom domain
+        if: steps.domain.outputs.cert_state == 'CERT_ACTIVE'
         shell: bash
         run: |
           set -euo pipefail
           BODY="$(mktemp)"
-          STATUS="$(curl --silent --show-error --location             --retry 12 --retry-delay 5 --retry-all-errors             --connect-timeout 10 --max-time 120             --output "$BODY" --write-out '%{http_code}'             "$OFFICIAL_URL/")"
+          STATUS="$(curl --silent --show-error --location \
+            --retry 12 --retry-delay 5 --retry-all-errors \
+            --connect-timeout 10 --max-time 120 \
+            --output "$BODY" --write-out '%{http_code}' \
+            "$OFFICIAL_URL/")"
           test "$STATUS" = '200'
           grep -Eiq '<!doctype html|<html' "$BODY"
           grep -Fq 'MillionsNest Live' "$BODY"
@@ -123,5 +132,9 @@ jobs:
             echo "**Firebase:** $FIREBASE_URL"
             echo "**Official:** $OFFICIAL_URL"
             echo
-            echo 'Quality gate, isolated Firebase Hosting deploy and HTTPS smoke checks completed.'
+            if [ "${{ steps.domain.outputs.cert_state }}" = "CERT_ACTIVE" ]; then
+              echo 'Quality gate, isolated Firebase Hosting deploy and official-domain HTTPS smoke completed.'
+            else
+              echo "Quality gate and isolated Firebase Hosting deploy completed. Official-domain routing is active; TLS certificate is still propagating (${{ steps.domain.outputs.cert_state }})."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
