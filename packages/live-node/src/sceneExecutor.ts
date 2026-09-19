@@ -3,7 +3,7 @@ import type {
   LiveCommand,
   SceneExecutionRequest,
   SceneExecutionResult
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 
 export interface SceneExecutorOptions {
   executeCommand: (command: LiveCommand) => Promise<CommandResult[]>;
