@@ -22,6 +22,7 @@ import { SceneStudio } from './SceneStudio';
 import { LiveSceneBar } from './LiveSceneBar';
 
 type Surface = 'live' | 'studio' | 'pastor' | 'conductor';
+type LiveSessionMode = 'service' | 'free';
 
 export function App() {
   const { t, i18n } = useTranslation();
@@ -32,6 +33,8 @@ export function App() {
   const [localNodeOrigin, setLocalNodeOrigin] = useState(false);
   const [localNodeDetectionDone, setLocalNodeDetectionDone] = useState(false);
   const [surface, setSurface] = useState<Surface>('studio');
+  const [liveMode, setLiveMode] = useState<LiveSessionMode>('service');
+  const [freeSessionId] = useState(() => crypto.randomUUID());
   const liveNode = useLiveNode();
   const liveFocus = useLiveFocus(surface === 'live');
 
@@ -54,6 +57,7 @@ export function App() {
       setUser(currentUser);
       setContext(null);
       setScale(null);
+      setLiveMode('service');
 
       if (!currentUser) {
         setLoading(false);
@@ -106,6 +110,12 @@ export function App() {
 
   const nodeConnected = liveNode.state === 'connected';
   const providersConnected = (liveNode.health?.providersOnline ?? 0) > 0;
+  const effectiveLiveMode: LiveSessionMode =
+    liveMode === 'service' && scale ? 'service' : 'free';
+  const liveSessionId =
+    effectiveLiveMode === 'service' && scale
+      ? `music-scale:${scale.id}`
+      : `ad-hoc:${context?.organizationId || user.uid}:${freeSessionId}`;
 
   return (
     <div className={[
@@ -141,13 +151,37 @@ export function App() {
               <span className="live-session-dot" />
               <div>
                 <small>{t('liveWorkspace.onAir')}</small>
-                <strong>{scale?.eventName || t('liveWorkspace.adHoc')}</strong>
+                <strong>
+                  {effectiveLiveMode === 'service'
+                    ? scale?.eventName || t('liveWorkspace.preparedService')
+                    : t('liveWorkspace.adHoc')}
+                </strong>
                 <span>
                   {context?.organizationName || t('organization')}
-                  {scale?.time ? ` · ${scale.time}` : ''}
-                  {scale?.locationName ? ` · ${scale.locationName}` : ''}
+                  {effectiveLiveMode === 'service' && scale?.time ? ` · ${scale.time}` : ''}
+                  {effectiveLiveMode === 'service' && scale?.locationName ? ` · ${scale.locationName}` : ''}
+                  {effectiveLiveMode === 'free' ? ` · ${t('liveWorkspace.freeModeHint')}` : ''}
                 </span>
               </div>
+            </div>
+            <div className="live-session-mode" role="group" aria-label={t('liveWorkspace.modeLabel')}>
+              <button
+                type="button"
+                className={effectiveLiveMode === 'service' ? 'active' : ''}
+                disabled={!scale}
+                onClick={() => setLiveMode('service')}
+              >
+                <small>{t('liveWorkspace.prepared')}</small>
+                <strong>{t('liveWorkspace.serviceMode')}</strong>
+              </button>
+              <button
+                type="button"
+                className={effectiveLiveMode === 'free' ? 'active' : ''}
+                onClick={() => setLiveMode('free')}
+              >
+                <small>{t('liveWorkspace.noPlan')}</small>
+                <strong>{t('liveWorkspace.freeMode')}</strong>
+              </button>
             </div>
             <div className="live-session-health">
               <span className={nodeConnected ? 'ok' : 'warn'}>
@@ -229,22 +263,23 @@ export function App() {
             <LiveControlPanel
               controller={liveNode}
               actorId={user.uid}
-              liveSessionId={scale ? `music-scale:${scale.id}` : `ad-hoc:${context?.organizationId || user.uid}`}
+              liveSessionId={liveSessionId}
+              servicePlanEnabled={effectiveLiveMode === 'service'}
             />
             <LiveSceneBar
               controller={liveNode}
               actorId={user.uid}
-              liveSessionId={scale ? `music-scale:${scale.id}` : `ad-hoc:${context?.organizationId || user.uid}`}
+              liveSessionId={liveSessionId}
             />
             <VisualControlPanel
               controller={liveNode}
               actorId={user.uid}
-              liveSessionId={scale ? `music-scale:${scale.id}` : `ad-hoc:${context?.organizationId || user.uid}`}
+              liveSessionId={liveSessionId}
             />
             <LiveRequestInbox
               controller={liveNode}
               actorId={user.uid}
-              liveSessionId={scale ? `music-scale:${scale.id}` : `ad-hoc:${context?.organizationId || user.uid}`}
+              liveSessionId={liveSessionId}
             />
           </LiveCueCoordinatorProvider>
         )}
@@ -253,7 +288,7 @@ export function App() {
           <RequestSurface
             controller={liveNode}
             actorId={user.uid}
-            liveSessionId={scale ? `music-scale:${scale.id}` : `ad-hoc:${context?.organizationId || user.uid}`}
+            liveSessionId={liveSessionId}
             mode={surface}
           />
         )}
