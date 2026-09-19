@@ -36,6 +36,7 @@ interface PeerDiscovery {
   protocolVersion: number;
   version: string;
   nodeId: string;
+  hostname?: string;
   port: number;
 }
 
@@ -46,6 +47,7 @@ interface PendingPeerPairing {
   deviceId: string;
   deviceName: string;
   expiresAt: string;
+  remoteDisplayName: string;
 }
 
 export interface PeerFederationStatus {
@@ -236,7 +238,8 @@ export class PeerFederation {
       challengeId: challenge.challengeId,
       deviceId,
       deviceName,
-      expiresAt: challenge.expiresAt
+      expiresAt: challenge.expiresAt,
+      remoteDisplayName: discovery.hostname || discovery.nodeId
     });
 
     return {
@@ -287,26 +290,13 @@ export class PeerFederation {
       nodeId: remoteNodeId,
       baseUrl: pending.baseUrl,
       token: completed.token,
-      displayName: completed.binding.deviceName
-        ? remoteNodeId
-        : remoteNodeId,
+      displayName: pending.remoteDisplayName,
       organizationId: completed.binding.organizationId,
       venueId: completed.binding.venueId,
       liveSystemId: completed.binding.liveSystemId,
       pairedAt: completed.binding.pairedAt,
       lastSeenAt: new Date().toISOString()
     };
-
-    const discovery = await fetchJson<PeerDiscovery>(
-      this.fetchImpl,
-      `${pending.baseUrl}/.well-known/musicscale-live-node`,
-      {},
-      2500
-    ).catch(() => null);
-
-    if (discovery?.nodeId === remoteNodeId) {
-      peer.displayName = discovery.nodeId;
-    }
 
     await this.options.store.upsert(peer);
     this.pendingPairings.delete(remoteNodeId);
