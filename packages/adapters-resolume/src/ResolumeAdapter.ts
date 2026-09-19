@@ -7,7 +7,7 @@ import type {
   ProviderAssetRequest,
   ProviderDescriptor,
   ProviderState
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 import type { ResolumeRestApi } from './ResolumeRestClient';
 
 const RESOLUME_CAPABILITIES: Capability[] = [
