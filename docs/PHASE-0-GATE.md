@@ -1,7 +1,7 @@
 # Phase 0 — Gate
 
 ## Implemented
-- Dedicated canonical repository: `prdanielcunha/millionsnest-live`.
+- Dedicated canonical repository: `prdanielcunha/musicscale-live`.
 - Independent workspace and deploy boundary from MusicScale.
 - Neutral domain contracts and ProviderAdapter boundary.
 - Capability naming; LiveCommand / CommandResult; idempotency; Event Bus.
