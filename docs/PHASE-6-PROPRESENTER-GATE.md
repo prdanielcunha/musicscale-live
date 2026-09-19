@@ -3,9 +3,9 @@
 ## Implemented in code
 
 ### Provider boundary
-- Dedicated `@musicscale-live/adapter-propresenter`.
+- Dedicated `@millionsnest/live-adapter-propresenter`.
 - Local/private-network HTTP endpoint only.
-- The setup requires the exact Network API address shown by ProPresenter; MusicScale Live does not guess a port.
+- The setup requires the exact Network API address shown by ProPresenter; MillionsNest Live does not guess a port.
 - ProPresenter endpoint names and response shapes remain inside the adapter.
 - The Live UI continues to speak only in neutral capabilities.
 
