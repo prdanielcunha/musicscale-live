@@ -1,4 +1,4 @@
-import type { LiveNodeTransportKind, PairingBinding } from '@musicscale-live/domain';
+import type { LiveNodeTransportKind, PairingBinding } from '@millionsnest/live-domain';
 
 export interface StoredLiveNodeCredential {
   baseUrl: string;
