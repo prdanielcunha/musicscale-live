@@ -108,6 +108,7 @@ export class RuntimeStateStore {
       nodeId: this.nodeId,
       updatedAt: new Date(0).toISOString(),
       activeLiveSessionId: null,
+      activeSession: null,
       activeServiceItemId: null,
       providerObservedState: {},
       servicePlan: null,

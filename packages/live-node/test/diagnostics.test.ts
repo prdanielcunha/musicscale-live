@@ -20,6 +20,13 @@ describe('Live Node diagnostics', () => {
         nodeId: 'node_1',
         updatedAt: '2026-09-18T18:00:00.000Z',
         activeLiveSessionId: 'service-plan:plan_1',
+        activeSession: {
+          id: 'service-plan:plan_1',
+          mode: 'service',
+          servicePlanId: 'plan_1',
+          activatedAt: '2026-09-18T18:00:00.000Z',
+          activatedBy: 'operator_1'
+        },
         activeServiceItemId: 'song:s1',
         providerObservedState: {},
         servicePlan: null,

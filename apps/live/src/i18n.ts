@@ -127,6 +127,13 @@ const resources = {
     liveWorkspace: {
       onAir: 'AO VIVO',
       adHoc: 'Sessão livre',
+      preparedService: 'Culto preparado',
+      modeLabel: 'Modo da sessão ao vivo',
+      prepared: 'COM ROTEIRO',
+      serviceMode: 'Culto preparado',
+      noPlan: 'SEM ROTEIRO',
+      freeMode: 'Modo livre',
+      freeModeHint: 'sem roteiro obrigatório',
       lanPath: 'Controle local pronto',
       fullscreen: 'Foco total',
       exitFullscreen: 'Sair do foco',
@@ -169,7 +176,13 @@ const resources = {
       plan: 'Roteiro local',
       cached: 'Em cache',
       noPlanTitle: 'Nenhum culto preparado neste Live Node',
-      noPlanDescription: 'Conecte pela interface principal, faça o preflight e sincronize a escala. Depois disso o roteiro fica disponível aqui mesmo se a internet cair.'
+      noPlanDescription: 'Conecte pela interface principal, faça o preflight e sincronize a escala. Depois disso o roteiro fica disponível aqui mesmo se a internet cair.',
+      operationMode: 'MODO DE OPERAÇÃO',
+      preparedModeDescription: 'Opera o roteiro que já foi preparado e armazenado neste Live Node.',
+      freeModeDescription: 'Use músicas, Bíblia, mídia, palco e visuais diretamente, sem depender de um culto escolhido.',
+      freeReadyTitle: 'Modo Livre pronto para operar',
+      freeReadyDescription: 'O roteiro continua guardado. No Modo Livre você pode chamar qualquer conteúdo disponível nos providers e voltar ao culto preparado quando quiser.',
+      freeNoPlanDescription: 'Não há roteiro em cache, mas o culto não fica travado: use as ferramentas locais para apresentar músicas, Bíblia, mídia e outros conteúdos disponíveis.'
     },
     offlineRun: {
       kicker: 'ROTEIRO LOCAL',
@@ -295,6 +308,7 @@ const resources = {
     liveControls: {
       kicker: 'OPERADOR AO VIVO',
       title: 'Controle do culto',
+      freeMode: 'MODO LIVRE · escolha qualquer conteúdo',
       program: 'Program',
       waiting: 'Aguardando',
       noPresentation: 'Nenhuma apresentação ativa',
@@ -356,7 +370,7 @@ const resources = {
       hideStage: 'Ocultar',
       capabilityDriven: 'Os controles aparecem somente quando o provider conectado declara suporte à ação.',
       routeRequiredTitle: 'Escolha quem controla a apresentação',
-      routeRequiredDescription: 'Há mais de um provider de apresentação disponível. Defina o principal em “Quem controla o quê” no computador do Live Node; o Live não vai adivinhar durante o culto.',
+      routeRequiredDescription: 'Há mais de um provider de apresentação disponível. Defina o principal no Studio em “Roteamento operacional”; o Live não vai adivinhar durante o culto.',
       presentationProviders: 'providers de apresentação',
       commandFailed: 'A ação não foi concluída: {{code}}',
       errors: {
@@ -453,7 +467,14 @@ const resources = {
     bible: 'Bible', media: 'Media', requests: 'Requests',
     liveWorkspace: {
       onAir: 'LIVE',
-      adHoc: 'Ad-hoc session',
+      adHoc: 'Free session',
+      preparedService: 'Prepared service',
+      modeLabel: 'Live session mode',
+      prepared: 'WITH RUN OF SHOW',
+      serviceMode: 'Prepared service',
+      noPlan: 'NO RUN OF SHOW',
+      freeMode: 'Free mode',
+      freeModeHint: 'no required run of show',
       lanPath: 'Local control ready',
       fullscreen: 'Focus mode',
       exitFullscreen: 'Exit focus',
@@ -492,7 +513,13 @@ const resources = {
       plan: 'Local run of show',
       cached: 'Cached',
       noPlanTitle: 'No service has been prepared on this Live Node',
-      noPlanDescription: 'Connect from the main interface, run preflight and sync the schedule. The run of show will then remain available here if the internet goes down.'
+      noPlanDescription: 'Connect from the main interface, run preflight and sync the schedule. The run of show will then remain available here if the internet goes down.',
+      operationMode: 'OPERATION MODE',
+      preparedModeDescription: 'Operate the run of show that was prepared and cached on this Live Node.',
+      freeModeDescription: 'Use songs, Bible, media, stage and visuals directly without depending on a selected service.',
+      freeReadyTitle: 'Free mode is ready',
+      freeReadyDescription: 'The run of show stays cached. In Free mode you can call any content available from the providers and return to the prepared service at any time.',
+      freeNoPlanDescription: 'There is no cached run of show, but operation is not blocked: use local tools to present songs, Bible, media and other available content.'
     },
     offlineRun: {
       kicker: 'LOCAL RUN OF SHOW',
@@ -618,6 +645,7 @@ const resources = {
     liveControls: {
       kicker: 'LIVE OPERATOR',
       title: 'Service control',
+      freeMode: 'FREE MODE · choose any content',
       program: 'Program',
       waiting: 'Waiting',
       noPresentation: 'No active presentation',
@@ -679,7 +707,7 @@ const resources = {
       hideStage: 'Hide',
       capabilityDriven: 'Controls appear only when the connected provider declares support for the action.',
       routeRequiredTitle: 'Choose which provider controls presentation',
-      routeRequiredDescription: 'More than one presentation provider is available. Choose the primary one under “Who controls what” on the Live Node computer; Live will not guess during a service.',
+      routeRequiredDescription: 'More than one presentation provider is available. Choose the primary one in Studio under “Operational routing”; Live will not guess during a service.',
       presentationProviders: 'presentation providers',
       commandFailed: 'The action could not be completed: {{code}}',
       errors: {
@@ -777,6 +805,13 @@ const resources = {
     liveWorkspace: {
       onAir: 'EN VIVO',
       adHoc: 'Sesión libre',
+      preparedService: 'Culto preparado',
+      modeLabel: 'Modo de la sesión en vivo',
+      prepared: 'CON GUION',
+      serviceMode: 'Culto preparado',
+      noPlan: 'SIN GUION',
+      freeMode: 'Modo libre',
+      freeModeHint: 'sin guion obligatorio',
       lanPath: 'Control local listo',
       fullscreen: 'Modo enfoque',
       exitFullscreen: 'Salir del enfoque',
@@ -815,7 +850,13 @@ const resources = {
       plan: 'Guion local',
       cached: 'En caché',
       noPlanTitle: 'No hay culto preparado en este Live Node',
-      noPlanDescription: 'Conéctese desde la interfaz principal, ejecute el preflight y sincronice la escala. Después el guion seguirá disponible aquí si cae internet.'
+      noPlanDescription: 'Conéctese desde la interfaz principal, ejecute el preflight y sincronice la escala. Después el guion seguirá disponible aquí si cae internet.',
+      operationMode: 'MODO DE OPERACIÓN',
+      preparedModeDescription: 'Opera el guion que fue preparado y almacenado en este Live Node.',
+      freeModeDescription: 'Use canciones, Biblia, medios, escenario y visuales directamente, sin depender de un culto seleccionado.',
+      freeReadyTitle: 'Modo Libre listo para operar',
+      freeReadyDescription: 'El guion sigue guardado. En Modo Libre puede usar cualquier contenido disponible en los providers y volver al culto preparado cuando quiera.',
+      freeNoPlanDescription: 'No hay un guion en caché, pero la operación no queda bloqueada: use las herramientas locales para presentar canciones, Biblia, medios y otros contenidos disponibles.'
     },
     offlineRun: {
       kicker: 'GUION LOCAL',
@@ -941,6 +982,7 @@ const resources = {
     liveControls: {
       kicker: 'OPERADOR EN VIVO',
       title: 'Control del culto',
+      freeMode: 'MODO LIBRE · elija cualquier contenido',
       program: 'Program',
       waiting: 'Esperando',
       noPresentation: 'No hay presentación activa',
@@ -1002,7 +1044,7 @@ const resources = {
       hideStage: 'Ocultar',
       capabilityDriven: 'Los controles aparecen solo cuando el provider conectado declara soporte para la acción.',
       routeRequiredTitle: 'Elija quién controla la presentación',
-      routeRequiredDescription: 'Hay más de un provider de presentación disponible. Defina el principal en “Quién controla qué” en el computador del Live Node; Live no adivinará durante el culto.',
+      routeRequiredDescription: 'Hay más de un provider de presentación disponible. Defina el principal en Studio, en “Ruteo operativo”; Live no adivinará durante el culto.',
       presentationProviders: 'providers de presentación',
       commandFailed: 'La acción no se pudo completar: {{code}}',
       errors: {

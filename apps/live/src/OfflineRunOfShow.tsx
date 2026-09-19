@@ -9,12 +9,14 @@ export function OfflineRunOfShow({
   controller,
   plan,
   providerLinks,
-  actorId
+  actorId,
+  liveSessionId
 }: {
   controller: Controller;
   plan: ServicePlan;
   providerLinks: ProviderLink[];
   actorId: string;
+  liveSessionId?: string;
 }) {
   const { t } = useTranslation();
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
@@ -34,7 +36,7 @@ export function OfflineRunOfShow({
         capability: 'songs.present',
         payload: { id: link.externalId },
         targetProviderIds: [link.providerInstanceId],
-        liveSessionId: controller.nodeState?.state.activeLiveSessionId || `service-plan:${plan.id}`,
+        liveSessionId: liveSessionId || `service-plan:${plan.id}`,
         serviceItemId: itemId,
         actorId
       });
