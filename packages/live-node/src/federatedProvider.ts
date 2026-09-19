@@ -9,7 +9,7 @@ import type {
   ProviderKind,
   ProviderProbeResult,
   ProviderState
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 import type { PeerNodeRecord } from './peerNodeStore';
 
 export interface PeerProviderSnapshot {
