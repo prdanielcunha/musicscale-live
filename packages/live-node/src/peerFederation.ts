@@ -332,6 +332,25 @@ export class PeerFederation {
   }
 
   async removePeer(nodeId: string): Promise<boolean> {
+    const peer = await this.options.store.get(nodeId);
+    if (!peer) return false;
+
+    // Best-effort remote revocation: removing a computer should invalidate the
+    // Node-to-Node token on the other side as well, while remaining removable
+    // locally if that computer is currently offline.
+    await fetchJson(
+      this.fetchImpl,
+      `${peer.baseUrl}/pairing/revoke`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${peer.token}` },
+        body: JSON.stringify({
+          deviceId: `live-node:${this.options.localNodeId}`
+        })
+      },
+      3000
+    ).catch(() => null);
+
     const removed = await this.options.store.remove(nodeId);
     this.pendingPairings.delete(nodeId);
     this.statuses.delete(nodeId);
