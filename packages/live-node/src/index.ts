@@ -1530,27 +1530,44 @@ async function start(): Promise<void> {
       return send(res, 200, { peers: peerFederation.publicStatus() });
     }
 
-    if (req.method === 'POST' && url.pathname === '/local/peers/pair/request') {
-      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+    if (req.method === 'GET' && url.pathname === '/peers') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      return send(res, 200, { peers: peerFederation.publicStatus() });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/peers/pair/request') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+
       const body = await readJson(req);
       if (!body || typeof body !== 'object') throw new Error('invalid_peer_pairing_request');
       const candidate = body as Record<string, unknown>;
-      requireStrings(
-        candidate,
-        ['baseUrl', 'organizationId', 'venueId', 'liveSystemId'],
-        'invalid_peer_pairing_request'
-      );
+      requireStrings(candidate, ['baseUrl'], 'invalid_peer_pairing_request');
+
+      const scope = session.binding
+        ? {
+            organizationId: session.binding.organizationId,
+            venueId: session.binding.venueId,
+            liveSystemId: session.binding.liveSystemId
+          }
+        : {
+            organizationId: String(candidate.organizationId || ''),
+            venueId: String(candidate.venueId || ''),
+            liveSystemId: String(candidate.liveSystemId || '')
+          };
+
       const challenge = await peerFederation.requestPairing({
         baseUrl: String(candidate.baseUrl),
-        organizationId: String(candidate.organizationId),
-        venueId: String(candidate.venueId),
-        liveSystemId: String(candidate.liveSystemId)
+        ...scope
       });
       return send(res, 201, challenge);
     }
 
-    if (req.method === 'POST' && url.pathname === '/local/peers/pair/complete') {
-      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+    if (req.method === 'POST' && url.pathname === '/peers/pair/complete') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+
       const body = await readJson(req);
       if (!body || typeof body !== 'object') throw new Error('invalid_peer_pairing_complete');
       const candidate = body as Record<string, unknown>;
@@ -1568,12 +1585,13 @@ async function start(): Promise<void> {
 
     if (
       req.method === 'POST' &&
-      url.pathname.startsWith('/local/peers/') &&
+      url.pathname.startsWith('/peers/') &&
       url.pathname.endsWith('/remove')
     ) {
-      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
       const parts = url.pathname.split('/').filter(Boolean);
-      const remoteNodeId = decodeURIComponent(parts[2] || '');
+      const remoteNodeId = decodeURIComponent(parts[1] || '');
       if (!remoteNodeId) throw new Error('invalid_peer_node_id');
       return send(res, 200, {
         removed: await peerFederation.removePeer(remoteNodeId),
