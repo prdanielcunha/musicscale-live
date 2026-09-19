@@ -1,6 +1,6 @@
-# MusicScale Live Node — instalação alpha
+# MillionsNest Live Node — instalação alpha
 
-Este pacote contém o **MusicScale Live Node** e a interface web local necessária para operar o MusicScale Live na LAN.
+Este pacote contém o **MillionsNest Live Node** e a interface web local necessária para operar o MillionsNest Live na LAN.
 
 ## Windows
 
@@ -36,7 +36,7 @@ No computador de produção:
 1. Abra o painel local.
 2. Configure o Holyrics usando a URL da API local e o token gerado no Holyrics.
 3. Confirme que o provider aparece como conectado.
-4. Escaneie o QR para abrir o MusicScale Live no tablet/celular da mesma rede.
+4. Escaneie o QR para abrir o MillionsNest Live no tablet/celular da mesma rede.
 5. Faça o pareamento com o PIN exibido somente no computador de produção.
 
 ## Segurança
