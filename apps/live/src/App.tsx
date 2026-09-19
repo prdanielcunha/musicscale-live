@@ -255,6 +255,10 @@ export function App() {
           <SignalTopologyStudio controller={liveNode} />
         )}
 
+        {surface === 'studio' && liveNode.state === 'connected' && (
+          <SignalTopologyStudio controller={liveNode} />
+        )}
+
         {surface === 'studio' && liveNode.state === 'connected' && scale && (
           <ScalePreflight controller={liveNode} scale={scale} actorId={user.uid} />
         )}
