@@ -174,6 +174,69 @@ export interface OutputTarget {
   active: boolean;
 }
 
+/**
+ * Describes the physical/media plane without turning the Live Node into a
+ * video transport engine. These endpoints are operational metadata used by
+ * Studio/Diagnostics to explain how signal actually travels through a room.
+ */
+export type SignalEndpointRole = 'source' | 'input' | 'output';
+
+export type SignalEndpointKind =
+  | 'provider'
+  | 'ndi'
+  | 'screen-capture'
+  | 'window-capture'
+  | 'hdmi-capture'
+  | 'spout'
+  | 'syphon'
+  | 'camera'
+  | 'browser'
+  | 'display'
+  | 'projector'
+  | 'led'
+  | 'stream'
+  | 'recording'
+  | 'other';
+
+export type SignalTransportKind =
+  | 'internal'
+  | 'ndi'
+  | 'screen-capture'
+  | 'window-capture'
+  | 'hdmi'
+  | 'spout'
+  | 'syphon'
+  | 'network'
+  | 'other';
+
+export interface SignalEndpoint {
+  id: EntityId;
+  name: string;
+  role: SignalEndpointRole;
+  kind: SignalEndpointKind;
+  nodeId?: EntityId;
+  providerId?: EntityId;
+  externalRef?: string;
+  notes?: string;
+  enabled: boolean;
+}
+
+export interface SignalLink {
+  id: EntityId;
+  fromEndpointId: EntityId;
+  toEndpointId: EntityId;
+  transport: SignalTransportKind;
+  label?: string;
+  enabled: boolean;
+}
+
+export interface SignalTopology {
+  revision: number;
+  updatedAt: string;
+  endpoints: SignalEndpoint[];
+  links: SignalLink[];
+}
+
 export type RouteContentType =
   | 'lyrics'
   | 'bible'
