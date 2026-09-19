@@ -1,5 +1,5 @@
 {
-  "name": "@musicscale-live/web",
+  "name": "@millionsnest/live-web",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@musicscale-live/domain": "0.0.1",
+    "@millionsnest/live-domain": "0.0.1",
     "@vitejs/plugin-react": "^5.0.0",
     "firebase": "12.13.0",
     "i18next": "^26.2.0",
