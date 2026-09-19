@@ -1,4 +1,4 @@
-name: MusicScale Live CI
+name: MillionsNest Live CI
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: musicscale-live-ci-${{ github.ref }}
+  group: millionsnest-live-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
