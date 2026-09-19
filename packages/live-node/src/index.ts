@@ -20,7 +20,7 @@ import {
   type SceneExecutionRequest,
   type SceneExecutionResult,
   type ServicePlan
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 import { IdempotencyStore } from './idempotencyStore';
 import { PairingStore } from './pairingStore';
 import { RuntimeStateStore } from './runtimeStateStore';
@@ -32,26 +32,39 @@ import { buildLiveNodeDiagnostics } from './diagnostics';
 import { isTrustedLiveWebOrigin } from './networkPolicy';
 import { SceneExecutor } from './sceneExecutor';
 import { sanitizeObservedStateForPersistence } from './observedStateSanitizer';
-import { HolyricsAdapter, HolyricsHttpClient } from '@musicscale-live/adapter-holyrics';
-import { ResolumeAdapter, ResolumeRestClient } from '@musicscale-live/adapter-resolume';
+import { HolyricsAdapter, HolyricsHttpClient } from '@millionsnest/live-adapter-holyrics';
+import { ResolumeAdapter, ResolumeRestClient } from '@millionsnest/live-adapter-resolume';
 import {
   ProPresenterAdapter,
   ProPresenterHttpClient
-} from '@musicscale-live/adapter-propresenter';
+} from '@millionsnest/live-adapter-propresenter';
 import { toString as qrToString } from 'qrcode';
 
-const PORT = Number(process.env.MUSICSCALE_LIVE_NODE_PORT || 4317);
-const HOST = process.env.MUSICSCALE_LIVE_NODE_HOST || '0.0.0.0';
+function liveEnv(name: string): string | undefined {
+  return (
+    process.env[`MILLIONSNEST_LIVE_${name}`] ??
+    process.env[`MUSICSCALE_LIVE_${name}`]
+  );
+}
+
+const PORT = Number(liveEnv('NODE_PORT') || 4317);
+const HOST = liveEnv('NODE_HOST') || '0.0.0.0';
 const VERSION = '0.1.0-alpha.1';
-const DEV_TOKEN = process.env.MUSICSCALE_LIVE_DEV_TOKEN || '';
-const PAIRING_ENABLED = process.env.MUSICSCALE_LIVE_PAIRING_ENABLED !== 'false';
-const HOLYRICS_TOKEN = process.env.MUSICSCALE_LIVE_HOLYRICS_TOKEN?.trim() || '';
-const HOLYRICS_URL = process.env.MUSICSCALE_LIVE_HOLYRICS_URL?.trim() || 'http://127.0.0.1:8091';
+const DEV_TOKEN = liveEnv('DEV_TOKEN') || '';
+const PAIRING_ENABLED = liveEnv('PAIRING_ENABLED') !== 'false';
+const HOLYRICS_TOKEN = liveEnv('HOLYRICS_TOKEN')?.trim() || '';
+const HOLYRICS_URL = liveEnv('HOLYRICS_URL')?.trim() || 'http://127.0.0.1:8091';
 const DEFAULT_RESOLUME_URL = 'http://127.0.0.1:8080';
-const RESOLUME_URL = process.env.MUSICSCALE_LIVE_RESOLUME_URL?.trim() || '';
+const RESOLUME_URL = liveEnv('RESOLUME_URL')?.trim() || '';
 const DEFAULT_PROPRESENTER_URL = '';
-const PROPRESENTER_URL = process.env.MUSICSCALE_LIVE_PROPRESENTER_URL?.trim() || '';
-const STATE_DIR = process.env.MUSICSCALE_LIVE_STATE_DIR || join(homedir(), '.musicscale-live');
+const PROPRESENTER_URL = liveEnv('PROPRESENTER_URL')?.trim() || '';
+const MODERN_STATE_DIR = join(homedir(), '.millionsnest-live');
+const LEGACY_STATE_DIR = join(homedir(), '.musicscale-live');
+const STATE_DIR =
+  liveEnv('STATE_DIR') ||
+  (existsSync(MODERN_STATE_DIR) || !existsSync(LEGACY_STATE_DIR)
+    ? MODERN_STATE_DIR
+    : LEGACY_STATE_DIR);
 const PACKAGED_WEB_ROOT = resolve(dirname(process.execPath), 'web');
 const WORKSPACE_WEB_ROOT = resolve(process.cwd(), 'apps/live/dist');
 const PACKAGE_CWD_WEB_ROOT = resolve(process.cwd(), '../../apps/live/dist');
@@ -60,16 +73,16 @@ const DEFAULT_WEB_ROOT = [
   WORKSPACE_WEB_ROOT,
   PACKAGE_CWD_WEB_ROOT
 ].find(candidate => existsSync(join(candidate, 'index.html'))) || PACKAGED_WEB_ROOT;
-const WEB_ROOT = resolve(process.env.MUSICSCALE_LIVE_WEB_ROOT || DEFAULT_WEB_ROOT);
+const WEB_ROOT = resolve(liveEnv('WEB_ROOT') || DEFAULT_WEB_ROOT);
 
 const allowedOrigins = new Set(
-  (process.env.MUSICSCALE_LIVE_ALLOWED_ORIGINS || 'http://localhost:4316,http://127.0.0.1:4316')
+  (liveEnv('ALLOWED_ORIGINS') || 'http://localhost:4316,http://127.0.0.1:4316')
     .split(',')
     .map(value => value.trim())
     .filter(Boolean)
 );
 
-const nodeId = process.env.MUSICSCALE_LIVE_NODE_ID ||
+const nodeId = liveEnv('NODE_ID') ||
   `node_${createHash('sha256').update(`${hostname()}|musicscale-live`).digest('hex').slice(0, 16)}`;
 
 const capabilityEngine = new CapabilityEngine();
@@ -1002,7 +1015,7 @@ function localConsoleHtml(): string {
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>MusicScale Live Node</title>
+<title>MillionsNest Live Node</title>
 <style>
 :root{font-family:Inter,system-ui,sans-serif;color:#f5f6fa;background:#0b0c11}
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 70% 10%,#241d4a 0,transparent 35%),#0b0c11}
@@ -1017,7 +1030,7 @@ small{color:#aaaebe}.brand{letter-spacing:.16em;color:#9b8cff;font-size:11px;fon
 <div class="box">
 <small>CÓDIGO DE PAREAMENTO ATIVO</small>
 <div id="pin" class="pin">------</div>
-<p id="status" class="muted">Solicite o pareamento no MusicScale Live. O código aparece somente neste computador.</p>
+<p id="status" class="muted">Solicite o pareamento no MillionsNest Live. O código aparece somente neste computador.</p>
 </div>
 <div class="box">
 <small>PROVIDER · HOLYRICS</small>
@@ -1044,7 +1057,7 @@ small{color:#aaaebe}.brand{letter-spacing:.16em;color:#9b8cff;font-size:11px;fon
 <span>Endereço da Network API</span>
 <input id="propresenter-url" value="" placeholder="Ex.: 192.168.1.44:porta exibida no ProPresenter" autocomplete="off"/>
 </div>
-<p class="muted" style="font-size:11px;line-height:1.45">No ProPresenter, habilite Network e copie exatamente o IP e a porta mostrados ali. O MusicScale Live não presume uma porta fixa.</p>
+<p class="muted" style="font-size:11px;line-height:1.45">No ProPresenter, habilite Network e copie exatamente o IP e a porta mostrados ali. O MillionsNest Live não presume uma porta fixa.</p>
 <div class="row">
 <button class="btn" onclick="saveProPresenter()">Salvar e testar</button>
 <button class="btn secondary" onclick="refreshProvider()">Testar novamente</button>
@@ -1067,8 +1080,8 @@ small{color:#aaaebe}.brand{letter-spacing:.16em;color:#9b8cff;font-size:11px;fon
 <div class="box">
 <small>CONECTAR TABLET OU CELULAR</small>
 <div style="display:flex;gap:16px;align-items:center;margin-top:12px;flex-wrap:wrap">
-<img src="/local/connect-qr.svg" alt="QR para abrir MusicScale Live na rede local" width="150" height="150" style="background:white;border-radius:14px;padding:8px"/>
-<div class="muted" style="max-width:330px;line-height:1.5">Escaneie este QR no dispositivo que ficará com o operador. Ele abre o MusicScale Live diretamente pelo Live Node, sem depender da internet.</div>
+<img src="/local/connect-qr.svg" alt="QR para abrir MillionsNest Live na rede local" width="150" height="150" style="background:white;border-radius:14px;padding:8px"/>
+<div class="muted" style="max-width:330px;line-height:1.5">Escaneie este QR no dispositivo que ficará com o operador. Ele abre o MillionsNest Live diretamente pelo Live Node, sem depender da internet.</div>
 </div>
 </div>
 <div class="box"><small>ENDEREÇOS NA REDE LOCAL</small><ul>${addresses || '<li>Nenhum IPv4 LAN detectado</li>'}</ul></div>
@@ -1079,7 +1092,7 @@ async function refresh(){
     if(!r.ok){document.getElementById('status').textContent='Abra esta página no próprio computador do Live Node para ver o PIN.';return}
     const d=await r.json();
     document.getElementById('pin').textContent=d.pin||'------';
-    document.getElementById('status').textContent=d.pin?'Digite este código no MusicScale Live. Expira em até 2 minutos.':'Aguardando solicitação de pareamento…';
+    document.getElementById('status').textContent=d.pin?'Digite este código no MillionsNest Live. Expira em até 2 minutos.':'Aguardando solicitação de pareamento…';
   }catch{}
 }
 function routeGroupForCapabilityClient(capability){
@@ -1208,7 +1221,7 @@ async function downloadDiagnostics(){
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url;
-    a.download='musicscale-live-diagnostics.json';
+    a.download='millionsnest-live-diagnostics.json';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -1296,9 +1309,15 @@ async function start(): Promise<void> {
       return sendHtml(res, 200, localConsoleHtml());
     }
 
-    if (req.method === 'GET' && url.pathname === '/.well-known/musicscale-live-node') {
+    if (
+      req.method === 'GET' &&
+      (
+        url.pathname === '/.well-known/millionsnest-live-node' ||
+        url.pathname === '/.well-known/musicscale-live-node'
+      )
+    ) {
       return send(res, 200, {
-        product: 'MusicScale Live Node',
+        product: 'MillionsNest Live Node',
         protocolVersion: 1,
         version: VERSION,
         nodeId,
@@ -1310,7 +1329,7 @@ async function start(): Promise<void> {
     if (req.method === 'GET' && url.pathname === '/health') {
       const providerSnapshot = capabilityEngine.quickSnapshot();
       return send(res, 200, {
-        product: 'MusicScale Live Node',
+        product: 'MillionsNest Live Node',
         version: VERSION,
         nodeId,
         hostname: hostname(),
@@ -1957,7 +1976,7 @@ async function start(): Promise<void> {
       const safetyLevels = sceneRequest.scene.actions.map(action => action.safetyLevel);
       if (
         safetyLevels.includes('critical') &&
-        process.env.MUSICSCALE_LIVE_CRITICAL_ACTIONS_ENABLED !== 'true'
+        liveEnv('CRITICAL_ACTIONS_ENABLED') !== 'true'
       ) {
         return send(res, 403, { error: 'critical_action_blocked' });
       }
@@ -1980,7 +1999,7 @@ async function start(): Promise<void> {
       const command = validateCommand(await readJson(req));
       assertCommandScope(command, session.binding);
 
-      if (command.safetyLevel === 'critical' && process.env.MUSICSCALE_LIVE_CRITICAL_ACTIONS_ENABLED !== 'true') {
+      if (command.safetyLevel === 'critical' && liveEnv('CRITICAL_ACTIONS_ENABLED') !== 'true') {
         return send(res, 403, { error: 'critical_action_blocked' });
       }
       if (
