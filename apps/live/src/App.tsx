@@ -259,7 +259,7 @@ export function App() {
         )}
 
         {surface === 'live' && liveNode.state === 'connected' && (
-          <LiveCueCoordinatorProvider>
+          <LiveCueCoordinatorProvider key={liveSessionId}>
             <LiveControlPanel
               controller={liveNode}
               actorId={user.uid}
