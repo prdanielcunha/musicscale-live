@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { CommandResult } from '@musicscale-live/domain';
+import type { CommandResult } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
 import {
   useLiveCueCoordinator,
