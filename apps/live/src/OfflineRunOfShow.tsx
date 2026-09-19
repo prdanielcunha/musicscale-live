@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ProviderLink, ServicePlan } from '@musicscale-live/domain';
+import type { ProviderLink, ServicePlan } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
 
 type Controller = ReturnType<typeof useLiveNode>;
