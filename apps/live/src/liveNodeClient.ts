@@ -12,7 +12,8 @@ import type {
   Scene,
   SceneExecutionRequest,
   SceneExecutionResult,
-  ServicePlan
+  ServicePlan,
+  SignalTopology
 } from '@millionsnest/live-domain';
 
 export interface PeerNodeStatus {
@@ -49,6 +50,7 @@ export interface LiveNodeStateResponse {
   }>;
   routing?: Partial<Record<ProviderRouteGroup, string>>;
   peers?: PeerNodeStatus[];
+  signalTopology?: SignalTopology;
 }
 
 export class LiveNodeApiError extends Error {
@@ -273,6 +275,19 @@ export async function setNodeProviderRoute(
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ group, providerId })
+  }, 5000);
+}
+
+
+export async function saveNodeSignalTopology(
+  baseUrl: string,
+  token: string,
+  topology: Pick<SignalTopology, 'endpoints' | 'links'>
+): Promise<{ nodeId: string; topology: SignalTopology }> {
+  return requestJson(baseUrl, '/signal-topology', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(topology)
   }, 5000);
 }
 
