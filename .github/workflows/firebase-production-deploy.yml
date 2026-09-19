@@ -1,0 +1,100 @@
+name: MillionsNest Live Firebase Production Deploy
+
+on:
+  push:
+    branches: [production]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: millionsnest-live-firebase-production
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: millionsnest
+  HOSTING_TARGET: millionsnest-live
+  FIREBASE_URL: https://mn-live-555464791734.web.app
+  OFFICIAL_URL: https://live.millionsnest.com
+
+jobs:
+  deploy-production:
+    if: github.ref == 'refs/heads/production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: firebase-production
+
+    steps:
+      - name: Checkout exact production commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Quality gate before cloud authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm test
+          npm run build --workspace=@millionsnest/live-web
+          test -f apps/live/dist/index.html
+
+      - name: Authenticate with MillionsNest production WIF
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: projects/555464791734/locations/global/workloadIdentityPools/mn-prod-github/providers/github
+          service_account: mn-web-deployer@millionsnest.iam.gserviceaccount.com
+
+      - name: Install pinned Firebase CLI
+        run: npm install -g firebase-tools@15.26.0
+
+      - name: Deploy only MillionsNest Live Hosting
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase deploy             --project "$PROJECT_ID"             --only "hosting:$HOSTING_TARGET"             --non-interactive
+
+      - name: Smoke Firebase fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          BODY="$(mktemp)"
+          STATUS="$(curl --silent --show-error --location             --retry 8 --retry-delay 2 --retry-all-errors             --connect-timeout 10 --max-time 60             --output "$BODY" --write-out '%{http_code}'             "$FIREBASE_URL/")"
+          test "$STATUS" = '200'
+          grep -Eiq '<!doctype html|<html' "$BODY"
+          grep -Fq 'MillionsNest Live' "$BODY"
+
+      - name: Smoke official custom domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          BODY="$(mktemp)"
+          STATUS="$(curl --silent --show-error --location             --retry 12 --retry-delay 5 --retry-all-errors             --connect-timeout 10 --max-time 120             --output "$BODY" --write-out '%{http_code}'             "$OFFICIAL_URL/")"
+          test "$STATUS" = '200'
+          grep -Eiq '<!doctype html|<html' "$BODY"
+          grep -Fq 'MillionsNest Live' "$BODY"
+
+      - name: Publish deployment evidence
+        shell: bash
+        run: |
+          {
+            echo '## MillionsNest Live production'
+            echo
+            echo "**SHA:** `$GITHUB_SHA`"
+            echo "**Firebase:** $FIREBASE_URL"
+            echo "**Official:** $OFFICIAL_URL"
+            echo
+            echo 'Quality gate, isolated Firebase Hosting deploy and HTTPS smoke checks completed.'
+          } >> "$GITHUB_STEP_SUMMARY"
