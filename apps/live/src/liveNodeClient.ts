@@ -259,6 +259,23 @@ export async function removePeerNode(
   }, 5000);
 }
 
+export async function setNodeProviderRoute(
+  baseUrl: string,
+  token: string,
+  group: ProviderRouteGroup,
+  providerId: string | null
+): Promise<{
+  group: ProviderRouteGroup;
+  providerId: string | null;
+  routing: Partial<Record<ProviderRouteGroup, string>>;
+}> {
+  return requestJson(baseUrl, '/routing', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ group, providerId })
+  }, 5000);
+}
+
 
 export async function executeNodeCommand(
   baseUrl: string,
