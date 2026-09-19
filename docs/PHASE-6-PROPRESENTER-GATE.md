@@ -1,4 +1,4 @@
-# Phase 3 — ProPresenter Provider Gate
+# Phase 6 — ProPresenter Tier A Gate
 
 ## Implemented in code
 
@@ -54,4 +54,4 @@ If Holyrics and ProPresenter are both connected:
 
 ## Exit gate
 
-Phase 3 is production-ready only after the hardware matrix above passes without changing the provider-neutral Live operator model.
+Phase 6 is production-ready only after the hardware matrix above passes without changing the provider-neutral Live operator model.
