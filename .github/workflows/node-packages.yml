@@ -2,6 +2,8 @@ name: Build MillionsNest Live Node alpha packages
 
 on:
   workflow_dispatch:
+  push:
+    branches: [production]
   pull_request:
     branches: [main]
     paths:
