@@ -25,12 +25,29 @@ interface CurrentPresentation {
   [key: string]: unknown;
 }
 
+interface HolyricsBackground {
+  id?: string;
+  type?: string;
+  name?: string;
+  tags?: string[];
+  bpm?: number;
+  [key: string]: unknown;
+}
+
+interface HolyricsThumbnail {
+  id?: string;
+  type?: string;
+  image?: string;
+}
+
 const ACTIONS_BY_CAPABILITY: Partial<Record<Capability, string[]>> = {
   'presentation.slides.read': ['GetCurrentPresentation'],
   'presentation.navigation': ['ActionNext', 'ActionPrevious', 'ActionGoToIndex'],
   'presentation.preview': ['GetCurrentPresentation'],
   'presentation.clear': ['CloseCurrentPresentation'],
   'presentation.screen.mode': ['SetF8', 'SetF9', 'SetF10'],
+  'presentation.background.read': ['GetCurrentBackground', 'GetBackgrounds', 'GetThumbnail'],
+  'presentation.background.set': ['SetCurrentBackground', 'GetCurrentBackground'],
   'bible.search': ['IdentifyVerseReferences'],
   'bible.present': ['ShowVerse'],
   'songs.search': ['SearchLyrics'],
@@ -250,6 +267,57 @@ export class HolyricsAdapter implements ProviderAdapter {
       case 'presentation.clear':
         await this.api.request('CloseCurrentPresentation');
         return { currentPresentation: null };
+
+      case 'presentation.background.read': {
+        const currentBackground = await this.api.request<HolyricsBackground | null>(
+          'GetCurrentBackground'
+        );
+        const backgrounds = await this.api.request<HolyricsBackground[]>(
+          'GetBackgrounds',
+          {
+            type: payload.type ? String(payload.type) : undefined,
+            tag: payload.tag ? String(payload.tag) : undefined,
+            tags: Array.isArray(payload.tags) ? payload.tags.map(String) : undefined,
+            intersection: Boolean(payload.intersection)
+          }
+        );
+        const limited = Array.isArray(backgrounds) ? backgrounds.slice(0, 40) : [];
+        const ids = limited
+          .map(item => String(item.id || ''))
+          .filter(Boolean);
+        const thumbnails = ids.length
+          ? await this.api.request<HolyricsThumbnail[]>('GetThumbnail', {
+              ids,
+              type: 'background'
+            })
+          : [];
+        const thumbnailById = new Map(
+          (Array.isArray(thumbnails) ? thumbnails : [])
+            .map(item => [String(item.id || ''), String(item.image || '')] as const)
+            .filter(([id, image]) => Boolean(id && image))
+        );
+
+        return {
+          currentBackground,
+          backgrounds: limited.map(item => ({
+            ...item,
+            thumbnail: thumbnailById.get(String(item.id || '')) || undefined
+          }))
+        };
+      }
+
+      case 'presentation.background.set': {
+        const id = String(payload.id || '');
+        if (!id) throw new Error('background_id_required');
+        await this.api.request('SetCurrentBackground', {
+          id,
+          type: payload.type ? String(payload.type) : undefined
+        });
+        const currentBackground = await this.api.request<HolyricsBackground | null>(
+          'GetCurrentBackground'
+        );
+        return { currentBackground };
+      }
 
       case 'presentation.screen.mode': {
         const mode = String(payload.mode || 'normal');
