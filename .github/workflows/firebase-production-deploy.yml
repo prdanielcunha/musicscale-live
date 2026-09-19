@@ -66,6 +66,33 @@ jobs:
           set -euo pipefail
           firebase deploy             --project "$PROJECT_ID"             --only "hosting:$HOSTING_TARGET"             --non-interactive
 
+      - name: Wait for official domain readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACCESS_TOKEN="$(gcloud auth print-access-token)"
+          URL="https://firebasehosting.googleapis.com/v1beta1/projects/$PROJECT_ID/sites/mn-live-555464791734/customDomains/live.millionsnest.com"
+
+          for attempt in $(seq 1 36); do
+            curl --fail --silent --show-error               -H "Authorization: Bearer $ACCESS_TOKEN"               "$URL" >/tmp/live-domain.json
+
+            OWNERSHIP="$(jq -r '.ownershipState // ""' /tmp/live-domain.json)"
+            HOST="$(jq -r '.hostState // ""' /tmp/live-domain.json)"
+            CERT="$(jq -r '.cert.state // ""' /tmp/live-domain.json)"
+
+            echo "attempt=$attempt ownership=$OWNERSHIP host=$HOST cert=$CERT"
+
+            if [ "$OWNERSHIP" = "OWNERSHIP_ACTIVE" ] &&                [ "$HOST" = "HOST_ACTIVE" ] &&                [ "$CERT" = "CERT_ACTIVE" ]; then
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo "Official domain did not become ready within the deployment window." >&2
+          jq '{ownershipState,hostState,reconciling,certState:(.cert.state // null),issues}' /tmp/live-domain.json >&2
+          exit 1
+
       - name: Smoke Firebase fallback
         shell: bash
         run: |
