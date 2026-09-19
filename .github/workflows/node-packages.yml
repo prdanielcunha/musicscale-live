@@ -29,9 +29,9 @@ jobs:
           - name: Windows x64
             os: windows-latest
             artifact: musicscale-live-node-windows-x64
-          - name: macOS x64
+          - name: macOS arm64
             os: macos-14
-            artifact: musicscale-live-node-macos-x64
+            artifact: musicscale-live-node-macos-arm64
           - name: Linux x64
             os: ubuntu-latest
             artifact: musicscale-live-node-linux-x64

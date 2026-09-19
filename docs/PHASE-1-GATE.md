@@ -23,7 +23,7 @@
 - Single-executable SEA build pipeline.
 - Windows alpha installer with user autostart + private-network firewall onboarding.
 - macOS alpha installer with LaunchAgent autostart.
-- Manual native-runner packaging matrix for Windows x64, macOS x64 and Linux x64.
+- Manual native-runner packaging matrix for Windows x64, macOS arm64 and Linux x64.
 - SHA-256 manifest included with each alpha artifact.
 - Automated tests for pairing scope, persistence, crash recovery, network policy, diagnostics and provider config.
 
