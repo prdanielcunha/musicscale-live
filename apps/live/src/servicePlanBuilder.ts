@@ -2,7 +2,7 @@ import type {
   ProviderLink,
   ServiceItem,
   ServicePlan
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 import type { SharedScale } from './musicScaleBridge';
 
 export interface PreparedSongLink {
