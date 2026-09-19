@@ -31,10 +31,7 @@ Este é o repositório canônico e independente do MusicScale Live. O produto co
 
 ## Rodar em desenvolvimento
 
-Requisitos atuais:
-
-- Node.js 22+ para desenvolvimento/CI.
-- Node.js 24 para gerar o executável SEA do Live Node, conforme o target atual de empacotamento.
+Requisito atual: **Node.js 24**. O repositório usa a mesma major no CI e no empacotamento SEA do Live Node para reduzir divergência entre desenvolvimento e distribuição.
 
 ```bash
 npm run setup
@@ -44,6 +41,12 @@ npm run build
 npm run dev:live
 npm run dev:node
 ```
+
+## Pacotes alpha do Live Node
+
+O workflow manual **Build Live Node alpha packages** valida typecheck/testes, compila a PWA, gera o executável SEA e publica artefatos temporários para Windows x64, macOS x64 e Linux x64. Os pacotes incluem SHA-256.
+
+Esses artefatos são **alpha e não assinados**. Não devem ser tratados como distribuição pública final antes de Authenticode no Windows e Developer ID + notarização no macOS.
 
 ## Primeiro setup do Live Node
 
@@ -66,7 +69,7 @@ As credenciais/configurações web do Firebase presentes no client não são tra
 ## Estado dos gates
 
 - **Phase 0 — Foundation:** base de engenharia concluída; repositório dedicado agora criado e canônico. Restam gates externos de Hosting dedicado, RBAC cloud final, Rules/emulator e QA em dispositivos reais.
-- **Phase 1 — LAN / Offline:** caminho local implementado em código; falta certificação física Windows/macOS + iPad/Android e teste real de queda de internet.
+- **Phase 1 — LAN / Offline:** caminho local implementado em código e matriz de artefatos criada; falta certificação física Windows/macOS + iPad/Android e teste real de queda de internet.
 - **Phase 2 — Holyrics:** adapter profundo implementado em código; falta matriz em instalação Holyrics real.
 - **Resolume Arena / ProPresenter:** adapters já existem e seguem o mesmo domínio neutro; continuam sujeitos aos respectivos gates de hardware/API.
 - **Próximo marco:** primeiro culto E2E físico com `MusicScale → ServicePlan → Node → provider → observed state`, sem internet como condição de teste.
