@@ -11,6 +11,7 @@ import type {
   PairingRequest,
   PairingScope,
   ProviderLink,
+  ProviderRouteGroup,
   SafetyLevel,
   Scene,
   SceneExecutionResult,
@@ -27,6 +28,7 @@ import {
   cacheNodeServicePlan,
   cacheNodeScenes,
   completePairing,
+  completePeerNodePairing,
   executeNodeCommand,
   executeNodeScene,
   fetchProviderOutputSnapshot,
@@ -34,11 +36,15 @@ import {
   loadNodeState,
   probeNode,
   requestPairing,
+  requestPeerNodePairing,
+  removePeerNode,
   revokeNodePairing,
+  setNodeProviderRoute,
   submitNodeLiveRequest,
   updateNodeLiveRequestStatus,
   type LiveNodeApiError,
-  type LiveNodeStateResponse
+  type LiveNodeStateResponse,
+  type PeerNodePairingChallenge
 } from './liveNodeClient';
 import { transportBroker } from './transportBroker';
 
@@ -56,6 +62,8 @@ export function useLiveNode() {
   const [credential, setCredential] = useState<StoredLiveNodeCredential | null>(null);
   const [nodeState, setNodeState] = useState<LiveNodeStateResponse | null>(null);
   const [pending, setPending] = useState<PendingPairing | null>(null);
+  const [pendingPeer, setPendingPeer] = useState<PeerNodePairingChallenge | null>(null);
+  const [peerErrorCode, setPeerErrorCode] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const failures = useRef(0);
 
@@ -186,6 +194,83 @@ export function useLiveNode() {
     setNodeState(refreshed);
     return refreshed;
   }, [credential]);
+
+  const beginPeerPairing = useCallback(async (peerBaseUrl: string) => {
+    if (!credential) throw new Error('node_not_paired');
+    setPeerErrorCode(null);
+    try {
+      const challenge = await requestPeerNodePairing(
+        credential.baseUrl,
+        credential.token,
+        peerBaseUrl
+      );
+      setPendingPeer(challenge);
+      return challenge;
+    } catch (error) {
+      setPeerErrorCode(
+        (error as LiveNodeApiError)?.code ||
+        (error instanceof Error ? error.message : 'peer_pairing_failed')
+      );
+      return null;
+    }
+  }, [credential]);
+
+  const finishPeerPairing = useCallback(async (pin: string) => {
+    if (!credential || !pendingPeer) return false;
+    setPeerErrorCode(null);
+    try {
+      await completePeerNodePairing(
+        credential.baseUrl,
+        credential.token,
+        pendingPeer.remoteNodeId,
+        pin
+      );
+      setPendingPeer(null);
+      await refreshState();
+      return true;
+    } catch (error) {
+      setPeerErrorCode(
+        (error as LiveNodeApiError)?.code ||
+        (error instanceof Error ? error.message : 'peer_pairing_failed')
+      );
+      return false;
+    }
+  }, [credential, pendingPeer, refreshState]);
+
+  const forgetPeerNode = useCallback(async (remoteNodeId: string) => {
+    if (!credential) throw new Error('node_not_paired');
+    setPeerErrorCode(null);
+    try {
+      await removePeerNode(
+        credential.baseUrl,
+        credential.token,
+        remoteNodeId
+      );
+      await refreshState();
+      return true;
+    } catch (error) {
+      setPeerErrorCode(
+        (error as LiveNodeApiError)?.code ||
+        (error instanceof Error ? error.message : 'peer_remove_failed')
+      );
+      return false;
+    }
+  }, [credential, refreshState]);
+
+  const setProviderRoute = useCallback(async (
+    group: ProviderRouteGroup,
+    providerId: string | null
+  ) => {
+    if (!credential) throw new Error('node_not_paired');
+    const response = await setNodeProviderRoute(
+      credential.baseUrl,
+      credential.token,
+      group,
+      providerId
+    );
+    const refreshed = await refreshState();
+    return { ...response, state: refreshed };
+  }, [credential, refreshState]);
 
   const submitRequest = useCallback(async (input: {
     liveSessionId: string;
@@ -369,6 +454,8 @@ export function useLiveNode() {
     await clearLiveNodeCredential();
     setCredential(null);
     setPending(null);
+    setPendingPeer(null);
+    setPeerErrorCode(null);
     setHealth(null);
     setNodeState(null);
     setState('unconfigured');
@@ -382,9 +469,15 @@ export function useLiveNode() {
     credential,
     nodeState,
     pending,
+    pendingPeer,
+    peerErrorCode,
     errorCode,
     beginPairing,
     finishPairing,
+    beginPeerPairing,
+    finishPeerPairing,
+    forgetPeerNode,
+    setProviderRoute,
     executeCommand,
     executeScene,
     fetchOutputSnapshot,

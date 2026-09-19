@@ -26,6 +26,8 @@ import { PairingStore } from './pairingStore';
 import { RuntimeStateStore } from './runtimeStateStore';
 import { ProviderConfigStore } from './providerConfigStore';
 import { ProviderRoutingStore } from './providerRoutingStore';
+import { PeerNodeStore } from './peerNodeStore';
+import { PeerFederation } from './peerFederation';
 import { buildLiveNodeDiagnostics } from './diagnostics';
 import { isTrustedLiveWebOrigin } from './networkPolicy';
 import { SceneExecutor } from './sceneExecutor';
@@ -77,6 +79,13 @@ const pairingStore = new PairingStore(join(STATE_DIR, 'pairings.json'), nodeId);
 const runtimeState = new RuntimeStateStore(join(STATE_DIR, 'runtime.json'), nodeId);
 const providerConfigStore = new ProviderConfigStore(join(STATE_DIR, 'providers.json'));
 const providerRoutingStore = new ProviderRoutingStore(join(STATE_DIR, 'routing.json'));
+const peerNodeStore = new PeerNodeStore(join(STATE_DIR, 'peers.json'));
+const peerFederation = new PeerFederation({
+  localNodeId: nodeId,
+  localDisplayName: hostname(),
+  capabilityEngine,
+  store: peerNodeStore
+});
 
 const pairingRequestHits = new Map<string, number>();
 
@@ -781,6 +790,28 @@ function assertCommandScope(
   }
 }
 
+async function setProviderRouteSelection(
+  group: ProviderRouteGroup,
+  providerId: string | null
+): Promise<Partial<Record<ProviderRouteGroup, string>>> {
+  if (![
+    'presentation','songs','bible','media','stage','visual','audio','automation'
+  ].includes(group)) {
+    throw new Error('invalid_route_group');
+  }
+
+  if (providerId) {
+    const provider = capabilityEngine.get(providerId);
+    if (!provider) throw new Error('route_provider_missing');
+    const supportsGroup = [...provider.capabilities()]
+      .some(capability => routeGroupForCapability(capability) === group);
+    if (!supportsGroup) throw new Error('route_provider_incompatible');
+  }
+
+  await providerRoutingStore.set(group, providerId);
+  return providerRoutingStore.all();
+}
+
 async function execute(command: LiveCommand): Promise<CommandResult[]> {
   const cached = idempotency.get(command.idempotencyKey);
   if (cached) return cached;
@@ -1245,9 +1276,11 @@ async function start(): Promise<void> {
   await runtimeState.load();
   await providerConfigStore.load();
   await providerRoutingStore.load();
+  await peerNodeStore.load();
   await registerHolyricsProvider();
   await registerResolumeProvider();
   await registerProPresenterProvider();
+  await peerFederation.load();
 
   const server = createServer(async (req, res) => {
   setCors(req, res);
@@ -1269,6 +1302,7 @@ async function start(): Promise<void> {
         protocolVersion: 1,
         version: VERSION,
         nodeId,
+        hostname: hostname(),
         port: PORT
       });
     }
@@ -1369,7 +1403,8 @@ async function start(): Promise<void> {
           ...provider,
           displayName: descriptor?.displayName || provider.providerId,
           providerKey: descriptor?.providerKey || 'unknown',
-          kind: descriptor?.kind || 'control'
+          kind: descriptor?.kind || 'control',
+          nodeId: descriptor?.nodeId || nodeId
         };
       });
       return send(res, 200, {
@@ -1490,25 +1525,103 @@ async function start(): Promise<void> {
         ? null
         : String(candidate.providerId).trim() || null;
 
-      if (![
-        'presentation','songs','bible','media','stage','visual','audio','automation'
-      ].includes(group)) {
-        throw new Error('invalid_route_group');
-      }
-
-      if (providerId) {
-        const provider = capabilityEngine.get(providerId);
-        if (!provider) throw new Error('route_provider_missing');
-        const supportsGroup = [...provider.capabilities()]
-          .some(capability => routeGroupForCapability(capability) === group);
-        if (!supportsGroup) throw new Error('route_provider_incompatible');
-      }
-
-      await providerRoutingStore.set(group, providerId);
       return send(res, 200, {
         group,
         providerId,
-        routing: await providerRoutingStore.all()
+        routing: await setProviderRouteSelection(group, providerId)
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/routing') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') throw new Error('invalid_route');
+      const candidate = body as Record<string, unknown>;
+      const group = String(candidate.group || '') as ProviderRouteGroup;
+      const providerId = candidate.providerId == null
+        ? null
+        : String(candidate.providerId).trim() || null;
+
+      return send(res, 200, {
+        group,
+        providerId,
+        routing: await setProviderRouteSelection(group, providerId)
+      });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/local/peers') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      return send(res, 200, { peers: peerFederation.publicStatus() });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/peers') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      return send(res, 200, { peers: peerFederation.publicStatus() });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/peers/pair/request') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') throw new Error('invalid_peer_pairing_request');
+      const candidate = body as Record<string, unknown>;
+      requireStrings(candidate, ['baseUrl'], 'invalid_peer_pairing_request');
+
+      const scope = session.binding
+        ? {
+            organizationId: session.binding.organizationId,
+            venueId: session.binding.venueId,
+            liveSystemId: session.binding.liveSystemId
+          }
+        : {
+            organizationId: String(candidate.organizationId || ''),
+            venueId: String(candidate.venueId || ''),
+            liveSystemId: String(candidate.liveSystemId || '')
+          };
+
+      const challenge = await peerFederation.requestPairing({
+        baseUrl: String(candidate.baseUrl),
+        ...scope
+      });
+      return send(res, 201, challenge);
+    }
+
+    if (req.method === 'POST' && url.pathname === '/peers/pair/complete') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') throw new Error('invalid_peer_pairing_complete');
+      const candidate = body as Record<string, unknown>;
+      requireStrings(
+        candidate,
+        ['remoteNodeId', 'pin'],
+        'invalid_peer_pairing_complete'
+      );
+      const peer = await peerFederation.completePairing(
+        String(candidate.remoteNodeId),
+        String(candidate.pin)
+      );
+      return send(res, 201, { peer });
+    }
+
+    if (
+      req.method === 'POST' &&
+      url.pathname.startsWith('/peers/') &&
+      url.pathname.endsWith('/remove')
+    ) {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      const parts = url.pathname.split('/').filter(Boolean);
+      const remoteNodeId = decodeURIComponent(parts[1] || '');
+      if (!remoteNodeId) throw new Error('invalid_peer_node_id');
+      return send(res, 200, {
+        removed: await peerFederation.removePeer(remoteNodeId),
+        peers: peerFederation.publicStatus()
       });
     }
 
@@ -1586,6 +1699,32 @@ async function start(): Promise<void> {
       return send(res, 200, { nodeId, providers: capabilityEngine.quickSnapshot() });
     }
 
+    if (req.method === 'GET' && url.pathname === '/federation/providers') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+
+      const providers = capabilityEngine.quickSnapshot()
+        .map(provider => {
+          const descriptor = capabilityEngine.get(provider.providerId)?.descriptor;
+          if (!descriptor || descriptor.nodeId !== nodeId) return null;
+          return {
+            ...provider,
+            nodeId: descriptor.nodeId,
+            displayName: descriptor.displayName,
+            providerKey: descriptor.providerKey,
+            kind: descriptor.kind,
+            version: descriptor.version
+          };
+        })
+        .filter((provider): provider is NonNullable<typeof provider> => Boolean(provider));
+
+      return send(res, 200, {
+        nodeId,
+        hostname: hostname(),
+        providers
+      });
+    }
+
     if (req.method === 'GET' && url.pathname === '/state') {
       const session = await authorize(req);
       if (!session) return send(res, 401, { error: 'unauthorized' });
@@ -1597,6 +1736,7 @@ async function start(): Promise<void> {
           displayName: descriptor?.displayName || provider.providerId,
           providerKey: descriptor?.providerKey || 'unknown',
           kind: descriptor?.kind || 'control',
+          nodeId: descriptor?.nodeId || nodeId,
           observed:
             state.providerObservedState[provider.providerId] ||
             provider.observed ||
@@ -1607,7 +1747,8 @@ async function start(): Promise<void> {
         nodeId,
         state,
         providers,
-        routing: await providerRoutingStore.all()
+        routing: await providerRoutingStore.all(),
+        peers: peerFederation.publicStatus()
       });
     }
 
@@ -1898,6 +2039,11 @@ async function start(): Promise<void> {
     void recoverUnhealthyProviders();
   }, 10_000);
   providerRecoveryTimer.unref();
+
+  const peerRefreshTimer = setInterval(() => {
+    void peerFederation.refreshAll();
+  }, 2_000);
+  peerRefreshTimer.unref();
 }
 
 void start().catch(error => {
