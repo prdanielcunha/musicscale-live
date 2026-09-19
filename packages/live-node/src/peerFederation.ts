@@ -6,7 +6,7 @@ import {
   type PairingCompleteResponse,
   type ProviderHealth,
   type ProviderKind
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 import { FederatedProviderAdapter, fetchPeerProviders, makeFederatedProviderId, type PeerProviderSnapshot } from './federatedProvider';
 import { normalizeLanPeerUrl } from './networkPolicy';
 import { PeerNodeStore, type PeerNodeRecord } from './peerNodeStore';
