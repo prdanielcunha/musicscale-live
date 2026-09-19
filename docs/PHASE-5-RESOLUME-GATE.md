@@ -3,7 +3,7 @@
 ## Implemented in code
 
 ### Provider boundary
-- Dedicated `@musicscale-live/adapter-resolume`.
+- Dedicated `@millionsnest/live-adapter-resolume`.
 - Local/private-network REST endpoint policy.
 - Resolume-specific response shapes remain inside the adapter.
 - Domain/UI uses neutral Visual capabilities and provider routing.
