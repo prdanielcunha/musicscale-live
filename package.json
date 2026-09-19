@@ -2,12 +2,17 @@
   "name": "musicscale-live",
   "private": true,
   "version": "0.0.1",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "setup": "npm install --prefix packages/domain --no-audit --no-fund && npm install --prefix packages/adapters-holyrics --no-audit --no-fund && npm install --prefix packages/adapters-resolume --no-audit --no-fund && npm install --prefix packages/adapters-propresenter --no-audit --no-fund && npm install --prefix packages/live-node --no-audit --no-fund && npm install --prefix apps/live --no-audit --no-fund",
-    "dev:live": "npm run dev --prefix apps/live",
-    "dev:node": "npm run dev --prefix packages/live-node",
-    "build": "npm run build --prefix apps/live && npm run build --prefix packages/live-node",
-    "typecheck": "npm run typecheck --prefix packages/domain && npm run typecheck --prefix packages/adapters-holyrics && npm run typecheck --prefix packages/adapters-resolume && npm run typecheck --prefix packages/adapters-propresenter && npm run typecheck --prefix packages/live-node && npm run typecheck --prefix apps/live",
-    "test": "npm run test --prefix packages/domain && npm run test --prefix packages/adapters-holyrics && npm run test --prefix packages/adapters-resolume && npm run test --prefix packages/adapters-propresenter && npm run test --prefix packages/live-node"
+    "setup": "npm install --no-audit --no-fund",
+    "dev:live": "npm run dev --workspace=@musicscale-live/web",
+    "dev:node": "npm run dev --workspace=@musicscale-live/node",
+    "build": "npm run build --workspace=@musicscale-live/web && npm run build --workspace=@musicscale-live/node",
+    "typecheck": "npm run typecheck --workspace=@musicscale-live/domain && npm run typecheck --workspace=@musicscale-live/adapter-holyrics && npm run typecheck --workspace=@musicscale-live/adapter-resolume && npm run typecheck --workspace=@musicscale-live/adapter-propresenter && npm run typecheck --workspace=@musicscale-live/node && npm run typecheck --workspace=@musicscale-live/web",
+    "test": "npm run test --workspace=@musicscale-live/domain && npm run test --workspace=@musicscale-live/adapter-holyrics && npm run test --workspace=@musicscale-live/adapter-resolume && npm run test --workspace=@musicscale-live/adapter-propresenter && npm run test --workspace=@musicscale-live/node",
+    "test:firestore-rules": "npm run test --workspace=@musicscale-live/firestore-rules-test"
   }
 }
