@@ -19,7 +19,7 @@ import type {
   ProviderLink,
   Scene,
   ServicePlan
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 import { db } from './firebase';
 
 export const LIVE_COLLECTIONS = {
