@@ -1,8 +1,8 @@
-# MusicScale Live
+# MillionsNest Live
 
-Implementação executável do **MusicScale Live**, derivada do Blueprint Mestre v0.1.
+Implementação executável do **MillionsNest Live**, derivada do Blueprint Mestre v0.1.
 
-Este é o repositório canônico e independente do MusicScale Live. O produto continua compartilhando identidade, organização, escalas, repertório, permissões e assinatura com o ecossistema MillionsNest/MusicScale, mas possui bundle, deploy, runtime local e ciclo de engenharia próprios.
+Este é o repositório canônico e independente do MillionsNest Live. O produto continua compartilhando identidade, organização, escalas, repertório, permissões e assinatura com o ecossistema MillionsNest/MusicScale, mas possui bundle, deploy, runtime local e ciclo de engenharia próprios.
 
 > Estado atual: fundação técnica em desenvolvimento ativo. O repositório é público, mas os packages permanecem `private: true` para impedir publicação acidental no npm. Repositório público não implica licença de redistribuição; uma licença explícita será definida separadamente.
 
@@ -11,7 +11,7 @@ Este é o repositório canônico e independente do MusicScale Live. O produto co
 - LAN-first, cloud-synced e offline-capable.
 - Provider-agnostic: Holyrics, ProPresenter e Resolume são adapters, nunca o domínio.
 - Control Plane separado do Media Plane.
-- PWA Live/Studio + MusicScale Live Node.
+- PWA Live/Studio + MillionsNest Live Node.
 - PT/EN/ES desde o início.
 - Segurança fail-closed, tenant-scoped e comandos idempotentes.
 - Mesmo Firebase/Auth/Firestore canônico do MusicScale/MillionsNest.
@@ -53,7 +53,7 @@ Esses artefatos são **alpha e não assinados**. Não devem ser tratados como di
 1. Inicie o Live Node no computador de produção.
 2. Abra `http://127.0.0.1:4317/node` nesse computador.
 3. Configure o provider local desejado (Holyrics, Resolume Arena ou ProPresenter) usando apenas endpoints da LAN/loopback.
-4. Use o QR exibido no console para abrir o MusicScale Live em um tablet/celular da mesma LAN.
+4. Use o QR exibido no console para abrir o MillionsNest Live em um tablet/celular da mesma LAN.
 5. Faça o pareamento com o PIN temporário exibido apenas no computador do Node.
 6. No Studio conectado à nuvem, execute o preflight da próxima escala. Correspondências seguras são vinculadas automaticamente; ambiguidades exigem escolha humana.
 7. Quando o preflight fica resolvido, o ServicePlan + ProviderLinks são armazenados no Node. O modo Local Recovery passa a operar o culto mesmo sem Firebase/internet.
