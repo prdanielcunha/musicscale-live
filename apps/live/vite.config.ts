@@ -8,9 +8,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'MusicScale Live',
-        short_name: 'MusicScale Live',
-        description: 'LAN-first worship production cockpit',
+        name: 'MillionsNest Live',
+        short_name: 'MillionsNest Live',
+        description: 'LAN-first live production cockpit for churches',
         theme_color: '#0B0C11',
         background_color: '#0B0C11',
         display: 'standalone',
