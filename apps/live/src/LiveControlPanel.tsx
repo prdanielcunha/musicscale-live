@@ -149,11 +149,13 @@ function getMediaResults(results: CommandResult[]): SearchMediaResult[] {
 export function LiveControlPanel({
   controller,
   actorId,
-  liveSessionId
+  liveSessionId,
+  servicePlanEnabled = true
 }: {
   controller: Controller;
   actorId: string;
   liveSessionId: string;
+  servicePlanEnabled?: boolean;
 }) {
   const { t } = useTranslation();
   const cueCoordinator = useLiveCueCoordinator();
@@ -174,8 +176,12 @@ export function LiveControlPanel({
   const previewRequestSignature = useRef<string>('');
 
   const providers = controller.nodeState?.providers || [];
-  const servicePlan = controller.nodeState?.state.servicePlan || null;
-  const providerLinks = controller.nodeState?.state.providerLinks || [];
+  const servicePlan = servicePlanEnabled
+    ? controller.nodeState?.state.servicePlan || null
+    : null;
+  const providerLinks = servicePlanEnabled
+    ? controller.nodeState?.state.providerLinks || []
+    : [];
   const activeServiceItemId = controller.nodeState?.state.activeServiceItemId || null;
   const capabilitySet = useMemo(
     () => new Set(
@@ -241,6 +247,12 @@ export function LiveControlPanel({
     media: capabilitySet.has('media.search') || capabilitySet.has('media.open'),
     stage: capabilitySet.has('stage.message')
   }), [capabilitySet]);
+
+  useEffect(() => {
+    setPreparedCue(null);
+    setMessage(null);
+    setClearArmed(false);
+  }, [liveSessionId]);
 
   useEffect(() => {
     if (toolAvailability[toolMode]) return;
@@ -659,9 +671,14 @@ export function LiveControlPanel({
           <span className="eyebrow">{t('liveControls.kicker')}</span>
           <h2>{t('liveControls.title')}</h2>
         </div>
-        <div className="live-control-health">
-          <span className={`status ${providers.some(p => p.health === 'online') ? 'ok' : 'warn'}`} />
-          <span>{providers.length} {t('providers')}</span>
+        <div className="live-control-header-state">
+          {!servicePlanEnabled && (
+            <span className="live-free-mode-badge">{t('liveControls.freeMode')}</span>
+          )}
+          <div className="live-control-health">
+            <span className={`status ${providers.some(p => p.health === 'online') ? 'ok' : 'warn'}`} />
+            <span>{providers.length} {t('providers')}</span>
+          </div>
         </div>
       </div>
 
