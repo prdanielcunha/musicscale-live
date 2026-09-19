@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import type { ProviderRouteGroup } from '@musicscale-live/domain';
+import type { ProviderRouteGroup } from '@millionsnest/live-domain';
 
 interface RoutingFile {
   version: 1;
