@@ -15,11 +15,31 @@ import type {
   ServicePlan
 } from '@musicscale-live/domain';
 
+export interface PeerNodeStatus {
+  nodeId: string;
+  displayName: string;
+  baseUrl: string;
+  health: 'online' | 'degraded' | 'offline';
+  providers: number;
+  providersOnline: number;
+  lastSeenAt?: string;
+}
+
+export interface PeerNodePairingChallenge {
+  remoteNodeId: string;
+  baseUrl: string;
+  challengeId: string;
+  expiresAt: string;
+  method: 'pin';
+  displayedOnRemoteNode: true;
+}
+
 export interface LiveNodeStateResponse {
   nodeId: string;
   state: LiveNodeRuntimeState;
   providers: Array<{
     providerId: string;
+    nodeId?: string;
     displayName?: string;
     providerKey?: string;
     kind?: string;
@@ -28,6 +48,7 @@ export interface LiveNodeStateResponse {
     observed?: Record<string, unknown>;
   }>;
   routing?: Partial<Record<ProviderRouteGroup, string>>;
+  peers?: PeerNodeStatus[];
 }
 
 export class LiveNodeApiError extends Error {
@@ -196,6 +217,46 @@ export async function revokeNodePairing(
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ deviceId })
   });
+}
+
+export async function requestPeerNodePairing(
+  baseUrl: string,
+  token: string,
+  peerBaseUrl: string
+): Promise<PeerNodePairingChallenge> {
+  return requestJson(baseUrl, '/peers/pair/request', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ baseUrl: peerBaseUrl })
+  }, 5000);
+}
+
+export async function completePeerNodePairing(
+  baseUrl: string,
+  token: string,
+  remoteNodeId: string,
+  pin: string
+): Promise<{ peer: PeerNodeStatus }> {
+  return requestJson(baseUrl, '/peers/pair/complete', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      remoteNodeId,
+      pin: pin.replace(/\D/g, '').slice(0, 6)
+    })
+  }, 5000);
+}
+
+export async function removePeerNode(
+  baseUrl: string,
+  token: string,
+  remoteNodeId: string
+): Promise<{ removed: boolean; peers: PeerNodeStatus[] }> {
+  return requestJson(baseUrl, `/peers/${encodeURIComponent(remoteNodeId)}/remove`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: '{}'
+  }, 5000);
 }
 
 
