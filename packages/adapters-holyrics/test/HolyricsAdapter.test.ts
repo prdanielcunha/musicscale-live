@@ -20,6 +20,10 @@ class FakeApi implements HolyricsApi {
           'SetF8',
           'SetF9',
           'SetF10',
+          'GetCurrentBackground',
+          'GetBackgrounds',
+          'GetThumbnail',
+          'SetCurrentBackground',
           'IdentifyVerseReferences',
           'ShowVerse',
           'SearchLyrics',
@@ -39,6 +43,21 @@ class FakeApi implements HolyricsApi {
     }
     if (action === 'GetCurrentPresentation') {
       return { id: 'p1', type: 'song', slide_number: 2, total_slides: 5 } as T;
+    }
+    if (action === 'GetCurrentBackground') {
+      return { id: 'bg-1', type: 'my_image', name: 'Blue Waves' } as T;
+    }
+    if (action === 'GetBackgrounds') {
+      return [
+        { id: 'bg-1', type: 'my_image', name: 'Blue Waves' },
+        { id: 'bg-2', type: 'my_video', name: 'Soft Motion' }
+      ] as T;
+    }
+    if (action === 'GetThumbnail') {
+      return [
+        { id: 'bg-1', type: 'background', image: 'base64-one' },
+        { id: 'bg-2', type: 'background', image: 'base64-two' }
+      ] as T;
     }
     return undefined as T;
   }
@@ -73,6 +92,8 @@ describe('HolyricsAdapter', () => {
     expect(probe.reachable).toBe(true);
     expect(probe.capabilities).toContain('presentation.navigation');
     expect(probe.capabilities).toContain('presentation.screen.mode');
+    expect(probe.capabilities).toContain('presentation.background.read');
+    expect(probe.capabilities).toContain('presentation.background.set');
     expect(probe.capabilities).toContain('bible.search');
     expect(probe.capabilities).toContain('bible.present');
     expect(probe.capabilities).toContain('songs.present');
@@ -93,6 +114,38 @@ describe('HolyricsAdapter', () => {
     expect(api.calls.some(call => call.action === 'SetF10' && call.input.enable === true)).toBe(true);
     expect(api.calls.some(call => call.action === 'SetF8' && call.input.enable === false)).toBe(true);
     expect(api.calls.some(call => call.action === 'SetF9' && call.input.enable === false)).toBe(true);
+  });
+
+  it('reads the Holyrics background library with thumbnails without changing Program', async () => {
+    const api = new FakeApi();
+    const adapter = new HolyricsAdapter({ id: 'holyrics-1', nodeId: 'node-1', api });
+    await adapter.probe();
+
+    const result = await adapter.execute(command('presentation.background.read', {}));
+
+    expect(result.accepted).toBe(true);
+    expect(api.calls.some(call => call.action === 'GetBackgrounds')).toBe(true);
+    expect(api.calls.some(call => call.action === 'GetThumbnail')).toBe(true);
+    const backgrounds = result.observedState?.backgrounds as Array<Record<string, unknown>>;
+    expect(backgrounds[0]?.thumbnail).toBe('base64-one');
+    expect(api.calls.some(call => call.action === 'SetCurrentBackground')).toBe(false);
+  });
+
+  it('changes the Holyrics background only after an explicit set command', async () => {
+    const api = new FakeApi();
+    const adapter = new HolyricsAdapter({ id: 'holyrics-1', nodeId: 'node-1', api });
+    await adapter.probe();
+
+    const result = await adapter.execute(command('presentation.background.set', {
+      id: 'bg-2',
+      type: 'my_video'
+    }));
+
+    expect(result.accepted).toBe(true);
+    expect(api.calls.some(call =>
+      call.action === 'SetCurrentBackground' &&
+      call.input.id === 'bg-2'
+    )).toBe(true);
   });
 
   it('maps neutral next navigation to the documented Holyrics ActionNext action', async () => {
