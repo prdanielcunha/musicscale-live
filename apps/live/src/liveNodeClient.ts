@@ -13,7 +13,7 @@ import type {
   SceneExecutionRequest,
   SceneExecutionResult,
   ServicePlan
-} from '@musicscale-live/domain';
+} from '@millionsnest/live-domain';
 
 export interface PeerNodeStatus {
   nodeId: string;
