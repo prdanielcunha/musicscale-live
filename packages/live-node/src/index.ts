@@ -790,6 +790,28 @@ function assertCommandScope(
   }
 }
 
+async function setProviderRouteSelection(
+  group: ProviderRouteGroup,
+  providerId: string | null
+): Promise<Partial<Record<ProviderRouteGroup, string>>> {
+  if (![
+    'presentation','songs','bible','media','stage','visual','audio','automation'
+  ].includes(group)) {
+    throw new Error('invalid_route_group');
+  }
+
+  if (providerId) {
+    const provider = capabilityEngine.get(providerId);
+    if (!provider) throw new Error('route_provider_missing');
+    const supportsGroup = [...provider.capabilities()]
+      .some(capability => routeGroupForCapability(capability) === group);
+    if (!supportsGroup) throw new Error('route_provider_incompatible');
+  }
+
+  await providerRoutingStore.set(group, providerId);
+  return providerRoutingStore.all();
+}
+
 async function execute(command: LiveCommand): Promise<CommandResult[]> {
   const cached = idempotency.get(command.idempotencyKey);
   if (cached) return cached;
@@ -1503,25 +1525,29 @@ async function start(): Promise<void> {
         ? null
         : String(candidate.providerId).trim() || null;
 
-      if (![
-        'presentation','songs','bible','media','stage','visual','audio','automation'
-      ].includes(group)) {
-        throw new Error('invalid_route_group');
-      }
-
-      if (providerId) {
-        const provider = capabilityEngine.get(providerId);
-        if (!provider) throw new Error('route_provider_missing');
-        const supportsGroup = [...provider.capabilities()]
-          .some(capability => routeGroupForCapability(capability) === group);
-        if (!supportsGroup) throw new Error('route_provider_incompatible');
-      }
-
-      await providerRoutingStore.set(group, providerId);
       return send(res, 200, {
         group,
         providerId,
-        routing: await providerRoutingStore.all()
+        routing: await setProviderRouteSelection(group, providerId)
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/routing') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') throw new Error('invalid_route');
+      const candidate = body as Record<string, unknown>;
+      const group = String(candidate.group || '') as ProviderRouteGroup;
+      const providerId = candidate.providerId == null
+        ? null
+        : String(candidate.providerId).trim() || null;
+
+      return send(res, 200, {
+        group,
+        providerId,
+        routing: await setProviderRouteSelection(group, providerId)
       });
     }
 
