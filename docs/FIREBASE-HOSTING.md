@@ -1,6 +1,6 @@
-# Firebase Hosting — MusicScale Live
+# Firebase Hosting — MillionsNest Live
 
-MusicScale Live usa o mesmo projeto Firebase canônico do ecossistema:
+MillionsNest Live usa o mesmo projeto Firebase canônico do ecossistema:
 
 - project: `millionsnest`
 - Auth/Firestore: compartilhados com MusicScale
