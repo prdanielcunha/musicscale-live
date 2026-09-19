@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Scene } from '@musicscale-live/domain';
+import type { Scene } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
 
 type Controller = ReturnType<typeof useLiveNode>;
