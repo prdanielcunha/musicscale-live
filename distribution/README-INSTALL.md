@@ -5,16 +5,14 @@ Este pacote contém o **MillionsNest Live Node** e a interface web local necess�
 ## Windows
 
 1. Extraia o ZIP completo.
-2. Clique com o botão direito em `install.ps1` e execute com PowerShell.
+2. Dê dois cliques em `INSTALAR-MILLIONSNEST-LIVE.cmd`.
 3. O Windows poderá pedir elevação apenas para liberar a porta TCP 4317 no perfil de rede **Privada**.
-4. O instalador copia o Node para o perfil do usuário, registra inicialização automática e abre:
-   `http://127.0.0.1:4317/node`.
+4. O instalador copia o Node para o perfil do usuário, registra inicialização automática, inicia o processo e valida automaticamente `http://127.0.0.1:4317/health`.
+5. Se tudo estiver certo, o painel abre em `http://127.0.0.1:4317/node`.
 
-Se a política do Windows impedir scripts PowerShell, abra um PowerShell no diretório extraído e execute:
+A janela do instalador permanece aberta no final. Se houver erro, ela mostra a mensagem e informa o caminho do log em `%LOCALAPPDATA%\MillionsNestLive\logs\install.log`.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1
-```
+O arquivo `install.ps1` continua no pacote como implementação interna/fallback técnico; o fluxo normal no Windows é usar o `.cmd`.
 
 ## macOS
 
