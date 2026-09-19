@@ -147,10 +147,14 @@ export function LocalRecoveryView({
                 actorId={actorId}
               />
             ) : (
-              <section className="local-empty">
-                <span className="eyebrow">{t('localRecovery.plan')}</span>
-                <h2>{t('localRecovery.noPlanTitle')}</h2>
-                <p>{t('localRecovery.noPlanDescription')}</p>
+              <section className="local-empty local-free-ready">
+                <span className="eyebrow">{t('liveWorkspace.freeMode')}</span>
+                <h2>{t('localRecovery.freeReadyTitle')}</h2>
+                <p>
+                  {plan
+                    ? t('localRecovery.freeReadyDescription')
+                    : t('localRecovery.freeNoPlanDescription')}
+                </p>
               </section>
             )}
 
