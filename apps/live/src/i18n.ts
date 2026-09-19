@@ -176,7 +176,13 @@ const resources = {
       plan: 'Roteiro local',
       cached: 'Em cache',
       noPlanTitle: 'Nenhum culto preparado neste Live Node',
-      noPlanDescription: 'Conecte pela interface principal, faça o preflight e sincronize a escala. Depois disso o roteiro fica disponível aqui mesmo se a internet cair.'
+      noPlanDescription: 'Conecte pela interface principal, faça o preflight e sincronize a escala. Depois disso o roteiro fica disponível aqui mesmo se a internet cair.',
+      operationMode: 'MODO DE OPERAÇÃO',
+      preparedModeDescription: 'Opera o roteiro que já foi preparado e armazenado neste Live Node.',
+      freeModeDescription: 'Use músicas, Bíblia, mídia, palco e visuais diretamente, sem depender de um culto escolhido.',
+      freeReadyTitle: 'Modo Livre pronto para operar',
+      freeReadyDescription: 'O roteiro continua guardado. No Modo Livre você pode chamar qualquer conteúdo disponível nos providers e voltar ao culto preparado quando quiser.',
+      freeNoPlanDescription: 'Não há roteiro em cache, mas o culto não fica travado: use as ferramentas locais para apresentar músicas, Bíblia, mídia e outros conteúdos disponíveis.'
     },
     offlineRun: {
       kicker: 'ROTEIRO LOCAL',
@@ -507,7 +513,13 @@ const resources = {
       plan: 'Local run of show',
       cached: 'Cached',
       noPlanTitle: 'No service has been prepared on this Live Node',
-      noPlanDescription: 'Connect from the main interface, run preflight and sync the schedule. The run of show will then remain available here if the internet goes down.'
+      noPlanDescription: 'Connect from the main interface, run preflight and sync the schedule. The run of show will then remain available here if the internet goes down.',
+      operationMode: 'OPERATION MODE',
+      preparedModeDescription: 'Operate the run of show that was prepared and cached on this Live Node.',
+      freeModeDescription: 'Use songs, Bible, media, stage and visuals directly without depending on a selected service.',
+      freeReadyTitle: 'Free mode is ready',
+      freeReadyDescription: 'The run of show stays cached. In Free mode you can call any content available from the providers and return to the prepared service at any time.',
+      freeNoPlanDescription: 'There is no cached run of show, but operation is not blocked: use local tools to present songs, Bible, media and other available content.'
     },
     offlineRun: {
       kicker: 'LOCAL RUN OF SHOW',
@@ -838,7 +850,13 @@ const resources = {
       plan: 'Guion local',
       cached: 'En caché',
       noPlanTitle: 'No hay culto preparado en este Live Node',
-      noPlanDescription: 'Conéctese desde la interfaz principal, ejecute el preflight y sincronice la escala. Después el guion seguirá disponible aquí si cae internet.'
+      noPlanDescription: 'Conéctese desde la interfaz principal, ejecute el preflight y sincronice la escala. Después el guion seguirá disponible aquí si cae internet.',
+      operationMode: 'MODO DE OPERACIÓN',
+      preparedModeDescription: 'Opera el guion que fue preparado y almacenado en este Live Node.',
+      freeModeDescription: 'Use canciones, Biblia, medios, escenario y visuales directamente, sin depender de un culto seleccionado.',
+      freeReadyTitle: 'Modo Libre listo para operar',
+      freeReadyDescription: 'El guion sigue guardado. En Modo Libre puede usar cualquier contenido disponible en los providers y volver al culto preparado cuando quiera.',
+      freeNoPlanDescription: 'No hay un guion en caché, pero la operación no queda bloqueada: use las herramientas locales para presentar canciones, Biblia, medios y otros contenidos disponibles.'
     },
     offlineRun: {
       kicker: 'GUION LOCAL',
