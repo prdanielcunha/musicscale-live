@@ -135,11 +135,13 @@ function wait(ms: number): Promise<void> {
 export function ScalePreflight({
   controller,
   scale,
-  actorId
+  actorId,
+  onOpenLive
 }: {
   controller: Controller;
   scale: SharedScale;
   actorId: string;
+  onOpenLive?: () => void;
 }) {
   const { t } = useTranslation();
   const [rows, setRows] = useState<PreflightRow[]>(
@@ -154,6 +156,7 @@ export function ScalePreflight({
   const [cloudSync, setCloudSync] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const syncTimer = useRef<number | null>(null);
   const cachedSignature = useRef<string | null>(null);
+  const autoCheckedSignature = useRef<string | null>(null);
 
   useEffect(() => {
     rowsRef.current = rows;
@@ -177,6 +180,7 @@ export function ScalePreflight({
       return next;
     });
     cachedSignature.current = null;
+    autoCheckedSignature.current = null;
     setOfflinePrepared(false);
     setSyncArmed(false);
     setSyncMessage(null);
@@ -205,6 +209,10 @@ export function ScalePreflight({
 
   const readyCount = rows.filter(row => row.status === 'matched' && row.matched).length;
   const unresolvedCount = rows.length - readyCount;
+  const hasChecked = rows.some(row => row.status !== 'idle');
+  const progress = rows.length > 0
+    ? Math.round((readyCount / rows.length) * 100)
+    : 0;
   const canSearch = Boolean(provider) && capabilities.has('songs.search');
   const canSync = Boolean(provider) && provider?.capabilities.includes('playlist.sync') === true;
   const canCreate = Boolean(provider) && provider?.capabilities.includes('songs.create') === true;
@@ -300,6 +308,27 @@ export function ScalePreflight({
     setRows(nextRows);
     setRunning(false);
   }
+
+  useEffect(() => {
+    if (!provider || !canSearch || busy || !rows.length) return;
+    if (rows.some(row => row.status !== 'idle')) return;
+
+    const signature = `${scaleSignature}:${provider.providerId}`;
+    if (autoCheckedSignature.current === signature) return;
+    autoCheckedSignature.current = signature;
+
+    const timer = window.setTimeout(() => {
+      void runPreflight();
+    }, 420);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    busy,
+    canSearch,
+    provider,
+    rows,
+    scaleSignature
+  ]);
 
   function chooseCandidate(sourceId: string, externalId: string) {
     setRows(current => {
@@ -497,6 +526,17 @@ export function ScalePreflight({
     }
   }
 
+  const readinessState =
+    running
+      ? 'checking'
+      : rows.length > 0 && unresolvedCount === 0 && offlinePrepared
+        ? 'ready'
+        : rows.length > 0 && unresolvedCount === 0
+          ? 'caching'
+          : hasChecked
+            ? 'attention'
+            : 'idle';
+
   return (
     <section className="preflight-panel">
       <div className="preflight-header">
@@ -517,13 +557,37 @@ export function ScalePreflight({
         </div>
       </div>
 
+      <div className={`preflight-guidance state-${readinessState}`}>
+        <div className="preflight-guidance-copy">
+          <span className="preflight-guidance-dot" aria-hidden="true" />
+          <div>
+            <strong>{t(`preflight.guidance.${readinessState}.title`, {
+              count: unresolvedCount,
+              provider: provider?.displayName || provider?.providerKey || ''
+            })}</strong>
+            <small>{t(`preflight.guidance.${readinessState}.hint`, {
+              count: unresolvedCount,
+              provider: provider?.displayName || provider?.providerKey || ''
+            })}</small>
+          </div>
+        </div>
+        <div className="preflight-progress" aria-label={t('preflight.progressLabel', { progress })}>
+          <div><span style={{ width: `${progress}%` }} /></div>
+          <strong>{progress}%</strong>
+        </div>
+      </div>
+
       <div className="preflight-actions">
         <button
           className="secondary"
           disabled={!canSearch || busy || !rows.length}
           onClick={() => void runPreflight()}
         >
-          {running ? t('preflight.checking') : t('preflight.check')}
+          {running
+            ? t('preflight.checking')
+            : hasChecked
+              ? t('preflight.recheck')
+              : t('preflight.check')}
         </button>
         <button
           className={syncArmed ? 'primary danger-confirm' : 'primary'}
@@ -532,6 +596,16 @@ export function ScalePreflight({
         >
           {syncArmed ? t('preflight.confirmReplace') : t('preflight.sync')}
         </button>
+        {offlinePrepared && unresolvedCount === 0 && onOpenLive && (
+          <button
+            type="button"
+            className="primary preflight-open-live"
+            disabled={busy}
+            onClick={onOpenLive}
+          >
+            {t('preflight.openLive')}
+          </button>
+        )}
       </div>
 
       <div className="preflight-list">
