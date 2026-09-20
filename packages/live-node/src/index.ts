@@ -32,6 +32,7 @@ import { SignalTopologyStore } from './signalTopologyStore';
 import { buildLiveNodeDiagnostics } from './diagnostics';
 import { isTrustedLiveWebOrigin } from './networkPolicy';
 import { SceneExecutor } from './sceneExecutor';
+import { PeerDiscovery } from './peerDiscovery';
 import { sanitizeObservedStateForPersistence } from './observedStateSanitizer';
 import { HolyricsAdapter, HolyricsHttpClient } from '@millionsnest/live-adapter-holyrics';
 import { ResolumeAdapter, ResolumeRestClient } from '@millionsnest/live-adapter-resolume';
@@ -100,6 +101,12 @@ const peerFederation = new PeerFederation({
   localDisplayName: hostname(),
   capabilityEngine,
   store: peerNodeStore
+});
+const peerDiscovery = new PeerDiscovery({
+  nodeId,
+  displayName: hostname(),
+  httpPort: PORT,
+  version: VERSION
 });
 
 const pairingRequestHits = new Map<string, number>();
@@ -1297,6 +1304,7 @@ async function start(): Promise<void> {
   await registerResolumeProvider();
   await registerProPresenterProvider();
   await peerFederation.load();
+  await peerDiscovery.start();
 
   const server = createServer(async (req, res) => {
   setCors(req, res);
@@ -1346,6 +1354,10 @@ async function start(): Promise<void> {
         pairing: {
           pairedDevices: await pairingStore.activePairingCount(),
           pairingEnabled: PAIRING_ENABLED
+        },
+        discovery: {
+          status: peerDiscovery.status(),
+          nearbyNodes: peerDiscovery.list().length
         }
       });
     }
@@ -1580,6 +1592,23 @@ async function start(): Promise<void> {
     if (req.method === 'GET' && url.pathname === '/local/peers') {
       if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
       return send(res, 200, { peers: peerFederation.publicStatus() });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/local/discovery/peers') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      return send(res, 200, {
+        status: peerDiscovery.status(),
+        peers: peerDiscovery.list()
+      });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/discovery/peers') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      return send(res, 200, {
+        status: peerDiscovery.status(),
+        peers: peerDiscovery.list()
+      });
     }
 
     if (req.method === 'GET' && url.pathname === '/peers') {
