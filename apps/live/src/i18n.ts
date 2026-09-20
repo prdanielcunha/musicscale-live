@@ -315,7 +315,12 @@ const resources = {
       ready: 'Pronta',
       live: 'No ar',
       completed: 'Concluída',
-      notLinked: 'Sem vínculo'
+      notLinked: 'Sem vínculo',
+      resolving: 'Vinculando “{{title}}” ao provider local…',
+      resolvingShort: 'Vinculando…',
+      providerUnavailable: 'Não há um provider de músicas disponível com permissão para pesquisar e apresentar. Verifique o Holyrics no Diagnóstico.',
+      linkNeedsReview: 'Não encontrei uma correspondência única para “{{title}}”. Abra Preparar para escolher o vínculo correto.',
+      commandFailed: 'O provider recusou a ação: {{code}}'
     },
     liveDrop: {
       kicker: 'LIVE DROP',
@@ -389,7 +394,32 @@ const resources = {
       ready: 'músicas vinculadas',
       offlineReady: 'Operação local pronta',
       check: 'Verificar repertório',
+      recheck: 'Verificar novamente',
       checking: 'Verificando…',
+      openLive: 'Abrir operação Live',
+      progressLabel: 'Preparação do culto em {{progress}}%',
+      guidance: {
+        idle: {
+          title: 'Vou conferir este culto automaticamente',
+          hint: 'O Live lê o repertório no provider sem alterar nada e mostra somente o que precisa de atenção.'
+        },
+        checking: {
+          title: 'Conferindo repertório em {{provider}}',
+          hint: 'Estou vinculando cada música da escala ao item correto do provider.'
+        },
+        attention: {
+          title: '{{count}} item(ns) ainda precisam de atenção',
+          hint: 'Resolva somente as linhas destacadas. O restante já está pronto e não precisa ser refeito.'
+        },
+        caching: {
+          title: 'Repertório conferido · preparando operação local',
+          hint: 'Os vínculos já estão corretos. O Live Node está salvando o culto para continuar funcionando mesmo sem internet.'
+        },
+        ready: {
+          title: 'Culto pronto para operar',
+          hint: 'O roteiro está no Live Node e pode seguir para a operação. A sincronização de playlist continua opcional e explícita.'
+        }
+      },
       sync: 'Sincronizar playlist atual',
       confirmReplace: 'Confirmar substituição',
       replaceWarning: 'A playlist de músicas atualmente selecionada no provider será substituída por esta escala. Clique novamente para confirmar.',
@@ -851,10 +881,47 @@ const resources = {
       taking: 'Enviando…',
       sendStage: 'Enviar ao palco',
       sendingStage: 'Enviando…',
+      prepareSection: 'Preparar seção',
+      sectionPreparing: 'Lendo apresentação…',
+      sectionPrepared: 'SEÇÃO PREPARADA',
+      sectionPreparedHint: '{{count}} ponto(s) estruturados encontrados',
+      sectionRefresh: 'Atualizar',
+      sectionResultsLabel: 'Seções encontradas na apresentação atual',
+      takeSection: 'TAKE · ir para seção',
+      sectionRouteRequired: 'Há mais de um sistema de apresentação disponível. Escolha a rota de Apresentação no Studio antes de preparar este pedido.',
+      sectionUnavailable: 'A apresentação atual não oferece leitura de slides + navegação de forma segura. Mantenha este pedido como orientação manual.',
+      prepareMedia: 'Localizar mídia',
+      mediaSearching: 'Procurando…',
+      mediaPrepared: 'MÍDIA PREPARADA',
+      mediaPreparedHint: '{{count}} opção(ões) encontradas',
+      mediaSearchAgain: 'Buscar novamente',
+      mediaResultsLabel: 'Resultados de mídia para este pedido',
+      takeMedia: 'TAKE · abrir mídia',
+      selected: 'Selecionada',
+      select: 'Selecionar',
+      localMedia: 'Cache local',
+      sectionManualHint: 'Este pedido de seção continua como orientação ao operador. Ainda não há um mapeamento seguro e neutro para executar automaticamente.',
+      mediaUnavailable: 'Nenhum caminho seguro de busca + abertura de mídia está disponível agora. Use a Biblioteca ou resolva manualmente.',
       manualHint: 'Este pedido ainda exige resolução manual no Live. Nenhuma ação será simulada.',
       bibleUnavailable: 'O provider atual não oferece apresentação bíblica. Mantenha o fluxo manual.',
       stageUnavailable: 'O provider atual não oferece mensagem de palco. Mantenha o fluxo manual.',
-      actionError: 'Não consegui concluir esta ação: {{code}}',
+      actionError: 'Não consegui concluir esta ação: {{message}}',
+      errors: {
+        section_request_no_markers: 'a apresentação atual não expõe marcações de seção que eu possa usar com segurança',
+        section_request_prepare_failed: 'não consegui ler as seções da apresentação atual',
+        section_request_take_failed: 'não consegui ir para a seção preparada',
+        section_route_required: 'há mais de um sistema de apresentação. Escolha a rota de Apresentação no Studio',
+        section_provider_unavailable: 'nenhum provider atual oferece leitura de slides + navegação',
+        section_navigation_failed: 'o provider recusou a navegação para essa seção',
+        media_request_no_results: 'nenhuma mídia compatível foi encontrada para esse pedido',
+        media_request_search_failed: 'a busca de mídia falhou',
+        media_request_take_failed: 'a mídia preparada não pôde ser aberta',
+        media_route_required: 'há mais de um destino de mídia. Escolha a rota de Mídia no Studio antes do TAKE',
+        media_open_unavailable: 'nenhum provider disponível consegue abrir mídia agora',
+        media_provider_required: 'o destino dessa mídia não está mais disponível',
+        live_drop_asset_required: 'o arquivo preparado não está mais no cache local',
+        media_open_failed: 'o provider recusou a abertura da mídia'
+      },
       accept: 'Aceitar',
       reject: 'Recusar',
       complete: 'Concluir',
@@ -1080,7 +1147,12 @@ const resources = {
       ready: 'Ready',
       live: 'Live',
       completed: 'Completed',
-      notLinked: 'Not linked'
+      notLinked: 'Not linked',
+      resolving: 'Linking “{{title}}” to the local provider…',
+      resolvingShort: 'Linking…',
+      providerUnavailable: 'No song provider is available with permission to search and present. Check Holyrics in Diagnostics.',
+      linkNeedsReview: 'I could not find a unique match for “{{title}}”. Open Prepare to choose the correct link.',
+      commandFailed: 'The provider rejected the action: {{code}}'
     },
     liveDrop: {
       kicker: 'LIVE DROP',
@@ -1154,7 +1226,32 @@ const resources = {
       ready: 'songs linked',
       offlineReady: 'Local operation ready',
       check: 'Check repertoire',
+      recheck: 'Check again',
       checking: 'Checking…',
+      openLive: 'Open Live operation',
+      progressLabel: 'Service preparation at {{progress}}%',
+      guidance: {
+        idle: {
+          title: 'I’ll check this service automatically',
+          hint: 'Live reads the provider repertoire without changing anything and only surfaces what needs attention.'
+        },
+        checking: {
+          title: 'Checking repertoire in {{provider}}',
+          hint: 'I’m linking every schedule song to the correct provider item.'
+        },
+        attention: {
+          title: '{{count}} item(s) still need attention',
+          hint: 'Resolve only the highlighted rows. Everything else is already ready and does not need to be redone.'
+        },
+        caching: {
+          title: 'Repertoire checked · preparing local operation',
+          hint: 'The links are correct. Live Node is caching the service so it keeps working even without internet.'
+        },
+        ready: {
+          title: 'Service ready to operate',
+          hint: 'The run of show is on Live Node and can move into operation. Playlist sync remains optional and explicit.'
+        }
+      },
       sync: 'Sync current playlist',
       confirmReplace: 'Confirm replacement',
       replaceWarning: 'The song playlist currently selected on the provider will be replaced by this schedule. Click again to confirm.',
@@ -1616,10 +1713,47 @@ const resources = {
       taking: 'Sending…',
       sendStage: 'Send to stage',
       sendingStage: 'Sending…',
+      prepareSection: 'Prepare section',
+      sectionPreparing: 'Reading presentation…',
+      sectionPrepared: 'SECTION PREPARED',
+      sectionPreparedHint: '{{count}} structured point(s) found',
+      sectionRefresh: 'Refresh',
+      sectionResultsLabel: 'Sections found in the current presentation',
+      takeSection: 'TAKE · go to section',
+      sectionRouteRequired: 'More than one presentation system is available. Choose the Presentation route in Studio before preparing this request.',
+      sectionUnavailable: 'The current presentation does not expose safe slide reading + navigation. Keep this request as manual operator guidance.',
+      prepareMedia: 'Find media',
+      mediaSearching: 'Searching…',
+      mediaPrepared: 'MEDIA PREPARED',
+      mediaPreparedHint: '{{count}} option(s) found',
+      mediaSearchAgain: 'Search again',
+      mediaResultsLabel: 'Media results for this request',
+      takeMedia: 'TAKE · open media',
+      selected: 'Selected',
+      select: 'Select',
+      localMedia: 'Local cache',
+      sectionManualHint: 'This section request remains operator guidance. There is not yet a safe provider-neutral mapping for automatic execution.',
+      mediaUnavailable: 'No safe media search + open path is available right now. Use Library or resolve it manually.',
       manualHint: 'This request still needs manual resolution in Live. No unsupported action will be simulated.',
       bibleUnavailable: 'The current provider does not expose Bible presentation. Keep the manual flow.',
       stageUnavailable: 'The current provider does not expose stage messaging. Keep the manual flow.',
-      actionError: 'Could not complete this action: {{code}}',
+      actionError: 'Could not complete this action: {{message}}',
+      errors: {
+        section_request_no_markers: 'the current presentation does not expose section markers that can be used safely',
+        section_request_prepare_failed: 'the current presentation sections could not be read',
+        section_request_take_failed: 'the prepared section could not be reached',
+        section_route_required: 'more than one presentation system is available. Choose the Presentation route in Studio',
+        section_provider_unavailable: 'no current provider exposes both slide reading and navigation',
+        section_navigation_failed: 'the provider rejected navigation to this section',
+        media_request_no_results: 'no compatible media was found for this request',
+        media_request_search_failed: 'the media search failed',
+        media_request_take_failed: 'the prepared media could not be opened',
+        media_route_required: 'more than one media destination is available. Choose the Media route in Studio before TAKE',
+        media_open_unavailable: 'no available provider can open media right now',
+        media_provider_required: 'the destination for this media is no longer available',
+        live_drop_asset_required: 'the prepared file is no longer in local cache',
+        media_open_failed: 'the provider rejected opening this media'
+      },
       accept: 'Accept',
       reject: 'Reject',
       complete: 'Complete',
@@ -1845,7 +1979,12 @@ const resources = {
       ready: 'Lista',
       live: 'En vivo',
       completed: 'Completada',
-      notLinked: 'Sin vínculo'
+      notLinked: 'Sin vínculo',
+      resolving: 'Vinculando “{{title}}” al provider local…',
+      resolvingShort: 'Vinculando…',
+      providerUnavailable: 'No hay un provider de canciones disponible con permiso para buscar y presentar. Revise Holyrics en Diagnóstico.',
+      linkNeedsReview: 'No encontré una coincidencia única para “{{title}}”. Abra Preparar para elegir el vínculo correcto.',
+      commandFailed: 'El provider rechazó la acción: {{code}}'
     },
     liveDrop: {
       kicker: 'LIVE DROP',
@@ -1919,7 +2058,32 @@ const resources = {
       ready: 'canciones vinculadas',
       offlineReady: 'Operación local lista',
       check: 'Verificar repertorio',
+      recheck: 'Verificar nuevamente',
       checking: 'Verificando…',
+      openLive: 'Abrir operación Live',
+      progressLabel: 'Preparación del culto al {{progress}}%',
+      guidance: {
+        idle: {
+          title: 'Voy a revisar este culto automáticamente',
+          hint: 'Live lee el repertorio del provider sin cambiar nada y muestra solo lo que necesita atención.'
+        },
+        checking: {
+          title: 'Revisando repertorio en {{provider}}',
+          hint: 'Estoy vinculando cada canción de la escala con el elemento correcto del provider.'
+        },
+        attention: {
+          title: '{{count}} elemento(s) todavía necesitan atención',
+          hint: 'Resuelva solo las filas destacadas. El resto ya está listo y no necesita rehacerse.'
+        },
+        caching: {
+          title: 'Repertorio revisado · preparando operación local',
+          hint: 'Los vínculos son correctos. Live Node está guardando el culto para seguir funcionando incluso sin internet.'
+        },
+        ready: {
+          title: 'Culto listo para operar',
+          hint: 'El guion está en Live Node y puede pasar a operación. La sincronización de playlist sigue siendo opcional y explícita.'
+        }
+      },
       sync: 'Sincronizar playlist actual',
       confirmReplace: 'Confirmar sustitución',
       replaceWarning: 'La playlist de canciones actualmente seleccionada en el provider será sustituida por esta escala. Haga clic de nuevo para confirmar.',
@@ -2381,10 +2545,47 @@ const resources = {
       taking: 'Enviando…',
       sendStage: 'Enviar al escenario',
       sendingStage: 'Enviando…',
+      prepareSection: 'Preparar sección',
+      sectionPreparing: 'Leyendo presentación…',
+      sectionPrepared: 'SECCIÓN PREPARADA',
+      sectionPreparedHint: '{{count}} punto(s) estructurados encontrados',
+      sectionRefresh: 'Actualizar',
+      sectionResultsLabel: 'Secciones encontradas en la presentación actual',
+      takeSection: 'TAKE · ir a la sección',
+      sectionRouteRequired: 'Hay más de un sistema de presentación disponible. Elija la ruta de Presentación en Studio antes de preparar este pedido.',
+      sectionUnavailable: 'La presentación actual no expone lectura de slides + navegación de forma segura. Mantenga este pedido como orientación manual.',
+      prepareMedia: 'Buscar media',
+      mediaSearching: 'Buscando…',
+      mediaPrepared: 'MEDIA PREPARADA',
+      mediaPreparedHint: '{{count}} opción(es) encontradas',
+      mediaSearchAgain: 'Buscar de nuevo',
+      mediaResultsLabel: 'Resultados de media para este pedido',
+      takeMedia: 'TAKE · abrir media',
+      selected: 'Seleccionada',
+      select: 'Seleccionar',
+      localMedia: 'Cache local',
+      sectionManualHint: 'Este pedido de sección sigue siendo una orientación al operador. Todavía no existe un mapeo seguro y neutral para ejecutarlo automáticamente.',
+      mediaUnavailable: 'No hay un camino seguro de búsqueda + apertura de media disponible ahora. Use la Biblioteca o resuélvalo manualmente.',
       manualHint: 'Este pedido todavía requiere resolución manual en Live. No se simulará ninguna acción no soportada.',
       bibleUnavailable: 'El provider actual no ofrece presentación bíblica. Mantenga el flujo manual.',
       stageUnavailable: 'El provider actual no ofrece mensajes de escenario. Mantenga el flujo manual.',
-      actionError: 'No fue posible completar esta acción: {{code}}',
+      actionError: 'No fue posible completar esta acción: {{message}}',
+      errors: {
+        section_request_no_markers: 'la presentación actual no expone marcadores de sección que se puedan usar con seguridad',
+        section_request_prepare_failed: 'no fue posible leer las secciones de la presentación actual',
+        section_request_take_failed: 'no fue posible ir a la sección preparada',
+        section_route_required: 'hay más de un sistema de presentación. Elija la ruta de Presentación en Studio',
+        section_provider_unavailable: 'ningún provider actual ofrece lectura de slides + navegación',
+        section_navigation_failed: 'el provider rechazó la navegación a esta sección',
+        media_request_no_results: 'no se encontró media compatible para este pedido',
+        media_request_search_failed: 'falló la búsqueda de media',
+        media_request_take_failed: 'no fue posible abrir la media preparada',
+        media_route_required: 'hay más de un destino de media. Elija la ruta de Media en Studio antes del TAKE',
+        media_open_unavailable: 'ningún provider disponible puede abrir media ahora',
+        media_provider_required: 'el destino de esta media ya no está disponible',
+        live_drop_asset_required: 'el archivo preparado ya no está en el cache local',
+        media_open_failed: 'el provider rechazó la apertura de la media'
+      },
       accept: 'Aceptar',
       reject: 'Rechazar',
       complete: 'Completar',

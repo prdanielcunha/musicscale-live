@@ -606,7 +606,15 @@ export function App() {
         )}
 
         {surface === 'studio' && studioSection === 'prepare' && liveNode.state === 'connected' && scale && nodeScopeMatchesScale && (
-          <ScalePreflight controller={liveNode} scale={scale} actorId={user.uid} />
+          <ScalePreflight
+            controller={liveNode}
+            scale={scale}
+            actorId={user.uid}
+            onOpenLive={() => {
+              setLiveMode('service');
+              setSurface('live');
+            }}
+          />
         )}
 
         {surface === 'studio' && studioSection === 'scenes' && liveNode.state === 'connected' && (
