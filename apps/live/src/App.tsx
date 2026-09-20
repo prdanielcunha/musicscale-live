@@ -19,6 +19,7 @@ import { markLiveMetric } from './telemetry';
 import { useLiveNode } from './useLiveNode';
 import { useLiveFocus } from './useLiveFocus';
 import { useOperatorViewport } from './useOperatorViewport';
+import { createClientId } from './clientId';
 import { RequestSurface } from './RequestSurface';
 import { LiveRequestInbox } from './LiveRequestInbox';
 import { SceneStudio } from './SceneStudio';
@@ -50,7 +51,7 @@ export function App() {
   const [surface, setSurface] = useState<Surface>('studio');
   const [studioSection, setStudioSection] = useState<StudioSection>('overview');
   const [liveMode, setLiveMode] = useState<LiveSessionMode>('service');
-  const [freeSessionId] = useState(() => crypto.randomUUID());
+  const [freeSessionId] = useState(() => createClientId());
   const liveNode = useLiveNode();
   const liveFocus = useLiveFocus(surface === 'live');
   const operatorViewport = useOperatorViewport(surface === 'live');
