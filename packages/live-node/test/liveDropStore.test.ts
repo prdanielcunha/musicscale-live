@@ -119,6 +119,38 @@ describe('LiveDropStore', () => {
       .rejects.toThrow('live_drop_asset_not_ready');
   });
 
+  it('expires approved cache entries when a ready retention window is configured', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ms-live-drop-'));
+    const root = join(dir, 'drop');
+    const store = new LiveDropStore(
+      root,
+      undefined,
+      250 * 1024 * 1024,
+      {
+        quarantineTtlMs: 1000,
+        rejectedTtlMs: 1000,
+        readyTtlMs: 25
+      }
+    );
+
+    const asset = await store.upload({
+      ...scope,
+      nodeId: 'node_1',
+      fileName: 'temporario.mp4',
+      contentType: 'video/mp4',
+      uploadedBy: 'user_1'
+    }, bytes('temporary-video'));
+
+    const ready = await store.review(asset.id, scope, 'ready', 'operator_1');
+    expect(ready.expiresAt).not.toBeNull();
+
+    const resolved = await store.resolveReadyPath(asset.id, scope);
+    const expiresAt = Date.parse(String(ready.expiresAt));
+    expect(await store.purgeExpired(expiresAt + 1)).toBe(1);
+    expect(await store.list(scope)).toHaveLength(0);
+    await expect(access(resolved.path)).rejects.toBeTruthy();
+  });
+
   it('rejects a MIME type that conflicts with the file extension', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'ms-live-drop-'));
     const store = new LiveDropStore(join(dir, 'drop'));
