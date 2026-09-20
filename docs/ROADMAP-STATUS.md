@@ -10,9 +10,9 @@ Status labels:
 ## Phase 0 — Foundation & Product Contract
 **Status: foundation-ready**
 
-Implemented: dedicated repository/deploy boundary; neutral Provider/Capability domain; Event Bus, command/idempotency/error contracts; PT/EN/ES Live/Studio foundation; threat model, telemetry, secret guard and CI.
+Implemented: dedicated repository/deploy boundary; neutral Provider/Capability domain; Event Bus, command/idempotency/error contracts; PT/EN/ES Live/Studio foundation; threat model, telemetry, secret guard and CI; dedicated Firebase Hosting and production release pipeline.
 
-Open: dedicated Hosting validation from this repository; final cloud RBAC + Firestore Rules before Live writes; public contract versioning; real-device responsive QA.
+Open: final cloud RBAC + Firestore Rules before broader Live writes; public contract versioning; real-device responsive QA.
 
 ## Phase 1 — Live Core + Node
 **Status: foundation-ready / physical certification open**
@@ -24,21 +24,21 @@ Open: native packaging certification; Windows/macOS/iPad/Android physical matrix
 ## Phase 2 — Holyrics Deep Provider
 **Status: partial; deep adapter implemented, hardware gate open**
 
-Implemented: probe/capabilities; presentation navigation/state/clear/screen modes; song search/present/matching; playlist operations; Bible search/present; media search/open; stage messages; observed-state polling/reconnect.
+Implemented: probe/capabilities; presentation navigation/state/clear/screen modes; song search/present/matching; playlist operations; automatic MusicScale playlist reconciliation for add/remove/reorder; structured operator change notices; official loopback create-song handoff with MusicScale lyrics/title/artist/key/BPM and post-save detection; Bible search/present; media search/open; stage messages; observed-state polling/reconnect.
 
-Open: real supported Holyrics versions; same/cross-PC latency; real display/playlist/media/Bible behavior; physical internet-cut test.
+Open: real supported Holyrics versions; same/cross-PC latency; physical validation of automatic playlist reconciliation and create-song flow; real display/playlist/media/Bible behavior; physical internet-cut test. Fully headless song save remains unavailable through the documented public popup-create API and must not be simulated with fragile UI automation.
 
 ## Phase 3 — Live UX Production
 **Status: partial, advanced**
 
-Implemented: provider-neutral NOW/NEXT; Program/Preview/TAKE; prepared song/Bible/media cues; linked presentation + visual TAKE via Scene; ServicePlan horizon; routing ambiguity warning; guarded clear/safety; keyboard shortcuts; provider health/observed state; request/scene surfaces; responsive Local Recovery.
+Implemented: provider-neutral NOW/NEXT; Program/Preview/TAKE; prepared song/Bible/media cues; linked presentation + visual TAKE via Scene; ServicePlan horizon; routing ambiguity warning; guarded clear/safety; keyboard shortcuts; provider health/observed state; request/scene surfaces; responsive Local Recovery; adaptive touch/operator workspace for iPad/iPhone orientations; focused Studio sections for overview, preparation, computers, routes, inputs/outputs, scenes and diagnostics.
 
 Open: volunteer usability without Studio; iPad/Android touch QA; layout/latency measurement; Pastor/Conductor acceptance against live providers; accessibility certification.
 
 ## Phase 4 — Media, Live Drop & Collaboration
 **Status: partial**
 
-Implemented: provider media search/open; prepared media cue + thumbnail support; local Request inbox/status; ServicePlan domain supports non-song items.
+Implemented: provider media search/open; prepared media cue + thumbnail support; local Request inbox/status; structured system notices for playlist changes; ServicePlan domain supports non-song items; neutral signal-topology model for Sources / Inputs / Outputs.
 
 Open: Live Drop quarantine/transfer/cache; universal library aggregator; retention/permissions; complete neutral Announcement/Message domain; collaboration E2E.
 
