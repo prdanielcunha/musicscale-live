@@ -1,4 +1,4 @@
-name: Build MillionsNest Live Node alpha packages
+name: Build MusicScale Live Node alpha packages
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: millionsnest-live-node-packages-${{ github.ref }}
+  group: musicscale-live-node-packages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -30,13 +30,13 @@ jobs:
         include:
           - name: Windows x64
             os: windows-latest
-            artifact: millionsnest-live-node-windows-x64
+            artifact: musicscale-live-node-windows-x64
           - name: macOS arm64
             os: macos-14
-            artifact: millionsnest-live-node-macos-arm64
+            artifact: musicscale-live-node-macos-arm64
           - name: Linux x64
             os: ubuntu-latest
-            artifact: millionsnest-live-node-linux-x64
+            artifact: musicscale-live-node-linux-x64
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
@@ -69,17 +69,17 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $out = Join-Path $env:RUNNER_TEMP "millionsnest-live-node"
+          $out = Join-Path $env:RUNNER_TEMP "musicscale-live-node"
           New-Item -ItemType Directory -Force -Path $out | Out-Null
           New-Item -ItemType Directory -Force -Path (Join-Path $out "web") | Out-Null
-          Copy-Item "packages/live-node/dist/MillionsNestLiveNode.exe" (Join-Path $out "MillionsNestLiveNode.exe") -Force
+          Copy-Item "packages/live-node/dist/MusicScaleLiveNode.exe" (Join-Path $out "MusicScaleLiveNode.exe") -Force
           Copy-Item "apps/live/dist/*" (Join-Path $out "web") -Recurse -Force
           Copy-Item "distribution/windows/install.ps1" (Join-Path $out "install.ps1") -Force
-          Copy-Item "distribution/windows/INSTALAR-MILLIONSNEST-LIVE.cmd" (Join-Path $out "INSTALAR-MILLIONSNEST-LIVE.cmd") -Force
+          Copy-Item "distribution/windows/INSTALAR-MUSICSCALE-LIVE.cmd" (Join-Path $out "INSTALAR-MUSICSCALE-LIVE.cmd") -Force
           Copy-Item "distribution/windows/uninstall.ps1" (Join-Path $out "uninstall.ps1") -Force
           Copy-Item "distribution/README-INSTALL.md" (Join-Path $out "README-INSTALL.md") -Force
-          $hash = (Get-FileHash (Join-Path $out "MillionsNestLiveNode.exe") -Algorithm SHA256).Hash.ToLower()
-          "$hash  MillionsNestLiveNode.exe" | Set-Content (Join-Path $out "SHA256SUMS.txt")
+          $hash = (Get-FileHash (Join-Path $out "MusicScaleLiveNode.exe") -Algorithm SHA256).Hash.ToLower()
+          "$hash  MusicScaleLiveNode.exe" | Set-Content (Join-Path $out "SHA256SUMS.txt")
           "PACKAGE_DIR=$out" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build Windows one-click installer
@@ -91,23 +91,23 @@ jobs:
           if (-not (Test-Path $iscc)) {
             throw "Inno Setup compiler not found at $iscc"
           }
-          & $iscc "/DSourceDir=$env:PACKAGE_DIR" "/DOutputDir=$env:PACKAGE_DIR" "distribution/windows/MillionsNestLiveNode.iss"
-          $setup = Join-Path $env:PACKAGE_DIR "MillionsNestLiveSetup.exe"
+          & $iscc "/DSourceDir=$env:PACKAGE_DIR" "/DOutputDir=$env:PACKAGE_DIR" "distribution/windows/MusicScaleLiveNode.iss"
+          $setup = Join-Path $env:PACKAGE_DIR "MusicScaleLiveSetup.exe"
           if (-not (Test-Path $setup)) {
-            throw "MillionsNestLiveSetup.exe was not created."
+            throw "MusicScaleLiveSetup.exe was not created."
           }
           $setupHash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
-          Add-Content -Path (Join-Path $env:PACKAGE_DIR "SHA256SUMS.txt") -Value "$setupHash  MillionsNestLiveSetup.exe"
+          Add-Content -Path (Join-Path $env:PACKAGE_DIR "SHA256SUMS.txt") -Value "$setupHash  MusicScaleLiveSetup.exe"
 
       - name: Stage Unix package
         if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail
-          out="$RUNNER_TEMP/millionsnest-live-node"
+          out="$RUNNER_TEMP/musicscale-live-node"
           mkdir -p "$out/web"
-          cp packages/live-node/dist/MillionsNestLiveNode "$out/MillionsNestLiveNode"
-          chmod +x "$out/MillionsNestLiveNode"
+          cp packages/live-node/dist/MusicScaleLiveNode "$out/MusicScaleLiveNode"
+          chmod +x "$out/MusicScaleLiveNode"
           cp -R apps/live/dist/. "$out/web/"
           cp distribution/README-INSTALL.md "$out/README-INSTALL.md"
 
@@ -119,7 +119,7 @@ jobs:
 
           (
             cd "$out"
-            shasum -a 256 MillionsNestLiveNode > SHA256SUMS.txt
+            shasum -a 256 MusicScaleLiveNode > SHA256SUMS.txt
           )
           echo "PACKAGE_DIR=$out" >> "$GITHUB_ENV"
 
@@ -128,11 +128,11 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           set -euo pipefail
-          "$PACKAGE_DIR/MillionsNestLiveNode" --help >/tmp/millionsnest-live-node-smoke.log 2>&1 &
+          "$PACKAGE_DIR/MusicScaleLiveNode" --help >/tmp/musicscale-live-node-smoke.log 2>&1 &
           pid=$!
           sleep 2
           if ! kill -0 "$pid" 2>/dev/null; then
-            cat /tmp/millionsnest-live-node-smoke.log
+            cat /tmp/musicscale-live-node-smoke.log
             exit 1
           fi
           kill "$pid" || true
@@ -141,10 +141,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $proc = Start-Process -FilePath (Join-Path $env:PACKAGE_DIR "MillionsNestLiveNode.exe") -PassThru
+          $proc = Start-Process -FilePath (Join-Path $env:PACKAGE_DIR "MusicScaleLiveNode.exe") -PassThru
           Start-Sleep -Seconds 2
           if ($proc.HasExited) {
-            throw "MillionsNest Live Node exited during smoke startup."
+            throw "MusicScale Live Node exited during smoke startup."
           }
           Stop-Process -Id $proc.Id -Force
 
