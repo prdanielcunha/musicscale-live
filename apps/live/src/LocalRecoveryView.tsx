@@ -8,6 +8,7 @@ import { LiveCueCoordinatorProvider } from './LiveCueCoordinator';
 import type { useLiveNode } from './useLiveNode';
 import { useLiveFocus } from './useLiveFocus';
 import { useOperatorViewport } from './useOperatorViewport';
+import { createClientId } from './clientId';
 
 type Controller = ReturnType<typeof useLiveNode>;
 
@@ -18,7 +19,7 @@ export function LocalRecoveryView({
 }) {
   const { t, i18n } = useTranslation();
   const [mode, setMode] = useState<'service' | 'free'>('service');
-  const [freeSessionId] = useState(() => crypto.randomUUID());
+  const [freeSessionId] = useState(() => createClientId());
   const connected = controller.state === 'connected' && Boolean(controller.credential);
   const liveFocus = useLiveFocus(connected);
   const operatorViewport = useOperatorViewport(connected);
