@@ -312,10 +312,15 @@ export async function loadOrganizationScales(
 }
 
 export function scaleStartMs(scale: SharedScale): number {
-  const time = scale.time && /^\d{1,2}:\d{2}/.test(scale.time)
-    ? scale.time
-    : '23:59';
-  const value = new Date(`${scale.date}T${time}:00`).getTime();
+  const rawTime = scale.time?.trim() || '';
+  const hasSeconds = /^\d{1,2}:\d{2}:\d{2}$/.test(rawTime);
+  const hasMinutes = /^\d{1,2}:\d{2}$/.test(rawTime);
+  const normalizedTime = hasSeconds
+    ? rawTime
+    : hasMinutes
+      ? `${rawTime}:00`
+      : '23:59:00';
+  const value = new Date(`${scale.date}T${normalizedTime}`).getTime();
   return Number.isFinite(value) ? value : Number.POSITIVE_INFINITY;
 }
 
