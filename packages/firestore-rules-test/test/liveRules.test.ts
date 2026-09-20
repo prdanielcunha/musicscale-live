@@ -78,7 +78,7 @@ async function seed() {
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
-    projectId: 'demo-millionsnest-live'
+    projectId: 'demo-musicscale-live'
   });
 });
 
@@ -91,7 +91,7 @@ afterAll(async () => {
   await env.cleanup();
 });
 
-describe('MillionsNest Live Firestore tenant rules', () => {
+describe('MusicScale Live Firestore tenant rules', () => {
   it('lets an active tenant member read Live config but blocks cross-tenant reads', async () => {
     const viewer = env.authenticatedContext('viewer').firestore();
 
