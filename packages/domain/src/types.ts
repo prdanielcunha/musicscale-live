@@ -25,6 +25,7 @@ export const CAPABILITIES = [
   'visual.composition.clear',
   'visual.outputs.read',
   'visual.output.snapshot',
+  'visual.clip.thumbnail',
   'audio.route.read',
   'audio.route.write',
   'automation.trigger'
