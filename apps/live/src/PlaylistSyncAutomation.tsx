@@ -51,7 +51,7 @@ function snapshotFromCachedPlan(
 }
 
 function snapshotSignature(snapshot: PlaylistSnapshot): string {
-  return `${snapshot.scaleId}:${snapshot.revision}:${snapshot.ids.join('|')}`;
+  return `${snapshot.scaleId}:${snapshot.ids.join('|')}`;
 }
 
 function stableHash(value: string): string {
