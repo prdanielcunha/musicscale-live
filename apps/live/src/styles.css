@@ -397,3 +397,54 @@ radial-gradient(circle at 50% 50%,rgba(124,92,255,.17),transparent 34%),#08090D;
   .peer-discovery-card{grid-template-columns:38px minmax(0,1fr)}.peer-discovery-card .primary{grid-column:1/-1;width:100%}
 }
 @media(prefers-reduced-motion:reduce){.peer-discovery-card,.discovery-orb.searching{transition:none;animation:none}}
+
+
+/* premium application shell v2 */
+html{background:#08090d;color-scheme:dark}
+body{min-height:100dvh;letter-spacing:-.006em;background:
+radial-gradient(ellipse 68% 52% at 78% -8%,rgba(124,92,255,.14),transparent 62%),
+radial-gradient(ellipse 54% 44% at -8% 96%,rgba(74,141,255,.075),transparent 62%),
+linear-gradient(180deg,#0a0b10 0%,#090a0f 58%,#08090d 100%)}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;background-image:linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.009) 1px,transparent 1px);background-size:48px 48px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.28),transparent 58%)}
+::selection{background:rgba(124,92,255,.32);color:#fff}
+*{scrollbar-width:thin;scrollbar-color:#2a2c37 transparent}
+*::-webkit-scrollbar{width:8px;height:8px}*::-webkit-scrollbar-track{background:transparent}*::-webkit-scrollbar-thumb{background:#292b35;border:2px solid transparent;background-clip:padding-box;border-radius:999px}
+button,input,select,textarea{font:inherit}
+button{transition:transform 150ms ease,background 150ms ease,border-color 150ms ease,color 150ms ease,box-shadow 150ms ease}
+button:active:not(:disabled){transform:translateY(1px)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid rgba(124,92,255,.72);outline-offset:2px}
+.primary{min-height:38px;background:linear-gradient(180deg,#8567ff,#7050ee);border:1px solid rgba(255,255,255,.09);box-shadow:0 8px 24px rgba(79,52,190,.22),inset 0 1px rgba(255,255,255,.16);letter-spacing:-.01em}
+.primary:hover:not(:disabled){background:linear-gradient(180deg,#9075ff,#7959f4);box-shadow:0 10px 28px rgba(79,52,190,.28),inset 0 1px rgba(255,255,255,.18)}
+.secondary{min-height:38px;background:linear-gradient(180deg,rgba(30,32,42,.96),rgba(22,23,31,.96));border-color:rgba(255,255,255,.085);box-shadow:inset 0 1px rgba(255,255,255,.025)}
+.secondary:hover:not(:disabled){color:#f0f1f5;border-color:rgba(255,255,255,.14);background:#20222c}
+.app-shell{grid-template-columns:232px minmax(0,1fr);grid-template-rows:68px minmax(0,1fr);position:relative}
+.topbar{height:68px;padding:0 22px;border-bottom-color:rgba(255,255,255,.055);background:rgba(9,10,15,.72);backdrop-filter:blur(28px) saturate(125%);-webkit-backdrop-filter:blur(28px) saturate(125%);box-shadow:0 1px rgba(255,255,255,.018)}
+.topbar .brand-kicker{color:#b0a4ff;font-size:10px;letter-spacing:.16em}.topbar strong{font-size:13px;font-weight:680;letter-spacing:-.01em}
+.top-actions{gap:10px}.top-actions select{height:34px;border-color:rgba(255,255,255,.075);background:rgba(21,22,29,.84);border-radius:10px;padding:0 10px;font-size:11px}
+.sidebar{padding:14px 10px;border-right-color:rgba(255,255,255,.05);background:linear-gradient(180deg,rgba(11,12,17,.64),rgba(8,9,13,.42));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.sidebar button{position:relative;margin:2px 0;padding:11px 12px;border:1px solid transparent;border-radius:11px;color:#777c8c;font-size:11px;font-weight:580;transition:all 160ms ease}
+.sidebar button:hover{color:#c3c6d0;background:rgba(255,255,255,.025)}
+.sidebar button.active{color:#f0eefc;border-color:rgba(124,92,255,.13);background:linear-gradient(90deg,rgba(124,92,255,.13),rgba(124,92,255,.045));box-shadow:inset 1px 0 rgba(145,124,255,.9),0 8px 30px rgba(0,0,0,.08)}
+.workspace{max-width:1640px;padding:32px clamp(20px,2.5vw,42px) 56px}
+.hero{min-height:82px;margin-bottom:22px}.hero h1{font-size:clamp(34px,3.1vw,48px);font-weight:690;line-height:1;letter-spacing:-.052em}.hero p{font-size:12px;line-height:1.55;color:#7f8494}
+.eyebrow{font-size:9px;font-weight:800;letter-spacing:.16em;color:#9d91ed}
+.pill-row span{border-color:rgba(255,255,255,.055);background:rgba(255,255,255,.018);color:#8b909f;font-size:9px;backdrop-filter:blur(12px)}
+.panel,.system-topology,.preflight-panel,.live-control-panel,.scene-studio,.diagnostics-panel,.peer-node-studio{border-color:rgba(255,255,255,.055);box-shadow:0 18px 54px rgba(0,0,0,.13),inset 0 1px rgba(255,255,255,.015)}
+.panel{background:linear-gradient(180deg,rgba(20,21,29,.9),rgba(14,15,21,.92));border-radius:20px}
+.panel-head{border-bottom-color:rgba(255,255,255,.045);background:rgba(255,255,255,.008);font-size:10px;letter-spacing:.02em}
+.health-grid{gap:8px}.health-grid article{min-height:66px;border-color:rgba(255,255,255,.05);background:linear-gradient(180deg,rgba(20,21,29,.74),rgba(14,15,21,.78));box-shadow:inset 0 1px rgba(255,255,255,.015)}.health-grid small{font-size:9px}.health-grid strong{font-size:12px;font-weight:650}
+.status{width:7px;height:7px}.status.ok{box-shadow:0 0 0 4px rgba(46,182,125,.05),0 0 14px rgba(46,182,125,.2)}.status.warn{box-shadow:0 0 0 4px rgba(244,163,64,.05),0 0 14px rgba(244,163,64,.18)}.status.danger{box-shadow:0 0 0 4px rgba(232,90,104,.05),0 0 14px rgba(232,90,104,.18)}
+input,select,textarea{accent-color:var(--violet)}
+.node-field input,.pin-input,.operator-inline input,.peer-node-add-form input{background:rgba(10,11,16,.92);border-color:rgba(255,255,255,.075);box-shadow:inset 0 1px 1px rgba(0,0,0,.24)}
+.node-field input:hover,.pin-input:hover,.operator-inline input:hover,.peer-node-add-form input:hover{border-color:rgba(255,255,255,.11)}
+code,kbd{font-variant-ligatures:none}
+@media(max-width:900px){
+  .app-shell{grid-template-columns:1fr;grid-template-rows:64px auto 1fr}
+  .topbar{height:64px}
+  .sidebar{background:rgba(9,10,15,.86);backdrop-filter:blur(22px)}
+  .workspace{padding:22px 16px 44px}
+}
+@media(max-width:560px){
+  .workspace{padding:18px 12px 38px}.hero{min-height:auto}.hero h1{font-size:34px}.top-actions{gap:6px}
+}
+@media(prefers-reduced-motion:reduce){button,.sidebar button{transition:none}}
