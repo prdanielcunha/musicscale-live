@@ -38,7 +38,7 @@ export function buildLiveNodeDiagnostics(input: LiveNodeDiagnosticInput) {
   return {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
-    product: 'MillionsNest Live Node',
+    product: 'MusicScale Live Node',
     node: {
       id: input.nodeId,
       version: input.version,
