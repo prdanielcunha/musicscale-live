@@ -673,7 +673,16 @@ const resources = {
       take: 'Colocar no ar',
       libraryView: 'VISUALIZAÇÃO DA BIBLIOTECA',
       visualView: 'Visual',
-      compactView: 'Compacta'
+      compactView: 'Compacta',
+      group: 'Grupo',
+      layer: 'Layer',
+      layers: 'layers',
+      ungrouped: 'Sem grupo',
+      quickNavigation: 'IR PARA',
+      emptySlot: 'Espaço vazio',
+      prepared: 'PREPARADO',
+      cancelPrepared: 'Cancelar',
+      outputShort: 'Saída'
     },
     liveControls: {
       kicker: 'OPERADOR AO VIVO',
@@ -1508,7 +1517,16 @@ const resources = {
       take: 'Take',
       libraryView: 'LIBRARY VIEW',
       visualView: 'Visual',
-      compactView: 'Compact'
+      compactView: 'Compact',
+      group: 'Group',
+      layer: 'Layer',
+      layers: 'layers',
+      ungrouped: 'No group',
+      quickNavigation: 'JUMP TO',
+      emptySlot: 'Empty slot',
+      prepared: 'PREPARED',
+      cancelPrepared: 'Cancel',
+      outputShort: 'Output'
     },
     liveControls: {
       kicker: 'LIVE OPERATOR',
@@ -2343,7 +2361,16 @@ const resources = {
       take: 'Poner al aire',
       libraryView: 'VISTA DE LA BIBLIOTECA',
       visualView: 'Visual',
-      compactView: 'Compacta'
+      compactView: 'Compacta',
+      group: 'Grupo',
+      layer: 'Layer',
+      layers: 'layers',
+      ungrouped: 'Sin grupo',
+      quickNavigation: 'IR A',
+      emptySlot: 'Espacio vacío',
+      prepared: 'PREPARADO',
+      cancelPrepared: 'Cancelar',
+      outputShort: 'Salida'
     },
     liveControls: {
       kicker: 'OPERADOR EN VIVO',
