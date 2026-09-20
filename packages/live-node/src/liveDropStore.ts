@@ -162,8 +162,24 @@ const EXTENSIONS: Record<
   }
 };
 
-function publicAsset(asset: StoredLiveDropAsset): LiveDropAsset {
+function publicAsset(
+  asset: StoredLiveDropAsset,
+  retention?: LiveDropRetentionPolicy
+): LiveDropAsset {
   const { storageName: _storageName, ...safe } = asset;
+  if (
+    !safe.expiresAt &&
+    safe.status === 'ready' &&
+    retention?.readyTtlMs
+  ) {
+    const base = Date.parse(safe.reviewedAt || safe.uploadedAt);
+    if (Number.isFinite(base)) {
+      return {
+        ...safe,
+        expiresAt: new Date(base + retention.readyTtlMs).toISOString()
+      };
+    }
+  }
   return safe;
 }
 
@@ -256,7 +272,7 @@ export class LiveDropStore {
     return this.assets
       .filter(asset => scopeMatches(asset, scope))
       .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
-      .map(publicAsset);
+      .map(asset => publicAsset(asset, this.retention));
   }
 
   async get(id: string, scope: LiveDropScope): Promise<LiveDropAsset | null> {
@@ -264,7 +280,7 @@ export class LiveDropStore {
     const asset = this.assets.find(
       candidate => candidate.id === id && scopeMatches(candidate, scope)
     );
-    return asset ? publicAsset(asset) : null;
+    return asset ? publicAsset(asset, this.retention) : null;
   }
 
   async upload(
@@ -345,7 +361,7 @@ export class LiveDropStore {
       throw error;
     }
 
-    return publicAsset(asset);
+    return publicAsset(asset, this.retention);
   }
 
   async review(
@@ -393,7 +409,7 @@ export class LiveDropStore {
       result = next;
     });
 
-    return publicAsset(result);
+    return publicAsset(result, this.retention);
   }
 
   async resolveReadyPath(
@@ -408,7 +424,7 @@ export class LiveDropStore {
     if (asset.status !== 'ready') throw new Error('live_drop_asset_not_ready');
 
     return {
-      asset: publicAsset(asset),
+      asset: publicAsset(asset, this.retention),
       path: join(this.rootDir, 'cache', asset.storageName)
     };
   }
@@ -416,8 +432,9 @@ export class LiveDropStore {
   async purgeExpired(now = Date.now()): Promise<number> {
     await this.load();
     const expired = this.assets.filter(asset => {
-      if (!asset.expiresAt) return false;
-      const time = Date.parse(asset.expiresAt);
+      const expiresAt = publicAsset(asset, this.retention).expiresAt;
+      if (!expiresAt) return false;
+      const time = Date.parse(expiresAt);
       return Number.isFinite(time) && time <= now;
     });
     if (!expired.length) return 0;
