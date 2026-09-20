@@ -101,6 +101,7 @@ export class HolyricsAdapter implements ProviderAdapter {
   readonly observationIntervalMs = 450;
   private readonly api: HolyricsApi;
   private readonly supported = new Set<Capability>();
+  private grantedActions = new Set<string>();
   private lastState: ProviderState = {
     health: 'offline',
     updatedAt: new Date(0).toISOString(),
@@ -122,12 +123,17 @@ export class HolyricsAdapter implements ProviderAdapter {
     try {
       const tokenInfo = await this.api.request<TokenInfo>('GetTokenInfo');
       const permissions = permissionsToSet(tokenInfo.permissions);
+      this.grantedActions = permissions;
       this.supported.clear();
 
       for (const [capability, actions] of Object.entries(ACTIONS_BY_CAPABILITY) as Array<[Capability, string[]]>) {
         if (requiredActionsAllowed(permissions, actions)) {
           this.supported.add(capability);
         }
+      }
+
+      if (permissions.has('GetBibleVersionsV2') || permissions.has('GetBibleVersions')) {
+        this.supported.add('bible.versions.read');
       }
 
       if (
@@ -155,6 +161,7 @@ export class HolyricsAdapter implements ProviderAdapter {
       };
     } catch (error) {
       this.supported.clear();
+      this.grantedActions.clear();
       this.lastState = {
         health: 'offline',
         updatedAt: new Date().toISOString(),
@@ -371,6 +378,17 @@ export class HolyricsAdapter implements ProviderAdapter {
         return { matches };
       }
 
+      case 'bible.versions.read': {
+        const action = this.grantedActions.has('GetBibleVersionsV2')
+          ? 'GetBibleVersionsV2'
+          : this.grantedActions.has('GetBibleVersions')
+            ? 'GetBibleVersions'
+            : null;
+        if (!action) throw new Error('bible_versions_unavailable');
+        const versions = await this.api.request<unknown[]>(action);
+        return { versions, sourceAction: action };
+      }
+
       case 'songs.search': {
         const results = await this.api.request<unknown[]>('SearchLyrics', {
           text: String(payload.text || ''),
@@ -485,7 +503,10 @@ export class HolyricsAdapter implements ProviderAdapter {
           throw new Error('bible_reference_required');
         }
         await this.api.request('ShowVerse', input);
-        return { biblePresentationRequested: input };
+        const currentPresentation = this.supported.has('presentation.slides.read')
+          ? await this.api.request<CurrentPresentation | null>('GetCurrentPresentation')
+          : null;
+        return { biblePresentationRequested: input, currentPresentation };
       }
 
       case 'media.search': {
