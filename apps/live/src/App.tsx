@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import { auth } from './firebase';
@@ -6,7 +6,15 @@ import { LiveControlPanel } from './LiveControlPanel';
 import { LocalRecoveryView } from './LocalRecoveryView';
 import { LiveNodeSetup } from './LiveNodeSetup';
 import { liveFeatureFlags } from './featureFlags';
-import { loadNextScale, loadSharedContext, subscribeNextScale, type SharedContext, type SharedScale } from './musicScaleBridge';
+import {
+  getScaleOperationalState,
+  loadLiveScales,
+  loadSharedContext,
+  resolveOperationalScale,
+  subscribeLiveScales,
+  type SharedContext,
+  type SharedScale
+} from './musicScaleBridge';
 import { ScalePreflight } from './ScalePreflight';
 import { SystemTopologyPanel } from './SystemTopologyPanel';
 import { SignalTopologyStudio } from './SignalTopologyStudio';
@@ -26,6 +34,8 @@ import { LiveSceneBar } from './LiveSceneBar';
 import { PlaylistSyncAutomation } from './PlaylistSyncAutomation';
 import { LiveDropPanel } from './LiveDropPanel';
 import { UniversalMediaLibrary } from './UniversalMediaLibrary';
+import { LiveContextSwitcher } from './LiveContextSwitcher';
+import { buildServicePlan, type PreparedSongLink } from './servicePlanBuilder';
 
 type Surface = 'live' | 'studio' | 'pastor' | 'conductor';
 type LiveSessionMode = 'service' | 'free';
@@ -68,7 +78,11 @@ export function App() {
   const { t, i18n } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [context, setContext] = useState<SharedContext | null>(null);
-  const [scale, setScale] = useState<SharedScale | null>(null);
+  const [scales, setScales] = useState<SharedScale[]>([]);
+  const [organizationScope, setOrganizationScope] = useState<'auto' | 'all' | string>('auto');
+  const [selectedScaleId, setSelectedScaleId] = useState<string | null>(null);
+  const [clockNow, setClockNow] = useState(() => Date.now());
+  const autoCacheSignature = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [localNodeOrigin, setLocalNodeOrigin] = useState(false);
   const [localNodeDetectionDone, setLocalNodeDetectionDone] = useState(false);
@@ -98,7 +112,9 @@ export function App() {
     return onAuthStateChanged(auth, async currentUser => {
       setUser(currentUser);
       setContext(null);
-      setScale(null);
+      setScales([]);
+      setOrganizationScope('auto');
+      setSelectedScaleId(null);
       setLiveMode('service');
       setStudioSection('overview');
 
@@ -111,7 +127,9 @@ export function App() {
       try {
         const nextContext = await loadSharedContext(currentUser);
         setContext(nextContext);
-        if (nextContext) setScale(await loadNextScale(nextContext.organizationId));
+        if (nextContext) {
+          setScales(await loadLiveScales(nextContext.organizations));
+        }
       } finally {
         setLoading(false);
         markLiveMetric('shared-context-ready');
@@ -120,13 +138,115 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!context?.organizationId) return;
-    return subscribeNextScale(
-      context.organizationId,
-      nextScale => setScale(nextScale),
+    if (!context?.organizations.length) return;
+    return subscribeLiveScales(
+      context.organizations,
+      nextScales => setScales(nextScales),
       () => undefined
     );
-  }, [context?.organizationId]);
+  }, [context?.organizations]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const scopedScales = useMemo(
+    () => organizationScope === 'auto' || organizationScope === 'all'
+      ? scales
+      : scales.filter(item => item.organizationId === organizationScope),
+    [organizationScope, scales]
+  );
+
+  const selectedScale = useMemo(() => {
+    if (!selectedScaleId) return null;
+    const candidate = scales.find(item => item.id === selectedScaleId) || null;
+    if (!candidate) return null;
+    if (
+      organizationScope !== 'auto' &&
+      organizationScope !== 'all' &&
+      candidate.organizationId !== organizationScope
+    ) {
+      return null;
+    }
+    return candidate;
+  }, [organizationScope, scales, selectedScaleId]);
+
+  const scale = selectedScale || resolveOperationalScale(scopedScales, clockNow);
+
+  const nodeScale = useMemo(() => {
+    const organizationId = liveNode.credential?.binding.organizationId;
+    if (!organizationId) return null;
+    return resolveOperationalScale(
+      scales.filter(item => item.organizationId === organizationId),
+      clockNow
+    );
+  }, [clockNow, liveNode.credential?.binding.organizationId, scales]);
+
+  useEffect(() => {
+    const binding = liveNode.credential?.binding;
+    if (liveNode.state !== 'connected' || !binding || !nodeScale) return;
+
+    const currentPlan = liveNode.nodeState?.state.servicePlan || null;
+    const expectedItemIds = nodeScale.songs.map(song => `song:${song.id}`).join('|');
+    const currentItemIds = currentPlan?.items.map(item => item.id).join('|') || '';
+    const samePlan =
+      currentPlan?.sourceMusicScaleId === nodeScale.id &&
+      currentPlan.revision >= Math.max(1, nodeScale.publishRevision || 1) &&
+      currentItemIds === expectedItemIds;
+
+    if (samePlan) {
+      autoCacheSignature.current = null;
+      return;
+    }
+
+    const signature = [
+      binding.organizationId,
+      binding.venueId,
+      binding.liveSystemId,
+      nodeScale.id,
+      nodeScale.publishRevision || 1,
+      expectedItemIds
+    ].join(':');
+    if (autoCacheSignature.current === signature) return;
+    autoCacheSignature.current = signature;
+
+    const preparedLinks: PreparedSongLink[] =
+      currentPlan?.sourceMusicScaleId === nodeScale.id
+        ? (liveNode.nodeState?.state.providerLinks || [])
+            .filter(link => Boolean(link.musicScaleEntityId && link.externalId))
+            .map(link => ({
+              musicScaleSongId: String(link.musicScaleEntityId),
+              providerInstanceId: link.providerInstanceId,
+              externalId: link.externalId,
+              fingerprint: link.fingerprint
+            }))
+        : [];
+
+    const prepared = buildServicePlan(
+      nodeScale,
+      {
+        venueId: binding.venueId,
+        liveSystemId: binding.liveSystemId
+      },
+      preparedLinks
+    );
+
+    void liveNode.cacheServicePlan(prepared.plan, prepared.providerLinks)
+      .catch(() => {
+        if (autoCacheSignature.current === signature) {
+          autoCacheSignature.current = null;
+        }
+      });
+  }, [
+    liveNode.credential?.binding.liveSystemId,
+    liveNode.credential?.binding.organizationId,
+    liveNode.credential?.binding.venueId,
+    liveNode.nodeState?.state.providerLinks,
+    liveNode.nodeState?.state.servicePlan,
+    liveNode.state,
+    nodeScale
+  ]);
 
   const nodeStatus = useMemo(() => {
     if (liveNode.state === 'connected') return t('connected');
@@ -162,6 +282,22 @@ export function App() {
 
   const nodeConnected = liveNode.state === 'connected';
   const providersConnected = (liveNode.health?.providersOnline ?? 0) > 0;
+  const nodeScopeMatchesScale =
+    !scale ||
+    !liveNode.credential ||
+    liveNode.credential.binding.organizationId === scale.organizationId;
+  const nodeOrganization = liveNode.credential
+    ? context?.organizations.find(item =>
+        item.id === liveNode.credential?.binding.organizationId
+      ) || null
+    : null;
+  const effectiveOrganizationId =
+    scale?.organizationId ||
+    (
+      organizationScope !== 'auto' && organizationScope !== 'all'
+        ? organizationScope
+        : context?.organizationId
+    );
   const effectiveLiveMode: LiveSessionMode =
     liveMode === 'service' && scale ? 'service' : 'free';
   const liveSessionId =
@@ -213,6 +349,24 @@ export function App() {
       </aside>
 
       <main className="workspace">
+        {context && (
+          <LiveContextSwitcher
+            context={context}
+            scales={scales}
+            scope={organizationScope}
+            now={clockNow}
+            compact={surface === 'live'}
+            onScopeChange={nextScope => {
+              setOrganizationScope(nextScope);
+              setSelectedScaleId(null);
+            }}
+            onOpenScale={nextScale => {
+              setOrganizationScope(nextScale.organizationId);
+              setSelectedScaleId(nextScale.id);
+            }}
+          />
+        )}
+
         {surface === 'live' ? (
           <section className="live-session-strip">
             <div className="live-session-identity">
@@ -225,7 +379,7 @@ export function App() {
                     : t('liveWorkspace.adHoc')}
                 </strong>
                 <span>
-                  {context?.organizationName || t('organization')}
+                  {scale?.organizationName || context?.organizationName || t('organization')}
                   {effectiveLiveMode === 'service' && scale?.time ? ` · ${scale.time}` : ''}
                   {effectiveLiveMode === 'service' && scale?.locationName ? ` · ${scale.locationName}` : ''}
                   {effectiveLiveMode === 'free' ? ` · ${t('liveWorkspace.freeModeHint')}` : ''}
@@ -353,7 +507,7 @@ export function App() {
           </section>
         )}
 
-        {liveNode.state === 'connected' && scale && (
+        {liveNode.state === 'connected' && scale && nodeScopeMatchesScale && (
           <PlaylistSyncAutomation
             controller={liveNode}
             scale={scale}
@@ -361,8 +515,34 @@ export function App() {
           />
         )}
 
+        {liveNode.state === 'connected' && scale && !nodeScopeMatchesScale && (
+          <section className="live-context-mismatch" role="alert">
+            <div>
+              <span className="eyebrow">{t('liveContext.nodeScopeKicker')}</span>
+              <strong>{t('liveContext.nodeScopeTitle')}</strong>
+              <p>{t('liveContext.nodeScopeDescription', {
+                node: nodeOrganization?.name || liveNode.credential?.binding.organizationId,
+                selected: scale.organizationName || scale.organizationId
+              })}</p>
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                setOrganizationScope(liveNode.credential!.binding.organizationId);
+                setSelectedScaleId(null);
+              }}
+            >
+              {t('liveContext.useNodeOrganization')}
+            </button>
+          </section>
+        )}
+
         {surface === 'studio' && studioSection === 'overview' && context && liveFeatureFlags.liveNodeTransport && (
-          <LiveNodeSetup controller={liveNode} organizationId={context.organizationId} />
+          <LiveNodeSetup
+            controller={liveNode}
+            organizationId={effectiveOrganizationId || context.organizationId}
+          />
         )}
 
         {surface === 'studio' && studioSection === 'computers' && liveNode.state === 'connected' && (
@@ -397,7 +577,7 @@ export function App() {
           />
         )}
 
-        {surface === 'studio' && studioSection === 'prepare' && liveNode.state === 'connected' && scale && (
+        {surface === 'studio' && studioSection === 'prepare' && liveNode.state === 'connected' && scale && nodeScopeMatchesScale && (
           <ScalePreflight controller={liveNode} scale={scale} actorId={user.uid} />
         )}
 
@@ -405,7 +585,7 @@ export function App() {
           <SceneStudio controller={liveNode} actorId={user.uid} />
         )}
 
-        {surface === 'live' && liveNode.state === 'connected' && (
+        {surface === 'live' && liveNode.state === 'connected' && nodeScopeMatchesScale && (
           <LiveCueCoordinatorProvider key={liveSessionId}>
             <LiveControlPanel
               controller={liveNode}
@@ -432,7 +612,7 @@ export function App() {
           </LiveCueCoordinatorProvider>
         )}
 
-        {(surface === 'pastor' || surface === 'conductor') && liveNode.state === 'connected' && (
+        {(surface === 'pastor' || surface === 'conductor') && liveNode.state === 'connected' && nodeScopeMatchesScale && (
           <RequestSurface
             controller={liveNode}
             actorId={user.uid}
@@ -441,7 +621,7 @@ export function App() {
           />
         )}
 
-        {(surface === 'pastor' || surface === 'conductor') && liveNode.state !== 'connected' && (
+        {(surface === 'pastor' || surface === 'conductor') && (liveNode.state !== 'connected' || !nodeScopeMatchesScale) && (
           <section className="panel request-node-required">
             <strong>{t('requestsSurface.nodeRequiredTitle')}</strong>
             <p>{t('requestsSurface.nodeRequiredDescription')}</p>

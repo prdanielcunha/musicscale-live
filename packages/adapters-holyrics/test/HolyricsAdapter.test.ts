@@ -37,6 +37,7 @@ class FakeApi implements HolyricsApi {
           'GetThumbnail',
           'SetCurrentBackground',
           'IdentifyVerseReferences',
+          'GetBibleVersionsV2',
           'ShowVerse',
           'SearchLyrics',
           'ShowLyrics',
@@ -56,7 +57,13 @@ class FakeApi implements HolyricsApi {
     if (action === 'GetCurrentPresentation') {
       return { id: 'p1', type: 'song', slide_number: 2, total_slides: 5 } as T;
     }
-    if (action === 'GetCurrentBackground') {
+    if (action === 'GetBibleVersionsV2') {
+      return [
+        { key: 'pt_nvi', version: 'pt_nvi', title: 'NVI', language: { id: 'pt', iso: 'pt', name: 'Portuguese' } },
+        { key: 'pt_acf', version: 'pt_acf', title: 'ACF', language: { id: 'pt', iso: 'pt', name: 'Portuguese' } }
+      ] as T;
+    }
+        if (action === 'GetCurrentBackground') {
       return { id: 'bg-1', type: 'my_image', name: 'Blue Waves' } as T;
     }
     if (action === 'GetBackgrounds') {
@@ -107,6 +114,7 @@ describe('HolyricsAdapter', () => {
     expect(probe.capabilities).toContain('presentation.background.read');
     expect(probe.capabilities).toContain('presentation.background.set');
     expect(probe.capabilities).toContain('bible.search');
+    expect(probe.capabilities).toContain('bible.versions.read');
     expect(probe.capabilities).toContain('bible.present');
     expect(probe.capabilities).toContain('songs.create');
     expect(probe.capabilities).toContain('songs.present');
@@ -244,7 +252,21 @@ describe('HolyricsAdapter', () => {
     )).toBe(true);
   });
 
-  it('maps Bible presentation to ShowVerse without leaking Holyrics into the command schema', async () => {
+  it('reads Bible versions through the documented Holyrics version endpoint', async () => {
+    const api = new FakeApi();
+    const adapter = new HolyricsAdapter({ id: 'holyrics-1', nodeId: 'node-1', api });
+    await adapter.probe();
+
+    const result = await adapter.execute(command('bible.versions.read', {}));
+
+    expect(result.accepted).toBe(true);
+    expect(api.calls.some(call => call.action === 'GetBibleVersionsV2')).toBe(true);
+    expect(result.observedState?.versions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ version: 'pt_nvi', title: 'NVI' })
+    ]));
+  });
+
+  it('maps Bible presentation to ShowVerse and refreshes the observed Program state', async () => {
     const api = new FakeApi();
     const adapter = new HolyricsAdapter({ id: 'holyrics-1', nodeId: 'node-1', api });
     await adapter.probe();
@@ -252,5 +274,8 @@ describe('HolyricsAdapter', () => {
 
     expect(result.accepted).toBe(true);
     expect(api.calls.some(call => call.action === 'ShowVerse')).toBe(true);
+    expect(result.observedState?.currentPresentation).toEqual(expect.objectContaining({
+      id: 'p1'
+    }));
   });
 });
