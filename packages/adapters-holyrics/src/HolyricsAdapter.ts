@@ -76,6 +76,19 @@ function requiredActionsAllowed(
   return actions.every(action => granted.has(action));
 }
 
+function versionAtLeast(value: string | undefined, minimum: [number, number, number]): boolean {
+  const parts = String(value || '')
+    .split(/[.-]/)
+    .slice(0, 3)
+    .map(part => Number.parseInt(part, 10));
+  if (parts.some(part => !Number.isFinite(part))) return false;
+  const [major = 0, minor = 0, patch = 0] = parts;
+  const [minMajor, minMinor, minPatch] = minimum;
+  if (major !== minMajor) return major > minMajor;
+  if (minor !== minMinor) return minor > minMinor;
+  return patch >= minPatch;
+}
+
 export interface HolyricsAdapterOptions {
   id: string;
   nodeId: string;
@@ -115,6 +128,14 @@ export class HolyricsAdapter implements ProviderAdapter {
         if (requiredActionsAllowed(permissions, actions)) {
           this.supported.add(capability);
         }
+      }
+
+      if (
+        versionAtLeast(tokenInfo.version, [2, 21, 0]) &&
+        this.api.canCreateSongDraft?.() === true &&
+        typeof this.api.createSongDraft === 'function'
+      ) {
+        this.supported.add('songs.create');
       }
 
       this.descriptor.version = tokenInfo.version;
@@ -360,6 +381,33 @@ export class HolyricsAdapter implements ProviderAdapter {
           fields: String(payload.fields || 'id,title,artist,author,key,bpm')
         });
         return { results };
+      }
+
+      case 'songs.create': {
+        const title = String(payload.title || '').trim();
+        const lyrics = String(payload.lyrics || '').trim();
+        if (!title) throw new Error('song_title_required');
+        if (!lyrics) throw new Error('song_lyrics_required');
+        if (!this.api.createSongDraft) throw new Error('song_create_unavailable');
+
+        await this.api.createSongDraft({
+          title,
+          lyrics,
+          artist: payload.artist ? String(payload.artist) : undefined,
+          author: payload.author ? String(payload.author) : undefined,
+          copyright: payload.copyright ? String(payload.copyright) : undefined,
+          note: payload.note ? String(payload.note) : undefined,
+          key: payload.key ? String(payload.key) : undefined,
+          bpm: typeof payload.bpm === 'number' ? payload.bpm : undefined,
+          tags: Array.isArray(payload.tags) ? payload.tags.map(String) : undefined
+        });
+
+        return {
+          creationRequested: true,
+          title,
+          completion: 'provider_editor_opened',
+          requiresProviderSave: true
+        };
       }
 
       case 'songs.present': {

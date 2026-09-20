@@ -50,6 +50,40 @@ describe('HolyricsHttpClient', () => {
       .digest('hex');
     expect(actionCall?.url).toContain(`rid=1&dtoken=${expected}`);
   });
+  it('uses the official loopback popup create-song endpoint without provider credentials', async () => {
+    const calls: Array<{ url: string; body: string }> = [];
+    const fakeFetch: typeof fetch = async (input, init) => {
+      calls.push({
+        url: String(input),
+        body: String(init?.body || '')
+      });
+      return new Response('', { status: 200 });
+    };
+
+    const client = new HolyricsHttpClient({
+      baseUrl: 'http://127.0.0.1:8091',
+      token: 'secret',
+      fetchImpl: fakeFetch
+    });
+
+    expect(client.canCreateSongDraft()).toBe(true);
+    await client.createSongDraft({
+      title: 'Promessas',
+      artist: 'Sarah Beatriz',
+      lyrics: 'Deus de Abraão',
+      key: 'G#m'
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toBe('http://127.0.0.1:8091/api/popup-createsong');
+    expect(JSON.parse(calls[0]?.body || '{}')).toMatchObject({
+      title: 'Promessas',
+      artist: 'Sarah Beatriz',
+      lyrics: 'Deus de Abraão',
+      key: 'G#m'
+    });
+  });
+
   it('serializes concurrent requests so signed request ids remain monotonic', async () => {
     const actionRids: number[] = [];
     const fakeFetch: typeof fetch = async (input) => {

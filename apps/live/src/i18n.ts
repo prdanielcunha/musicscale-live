@@ -268,7 +268,17 @@ const resources = {
       error: 'Erro na verificação',
       choose: 'Escolher correspondência…',
       searchUnavailable: 'O provider conectado não liberou a capacidade de busca de músicas para este token.',
-      syncUnavailable: 'A busca está disponível, mas o token não permite sincronizar a playlist atual.'
+      syncUnavailable: 'A busca está disponível, mas o token não permite sincronizar a playlist atual.',
+      createSong: 'Criar música',
+      creating: 'Criando no provider…',
+      createOpened: '“{{title}}” foi enviada ao provider. No Holyrics, a janela já abre preenchida: salve a música e o Live detectará automaticamente para concluir a playlist.',
+      createRequested: 'Criação de “{{title}}” enviada ao provider. O Live está aguardando a música aparecer para concluir a playlist.',
+      createDetected: '“{{title}}” foi detectada no provider.',
+      createAndSyncDone: '“{{title}}” foi detectada e a playlist foi atualizada automaticamente.',
+      createWaiting: 'Ainda não detectei “{{title}}” no provider. Salve/conclua a criação e execute a verificação novamente.',
+      createFailed: 'Não foi possível criar “{{title}}”: {{code}}',
+      createNeedsLyrics: '“{{title}}” ainda não possui letra no MusicScale. Adicione a letra antes de criar no app de apresentação.',
+      createUnavailable: 'Este provider não oferece criação de música por uma integração oficial disponível ao Live.'
     },
     peerNodes: {
       kicker: 'COMPUTADORES DO AMBIENTE',
@@ -627,7 +637,16 @@ const resources = {
       acceptedHint: 'Aceito · execute quando fizer sentido',
       accept: 'Aceitar',
       reject: 'Recusar',
-      complete: 'Concluir'
+      complete: 'Concluir',
+      playlistUpdate: 'PLAYLIST ATUALIZADA',
+      playlistSynced: 'Sincronizada automaticamente com {{provider}}',
+      playlistNeedsAttention: 'Mudança detectada · precisa de atenção antes de sincronizar',
+      playlistSyncFailed: 'A atualização automática falhou em {{provider}}',
+      added: 'Adicionadas',
+      removed: 'Retiradas',
+      moved: 'Reordenadas',
+      unresolved: 'Não encontradas no provider',
+      acknowledge: 'OK'
     },
     sceneStudio: {
       kicker: 'CENAS',
@@ -792,7 +811,17 @@ const resources = {
       error: 'Check failed',
       choose: 'Choose match…',
       searchUnavailable: 'The connected provider did not grant song-search capability to this token.',
-      syncUnavailable: 'Search is available, but the token cannot synchronize the current playlist.'
+      syncUnavailable: 'Search is available, but the token cannot synchronize the current playlist.',
+      createSong: 'Create song',
+      creating: 'Creating on provider…',
+      createOpened: '“{{title}}” was sent to the provider. In Holyrics, the editor opens prefilled: save the song and Live will detect it automatically to finish the playlist.',
+      createRequested: 'Creation of “{{title}}” was sent to the provider. Live is waiting for the song to appear so it can finish the playlist.',
+      createDetected: '“{{title}}” was detected on the provider.',
+      createAndSyncDone: '“{{title}}” was detected and the playlist was updated automatically.',
+      createWaiting: '“{{title}}” has not appeared on the provider yet. Save/finish creating it and run the check again.',
+      createFailed: 'Could not create “{{title}}”: {{code}}',
+      createNeedsLyrics: '“{{title}}” does not have lyrics in MusicScale yet. Add lyrics before creating it in the presentation app.',
+      createUnavailable: 'This provider does not expose song creation through an official integration available to Live.'
     },
     peerNodes: {
       kicker: 'ENVIRONMENT COMPUTERS',
@@ -1151,7 +1180,16 @@ const resources = {
       acceptedHint: 'Accepted · execute when appropriate',
       accept: 'Accept',
       reject: 'Reject',
-      complete: 'Complete'
+      complete: 'Complete',
+      playlistUpdate: 'PLAYLIST UPDATED',
+      playlistSynced: 'Automatically synced with {{provider}}',
+      playlistNeedsAttention: 'Change detected · needs attention before syncing',
+      playlistSyncFailed: 'Automatic update failed on {{provider}}',
+      added: 'Added',
+      removed: 'Removed',
+      moved: 'Reordered',
+      unresolved: 'Not found on provider',
+      acknowledge: 'OK'
     },
     sceneStudio: {
       kicker: 'SCENES',
@@ -1316,7 +1354,17 @@ const resources = {
       error: 'Error de verificación',
       choose: 'Elegir coincidencia…',
       searchUnavailable: 'El provider conectado no concedió la capacidad de buscar canciones a este token.',
-      syncUnavailable: 'La búsqueda está disponible, pero el token no puede sincronizar la playlist actual.'
+      syncUnavailable: 'La búsqueda está disponible, pero el token no puede sincronizar la playlist actual.',
+      createSong: 'Crear canción',
+      creating: 'Creando en el provider…',
+      createOpened: '“{{title}}” fue enviada al provider. En Holyrics, el editor se abre rellenado: guarde la canción y Live la detectará automáticamente para completar la playlist.',
+      createRequested: 'La creación de “{{title}}” fue enviada al provider. Live espera que la canción aparezca para completar la playlist.',
+      createDetected: '“{{title}}” fue detectada en el provider.',
+      createAndSyncDone: '“{{title}}” fue detectada y la playlist se actualizó automáticamente.',
+      createWaiting: 'Todavía no detecté “{{title}}” en el provider. Guarde/finalice la creación y ejecute la verificación nuevamente.',
+      createFailed: 'No fue posible crear “{{title}}”: {{code}}',
+      createNeedsLyrics: '“{{title}}” todavía no tiene letra en MusicScale. Añada la letra antes de crearla en la app de presentación.',
+      createUnavailable: 'Este provider no ofrece creación de canciones mediante una integración oficial disponible para Live.'
     },
     peerNodes: {
       kicker: 'COMPUTADORAS DEL ENTORNO',
@@ -1675,7 +1723,16 @@ const resources = {
       acceptedHint: 'Aceptado · ejecute cuando corresponda',
       accept: 'Aceptar',
       reject: 'Rechazar',
-      complete: 'Completar'
+      complete: 'Completar',
+      playlistUpdate: 'PLAYLIST ACTUALIZADA',
+      playlistSynced: 'Sincronizada automáticamente con {{provider}}',
+      playlistNeedsAttention: 'Cambio detectado · requiere atención antes de sincronizar',
+      playlistSyncFailed: 'La actualización automática falló en {{provider}}',
+      added: 'Agregadas',
+      removed: 'Retiradas',
+      moved: 'Reordenadas',
+      unresolved: 'No encontradas en el provider',
+      acknowledge: 'OK'
     },
     sceneStudio: {
       kicker: 'ESCENAS',

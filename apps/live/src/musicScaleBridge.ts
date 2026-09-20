@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   where
 } from 'firebase/firestore';
@@ -23,6 +24,9 @@ export interface SharedScaleSong {
   bpm?: number | null;
   selectedKey?: string;
   selectedBpm?: number | null;
+  lyrics?: string;
+  chords?: string;
+  version?: string;
 }
 
 export interface SharedScale {
@@ -109,8 +113,40 @@ export async function loadNextScale(organizationId: string): Promise<SharedScale
         key: song.key ? String(song.key) : undefined,
         bpm: typeof song.bpm === 'number' ? song.bpm : null,
         selectedKey: settings.key ? String(settings.key) : undefined,
-        selectedBpm: typeof settings.bpm === 'number' ? settings.bpm : null
+        selectedBpm: typeof settings.bpm === 'number' ? settings.bpm : null,
+        lyrics: typeof song.lyrics === 'string' ? song.lyrics : undefined,
+        chords: typeof song.chords === 'string' ? song.chords : undefined,
+        version: song.version ? String(song.version) : undefined
       };
     })
   };
+}
+
+
+export function subscribeNextScale(
+  organizationId: string,
+  onScale: (scale: SharedScale | null) => void,
+  onError?: (error: Error) => void
+): () => void {
+  let generation = 0;
+  const scalesQuery = query(
+    collection(db, 'scales'),
+    where('organizationId', '==', organizationId)
+  );
+
+  return onSnapshot(
+    scalesQuery,
+    () => {
+      const currentGeneration = ++generation;
+      void loadNextScale(organizationId)
+        .then(scale => {
+          if (currentGeneration === generation) onScale(scale);
+        })
+        .catch(error => {
+          if (currentGeneration !== generation) return;
+          onError?.(error instanceof Error ? error : new Error('scale_realtime_refresh_failed'));
+        });
+    },
+    error => onError?.(error)
+  );
 }
