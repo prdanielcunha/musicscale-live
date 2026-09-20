@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Capability, Scene, SceneAction } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
+import { createClientId } from './clientId';
 import { liveFeatureFlags } from './featureFlags';
 import {
   listScenes,
@@ -181,7 +182,7 @@ export function SceneStudio({
     if (!activeCredential) return;
 
     const scene: Scene = {
-      id: crypto.randomUUID(),
+      id: createClientId(),
       organizationId: activeCredential.binding.organizationId,
       venueId: activeCredential.binding.venueId,
       liveSystemId: activeCredential.binding.liveSystemId,

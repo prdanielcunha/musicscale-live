@@ -4,6 +4,7 @@ import type { Capability, CommandResult } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
 import { useLiveCueCoordinator } from './LiveCueCoordinator';
 import { useLiveOperatorShortcuts } from './useLiveOperatorShortcuts';
+import { createClientId } from './clientId';
 
 type Controller = ReturnType<typeof useLiveNode>;
 type ToolMode = 'song' | 'bible' | 'media' | 'stage';
@@ -442,7 +443,7 @@ export function LiveControlPanel({
       setBusy('next');
       setMessage(null);
       try {
-        const sceneId = crypto.randomUUID();
+        const sceneId = createClientId();
         const result = await controller.executeScene({
           liveSessionId,
           actorId,
@@ -631,7 +632,7 @@ export function LiveControlPanel({
           serviceItemId: preparedCue.serviceItemId,
           actorId,
           scene: {
-            id: crypto.randomUUID(),
+            id: createClientId(),
             organizationId: credential.binding.organizationId,
             venueId: credential.binding.venueId,
             liveSystemId: credential.binding.liveSystemId,
