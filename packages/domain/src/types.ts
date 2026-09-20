@@ -10,6 +10,7 @@ export const CAPABILITIES = [
   'bible.search',
   'bible.present',
   'songs.search',
+  'songs.create',
   'songs.present',
   'playlist.write',
   'playlist.sync',
