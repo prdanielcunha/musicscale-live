@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { homedir, hostname, networkInterfaces } from 'node:os';
 import { existsSync } from 'node:fs';
@@ -11,6 +11,7 @@ import {
   type Capability,
   type CommandResult,
   type LiveCommand,
+  type LiveDropAsset,
   type LiveRequest,
   type PairingRequest,
   type ProviderAssetRequest,
@@ -29,6 +30,7 @@ import { ProviderRoutingStore } from './providerRoutingStore';
 import { PeerNodeStore } from './peerNodeStore';
 import { PeerFederation } from './peerFederation';
 import { SignalTopologyStore } from './signalTopologyStore';
+import { LiveDropStore, type LiveDropScope } from './liveDropStore';
 import { buildLiveNodeDiagnostics } from './diagnostics';
 import { isTrustedLiveWebOrigin } from './networkPolicy';
 import { SceneExecutor } from './sceneExecutor';
@@ -60,6 +62,10 @@ const DEFAULT_RESOLUME_URL = 'http://127.0.0.1:8080';
 const RESOLUME_URL = liveEnv('RESOLUME_URL')?.trim() || '';
 const DEFAULT_PROPRESENTER_URL = '';
 const PROPRESENTER_URL = liveEnv('PROPRESENTER_URL')?.trim() || '';
+const LIVE_DROP_MAX_BYTES = Math.max(
+  1,
+  Number(liveEnv('LIVE_DROP_MAX_BYTES') || 250 * 1024 * 1024)
+);
 const MODERN_STATE_DIR = join(homedir(), '.musicscale-live');
 const LEGACY_STATE_DIR = join(homedir(), '.millionsnest-live');
 const STATE_DIR =
@@ -96,6 +102,11 @@ const providerConfigStore = new ProviderConfigStore(join(STATE_DIR, 'providers.j
 const providerRoutingStore = new ProviderRoutingStore(join(STATE_DIR, 'routing.json'));
 const peerNodeStore = new PeerNodeStore(join(STATE_DIR, 'peers.json'));
 const signalTopologyStore = new SignalTopologyStore(join(STATE_DIR, 'signal-topology.json'));
+const liveDropStore = new LiveDropStore(
+  join(STATE_DIR, 'live-drop'),
+  undefined,
+  LIVE_DROP_MAX_BYTES
+);
 const peerFederation = new PeerFederation({
   localNodeId: nodeId,
   localDisplayName: hostname(),
@@ -376,7 +387,7 @@ function setCors(req: IncomingMessage, res: ServerResponse): void {
   }
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'authorization,content-type,x-correlation-id,x-live-confirmation'
+    'authorization,content-type,x-correlation-id,x-live-confirmation,x-live-file-name,x-live-actor-id'
   );
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   if (req.headers['access-control-request-private-network'] === 'true') {
@@ -798,6 +809,33 @@ async function authorize(req: IncomingMessage) {
   }
   const binding = await pairingStore.authorize(token);
   return binding ? { dev: false as const, token, binding } : null;
+}
+
+function liveDropScopeFromSession(
+  session: Awaited<ReturnType<typeof authorize>>
+): LiveDropScope {
+  if (!session?.binding) throw new Error('live_drop_pairing_scope_required');
+  return {
+    organizationId: session.binding.organizationId,
+    venueId: session.binding.venueId,
+    liveSystemId: session.binding.liveSystemId
+  };
+}
+
+function liveDropHeader(req: IncomingMessage, name: string): string {
+  const raw = req.headers[name];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return typeof value === 'string' ? value : '';
+}
+
+function decodeLiveDropFileName(req: IncomingMessage): string {
+  const encoded = liveDropHeader(req, 'x-live-file-name');
+  if (!encoded) throw new Error('invalid_live_drop_file_name');
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    throw new Error('invalid_live_drop_file_name');
+  }
 }
 
 function assertSceneScope(
@@ -1839,13 +1877,139 @@ async function start(): Promise<void> {
             {}
         };
       });
+      const liveDrop = session.binding
+        ? await liveDropStore.list(liveDropScopeFromSession(session))
+        : [];
       return send(res, 200, {
         nodeId,
         state,
         providers,
         routing: await providerRoutingStore.all(),
         peers: peerFederation.publicStatus(),
-        signalTopology: await signalTopologyStore.load()
+        signalTopology: await signalTopologyStore.load(),
+        liveDrop
+      });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/live-drop') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      const scope = liveDropScopeFromSession(session);
+      return send(res, 200, {
+        assets: await liveDropStore.list(scope),
+        maxBytes: LIVE_DROP_MAX_BYTES
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/live-drop') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      const scope = liveDropScopeFromSession(session);
+      const actorId = liveDropHeader(req, 'x-live-actor-id').trim();
+      if (!actorId || actorId.length > 160) {
+        throw new Error('invalid_live_drop_actor');
+      }
+
+      const declaredLength = Number(req.headers['content-length'] || 0);
+      if (Number.isFinite(declaredLength) && declaredLength > LIVE_DROP_MAX_BYTES) {
+        throw new Error('live_drop_file_too_large');
+      }
+
+      const asset = await liveDropStore.upload({
+        ...scope,
+        nodeId,
+        fileName: decodeLiveDropFileName(req),
+        contentType: liveDropHeader(req, 'content-type'),
+        uploadedBy: actorId
+      }, req);
+
+      return send(res, 201, { asset });
+    }
+
+    if (
+      req.method === 'POST' &&
+      url.pathname.startsWith('/live-drop/') &&
+      url.pathname.endsWith('/review')
+    ) {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      const scope = liveDropScopeFromSession(session);
+      const parts = url.pathname.split('/').filter(Boolean);
+      const assetId = decodeURIComponent(parts[1] || '');
+      if (!assetId) throw new Error('invalid_live_drop_asset_id');
+
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') throw new Error('invalid_live_drop_review');
+      const candidate = body as Record<string, unknown>;
+      const status = String(candidate.status || '');
+      const reviewedBy = String(candidate.reviewedBy || '').trim();
+      if (!['ready', 'rejected'].includes(status) || !reviewedBy) {
+        throw new Error('invalid_live_drop_review');
+      }
+
+      const asset = await liveDropStore.review(
+        assetId,
+        scope,
+        status as 'ready' | 'rejected',
+        reviewedBy
+      );
+      return send(res, 200, { asset });
+    }
+
+    if (
+      req.method === 'POST' &&
+      url.pathname.startsWith('/live-drop/') &&
+      url.pathname.endsWith('/open')
+    ) {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      const scope = liveDropScopeFromSession(session);
+      const parts = url.pathname.split('/').filter(Boolean);
+      const assetId = decodeURIComponent(parts[1] || '');
+      if (!assetId) throw new Error('invalid_live_drop_asset_id');
+
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') throw new Error('invalid_live_drop_open');
+      const candidate = body as Record<string, unknown>;
+      const actorId = String(candidate.actorId || '').trim();
+      const liveSessionId = String(candidate.liveSessionId || '').trim();
+      const targetProviderId = String(candidate.providerId || '').trim();
+      if (!actorId || !liveSessionId) throw new Error('invalid_live_drop_open');
+
+      const resolved = await liveDropStore.resolveReadyPath(assetId, scope);
+      if (!['image', 'video', 'audio'].includes(resolved.asset.mediaType)) {
+        return send(res, 409, { error: 'live_drop_media_open_not_supported' });
+      }
+
+      const commandId = randomUUID();
+      const command: LiveCommand = {
+        id: commandId,
+        correlationId: randomUUID(),
+        organizationId: scope.organizationId,
+        venueId: scope.venueId,
+        liveSystemId: scope.liveSystemId,
+        liveSessionId,
+        actorId,
+        origin: 'live-ui',
+        capability: 'media.open',
+        targetProviderIds: targetProviderId ? [targetProviderId] : [],
+        outputTargets: ['main'],
+        payload: {
+          kind: resolved.asset.mediaType,
+          file: resolved.path,
+          liveDropAssetId: resolved.asset.id
+        },
+        idempotencyKey: randomUUID(),
+        createdAt: new Date().toISOString(),
+        safetyLevel: 'normal'
+      };
+
+      const results = await execute(command);
+      const accepted = results.some(result => result.accepted);
+      return send(res, accepted ? 200 : 409, {
+        asset: resolved.asset,
+        correlationId: command.correlationId,
+        results
       });
     }
 
@@ -2101,13 +2265,18 @@ async function start(): Promise<void> {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'internal_error';
     const status =
-      message === 'payload_too_large' ? 413 :
-      message === 'forbidden_scope' ? 403 :
+      message === 'payload_too_large' || message === 'live_drop_file_too_large' ? 413 :
+      message === 'forbidden_scope' || message === 'live_drop_pairing_scope_required' ? 403 :
+      message === 'live_drop_asset_not_found' ? 404 :
+      message === 'live_drop_file_type_not_allowed' || message === 'live_drop_content_type_mismatch' ? 415 :
       message === 'provider_link_target_missing' ? 409 :
       message === 'stale_service_plan' ? 409 :
+      message === 'live_drop_asset_not_ready' ||
+      message === 'live_drop_asset_not_quarantined' ||
+      message === 'live_drop_media_open_not_supported' ? 409 :
       message.includes('expired') ? 410 :
       message.includes('attempts_exceeded') ? 429 :
-      message.includes('pin_invalid') || message.startsWith('invalid_') || message.startsWith('signal_') || message.startsWith('duplicate_signal_') ? 400 :
+      message.includes('pin_invalid') || message.startsWith('invalid_') || message.startsWith('signal_') || message.startsWith('duplicate_signal_') || message.startsWith('live_drop_') ? 400 :
       500;
     return send(res, status, { error: message });
   }
