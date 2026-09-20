@@ -82,6 +82,52 @@ describe('FederatedProviderAdapter', () => {
     expect(adapter.descriptor.displayName).toContain('PC LED');
   });
 
+  it('forwards output snapshots and clip thumbnails through the peer asset endpoint', async () => {
+    const requested: string[] = [];
+    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+      requested.push(String(input));
+      return new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'Cache-Control': 'private, max-age=120'
+        }
+      });
+    }) as typeof fetch;
+
+    const adapter = new FederatedProviderAdapter(
+      peer,
+      {
+        providerId: 'resolume-primary',
+        nodeId: 'node_led',
+        displayName: 'Resolume Arena',
+        providerKey: 'resolume',
+        kind: 'visual',
+        capabilities: ['visual.output.snapshot', 'visual.clip.thumbnail'],
+        health: 'online',
+        observed: {}
+      },
+      fetchImpl
+    );
+
+    await adapter.fetchAsset({
+      kind: 'output.snapshot',
+      targetId: 'monitor-main',
+      format: 'png'
+    });
+    await adapter.fetchAsset({
+      kind: 'clip.thumbnail',
+      targetId: 'clip-44'
+    });
+
+    expect(requested[0]).toContain('/provider-assets/resolume-primary/output-snapshot?');
+    expect(requested[0]).toContain('targetId=monitor-main');
+    expect(requested[0]).toContain('format=png');
+    expect(requested[1]).toContain('/provider-assets/resolume-primary/clip-thumbnail?');
+    expect(requested[1]).toContain('targetId=clip-44');
+    expect(requested[1]).not.toContain('format=');
+  });
+
   it('marks the proxy offline when the peer cannot be reached', async () => {
     const fetchImpl = vi.fn(async () => {
       throw new Error('network_down');
