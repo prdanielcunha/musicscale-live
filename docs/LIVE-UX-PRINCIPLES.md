@@ -1,4 +1,4 @@
-# MillionsNest Live — UX operating principles
+# MusicScale Live — UX operating principles
 
 These rules are product invariants, not provider-specific styling. Holyrics, ProPresenter, Resolume and future adapters must fit the same operator mental model.
 
@@ -122,7 +122,7 @@ Exceptions must be explicit and justified by provider semantics. Search results 
 
 When exactly one provider supports a route group, routing is automatic.
 
-When two or more providers can own the same function, MillionsNest Live requires an explicit primary route. It must not broadcast a routine presentation command to multiple providers or silently choose one based on registration order.
+When two or more providers can own the same function, MusicScale Live requires an explicit primary route. It must not broadcast a routine presentation command to multiple providers or silently choose one based on registration order.
 
 The Studio topology should expose the resulting system graph. The local Node setup owns route mutation so service-time tablets cannot accidentally change infrastructure.
 
