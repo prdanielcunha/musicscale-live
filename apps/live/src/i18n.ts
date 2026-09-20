@@ -8,21 +8,21 @@ const nodeErrors = {
     node_timeout: 'O Live Node demorou demais para responder.',
     node_must_be_local: 'Use um endereço da rede local, como 192.168.x.x, 10.x.x.x ou .local.',
     unsupported_node_protocol: 'O endereço do Live Node deve usar HTTP ou HTTPS.',
-    mixed_content_blocked: 'Este navegador bloqueou HTTPS → HTTP local. Abra o MillionsNest Live pelo endereço local servido pelo Live Node neste dispositivo.',
+    mixed_content_blocked: 'Este navegador bloqueou HTTPS → HTTP local. Abra o MusicScale Live pelo endereço local servido pelo Live Node neste dispositivo.',
     pairing_rate_limited: 'Muitas tentativas. Aguarde alguns segundos e tente novamente.',
     pairing_pin_invalid: 'O código de pareamento não confere.',
     pairing_challenge_expired: 'O código expirou. Solicite um novo.',
     pairing_attempts_exceeded: 'Muitas tentativas de código. Solicite um novo pareamento.',
     pairing_device_mismatch: 'O pareamento não pertence a este dispositivo.',
     pairing_scope_conflict: 'Este Live Node já está vinculado a outro ambiente. Revogue os dispositivos no ambiente atual antes de vinculá-lo novamente.',
-    pairing_scope_required: 'Este Live Node ainda não foi vinculado a um ambiente. Faça primeiro o pareamento pelo MillionsNest Live conectado à sua organização.',
+    pairing_scope_required: 'Este Live Node ainda não foi vinculado a um ambiente. Faça primeiro o pareamento pelo MusicScale Live conectado à sua organização.',
     pairing_failed: 'Não foi possível concluir o pareamento.',
     peer_url_required: 'Informe o endereço do outro Live Node.',
     unsupported_peer_protocol: 'O outro Live Node deve usar HTTP ou HTTPS.',
     peer_url_credentials_not_allowed: 'Não coloque usuário ou senha no endereço do Live Node.',
     peer_must_be_local: 'O outro Live Node precisa estar na rede local, como 192.168.x.x, 10.x.x.x ou .local.',
     peer_pairing_scope_required: 'Não consegui determinar o ambiente deste pareamento.',
-    peer_not_musicscale_live_node: 'O endereço informado não respondeu como um MillionsNest Live Node compatível.',
+    peer_not_musicscale_live_node: 'O endereço informado não respondeu como um MusicScale Live Node compatível.',
     peer_cannot_be_self: 'Este endereço aponta para o mesmo Live Node.',
     peer_node_identity_mismatch: 'A identidade do outro Live Node mudou durante o pareamento. Tente novamente.',
     peer_pairing_not_pending: 'Não há um pareamento entre computadores aguardando confirmação.',
@@ -45,21 +45,21 @@ const nodeErrors = {
     node_timeout: 'The Live Node took too long to respond.',
     node_must_be_local: 'Use a local-network address such as 192.168.x.x, 10.x.x.x or .local.',
     unsupported_node_protocol: 'The Live Node address must use HTTP or HTTPS.',
-    mixed_content_blocked: 'This browser blocked HTTPS → local HTTP. Open MillionsNest Live from the local address served by the Live Node on this device.',
+    mixed_content_blocked: 'This browser blocked HTTPS → local HTTP. Open MusicScale Live from the local address served by the Live Node on this device.',
     pairing_rate_limited: 'Too many attempts. Wait a few seconds and try again.',
     pairing_pin_invalid: 'The pairing code is incorrect.',
     pairing_challenge_expired: 'The code expired. Request a new one.',
     pairing_attempts_exceeded: 'Too many code attempts. Request a new pairing.',
     pairing_device_mismatch: 'This pairing does not belong to this device.',
     pairing_scope_conflict: 'This Live Node is already bound to another environment. Revoke the current devices before binding it again.',
-    pairing_scope_required: 'This Live Node has not been bound to an environment yet. Pair it first from MillionsNest Live while signed in to your organization.',
+    pairing_scope_required: 'This Live Node has not been bound to an environment yet. Pair it first from MusicScale Live while signed in to your organization.',
     pairing_failed: 'Pairing could not be completed.',
     peer_url_required: 'Enter the address of the other Live Node.',
     unsupported_peer_protocol: 'The other Live Node must use HTTP or HTTPS.',
     peer_url_credentials_not_allowed: 'Do not include a username or password in the Live Node address.',
     peer_must_be_local: 'The other Live Node must be on the local network, such as 192.168.x.x, 10.x.x.x or .local.',
     peer_pairing_scope_required: 'The environment for this computer pairing could not be determined.',
-    peer_not_musicscale_live_node: 'That address did not respond as a compatible MillionsNest Live Node.',
+    peer_not_musicscale_live_node: 'That address did not respond as a compatible MusicScale Live Node.',
     peer_cannot_be_self: 'That address points to this same Live Node.',
     peer_node_identity_mismatch: 'The other Live Node identity changed during pairing. Try again.',
     peer_pairing_not_pending: 'There is no computer pairing waiting for confirmation.',
@@ -82,21 +82,21 @@ const nodeErrors = {
     node_timeout: 'El Live Node tardó demasiado en responder.',
     node_must_be_local: 'Use una dirección de red local, como 192.168.x.x, 10.x.x.x o .local.',
     unsupported_node_protocol: 'La dirección del Live Node debe usar HTTP o HTTPS.',
-    mixed_content_blocked: 'Este navegador bloqueó HTTPS → HTTP local. Abra MillionsNest Live desde la dirección local servida por el Live Node en este dispositivo.',
+    mixed_content_blocked: 'Este navegador bloqueó HTTPS → HTTP local. Abra MusicScale Live desde la dirección local servida por el Live Node en este dispositivo.',
     pairing_rate_limited: 'Demasiados intentos. Espere unos segundos y vuelva a intentar.',
     pairing_pin_invalid: 'El código de emparejamiento no coincide.',
     pairing_challenge_expired: 'El código expiró. Solicite uno nuevo.',
     pairing_attempts_exceeded: 'Demasiados intentos de código. Solicite un nuevo emparejamiento.',
     pairing_device_mismatch: 'Este emparejamiento no pertenece a este dispositivo.',
     pairing_scope_conflict: 'Este Live Node ya está vinculado a otro entorno. Revoque los dispositivos actuales antes de vincularlo nuevamente.',
-    pairing_scope_required: 'Este Live Node todavía no está vinculado a un entorno. Empárelo primero desde MillionsNest Live con sesión iniciada en su organización.',
+    pairing_scope_required: 'Este Live Node todavía no está vinculado a un entorno. Empárelo primero desde MusicScale Live con sesión iniciada en su organización.',
     pairing_failed: 'No fue posible completar el emparejamiento.',
     peer_url_required: 'Ingrese la dirección del otro Live Node.',
     unsupported_peer_protocol: 'El otro Live Node debe usar HTTP o HTTPS.',
     peer_url_credentials_not_allowed: 'No incluya usuario ni contraseña en la dirección del Live Node.',
     peer_must_be_local: 'El otro Live Node debe estar en la red local, como 192.168.x.x, 10.x.x.x o .local.',
     peer_pairing_scope_required: 'No se pudo determinar el entorno para este emparejamiento entre computadoras.',
-    peer_not_musicscale_live_node: 'La dirección no respondió como un MillionsNest Live Node compatible.',
+    peer_not_musicscale_live_node: 'La dirección no respondió como un MusicScale Live Node compatible.',
     peer_cannot_be_self: 'Esta dirección apunta al mismo Live Node.',
     peer_node_identity_mismatch: 'La identidad del otro Live Node cambió durante el emparejamiento. Inténtelo de nuevo.',
     peer_pairing_not_pending: 'No hay un emparejamiento entre computadoras esperando confirmación.',
@@ -118,7 +118,7 @@ const nodeErrors = {
 
 const resources = {
   pt: { translation: {
-    brand: 'MillionsNest Live',
+    brand: 'MusicScale Live',
     studio: 'Studio',
     live: 'Live',
     pastor: 'Pastor',
@@ -379,7 +379,7 @@ const resources = {
       endpoints: 'Pontos',
       links: 'Conexões',
       controlVsMediaTitle: 'Controle e vídeo continuam separados',
-      controlVsMedia: 'O MillionsNest Live coordena apps e estados pela LAN. NDI, captura de tela, HDMI, Spout, Syphon e outros caminhos continuam no media plane da instalação.',
+      controlVsMedia: 'O MusicScale Live coordena apps e estados pela LAN. NDI, captura de tela, HDMI, Spout, Syphon e outros caminhos continuam no media plane da instalação.',
       thisComputer: 'Este computador',
       roles: { source: 'Fontes', input: 'Entradas / processamento', output: 'Saídas' },
       kinds: {
@@ -417,7 +417,7 @@ const resources = {
         },
         holyricsDisplay: {
           title: 'Holyrics → telão principal',
-          description: 'Detectei um ambiente simples com Holyrics. Este mapa mantém o Holyrics como motor de apresentação e o MillionsNest Live como camada de controle.'
+          description: 'Detectei um ambiente simples com Holyrics. Este mapa mantém o Holyrics como motor de apresentação e o MusicScale Live como camada de controle.'
         },
         propresenterDisplay: {
           title: 'ProPresenter → telão principal',
@@ -663,7 +663,7 @@ const resources = {
     nodeErrors: nodeErrors.pt
   }},
   en: { translation: {
-    brand: 'MillionsNest Live', studio: 'Studio', live: 'Live', pastor: 'Pastor', conductor: 'Conductor',
+    brand: 'MusicScale Live', studio: 'Studio', live: 'Live', pastor: 'Pastor', conductor: 'Conductor',
     signIn: 'Sign in with Google', signOut: 'Sign out', sameEcosystem: 'Same MillionsNest ecosystem',
     organization: 'Organization', nextService: 'Next service', noService: 'No upcoming schedule found',
     songs: 'songs', foundation: 'Foundation', providerAgnostic: 'Provider-agnostic', lanFirst: 'LAN-first',
@@ -898,7 +898,7 @@ const resources = {
       endpoints: 'Endpoints',
       links: 'Connections',
       controlVsMediaTitle: 'Control and video stay separate',
-      controlVsMedia: 'MillionsNest Live coordinates apps and state over the LAN. NDI, screen capture, HDMI, Spout, Syphon and other paths remain in the installation media plane.',
+      controlVsMedia: 'MusicScale Live coordinates apps and state over the LAN. NDI, screen capture, HDMI, Spout, Syphon and other paths remain in the installation media plane.',
       thisComputer: 'This computer',
       roles: { source: 'Sources', input: 'Inputs / processing', output: 'Outputs' },
       kinds: {
@@ -936,7 +936,7 @@ const resources = {
         },
         holyricsDisplay: {
           title: 'Holyrics → main display',
-          description: 'A simple Holyrics environment was detected. This map keeps Holyrics as the presentation engine and MillionsNest Live as the control layer.'
+          description: 'A simple Holyrics environment was detected. This map keeps Holyrics as the presentation engine and MusicScale Live as the control layer.'
         },
         propresenterDisplay: {
           title: 'ProPresenter → main display',
@@ -1182,7 +1182,7 @@ const resources = {
     nodeErrors: nodeErrors.en
   }},
   es: { translation: {
-    brand: 'MillionsNest Live', studio: 'Studio', live: 'Live', pastor: 'Pastor', conductor: 'Conductor',
+    brand: 'MusicScale Live', studio: 'Studio', live: 'Live', pastor: 'Pastor', conductor: 'Conductor',
     signIn: 'Entrar con Google', signOut: 'Salir', sameEcosystem: 'Mismo ecosistema MillionsNest',
     organization: 'Organización', nextService: 'Próximo culto', noService: 'No se encontró una escala futura',
     songs: 'canciones', foundation: 'Foundation', providerAgnostic: 'Provider-agnostic', lanFirst: 'LAN-first',
@@ -1417,7 +1417,7 @@ const resources = {
       endpoints: 'Puntos',
       links: 'Conexiones',
       controlVsMediaTitle: 'Control y video siguen separados',
-      controlVsMedia: 'MillionsNest Live coordina apps y estados por LAN. NDI, captura de pantalla, HDMI, Spout, Syphon y otros caminos permanecen en el media plane de la instalación.',
+      controlVsMedia: 'MusicScale Live coordina apps y estados por LAN. NDI, captura de pantalla, HDMI, Spout, Syphon y otros caminos permanecen en el media plane de la instalación.',
       thisComputer: 'Esta computadora',
       roles: { source: 'Fuentes', input: 'Entradas / procesamiento', output: 'Salidas' },
       kinds: {
@@ -1455,7 +1455,7 @@ const resources = {
         },
         holyricsDisplay: {
           title: 'Holyrics → pantalla principal',
-          description: 'Se detectó un entorno simple con Holyrics. Este mapa mantiene Holyrics como motor de presentación y MillionsNest Live como capa de control.'
+          description: 'Se detectó un entorno simple con Holyrics. Este mapa mantiene Holyrics como motor de presentación y MusicScale Live como capa de control.'
         },
         propresenterDisplay: {
           title: 'ProPresenter → pantalla principal',
