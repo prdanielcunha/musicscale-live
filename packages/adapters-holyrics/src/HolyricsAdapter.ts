@@ -504,7 +504,10 @@ export class HolyricsAdapter implements ProviderAdapter {
         }
         await this.api.request('ShowVerse', input);
         const currentPresentation = this.supported.has('presentation.slides.read')
-          ? await this.api.request<CurrentPresentation | null>('GetCurrentPresentation')
+          ? await this.api.request<CurrentPresentation | null>('GetCurrentPresentation', {
+              include_slides: true,
+              include_slide_comment: true
+            })
           : null;
         return { biblePresentationRequested: input, currentPresentation };
       }
