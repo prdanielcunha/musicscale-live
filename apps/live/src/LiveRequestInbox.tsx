@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CommandResult, LiveRequest } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
+import {
+  liveDropRequestMediaCandidates,
+  normalizeRequestMediaResults,
+  type PreparedRequestMediaCandidate,
+  type RequestMediaKind
+} from './requestMedia';
 
 type Controller = ReturnType<typeof useLiveNode>;
 
@@ -73,6 +79,8 @@ export function LiveRequestInbox({
   const { t } = useTranslation();
   const [busy, setBusy] = useState<string | null>(null);
   const [preparedBible, setPreparedBible] = useState<Record<string, PreparedBibleRequest>>({});
+  const [preparedMedia, setPreparedMedia] = useState<Record<string, PreparedRequestMediaCandidate[]>>({});
+  const [selectedMedia, setSelectedMedia] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -99,6 +107,31 @@ export function LiveRequestInbox({
     [providers]
   );
 
+  const mediaSearchProviders = useMemo(
+    () => providers.filter(provider =>
+      (provider.health === 'online' || provider.health === 'degraded') &&
+      provider.capabilities.includes('media.search') &&
+      provider.capabilities.includes('media.open')
+    ),
+    [providers]
+  );
+
+  const mediaOpenProviders = useMemo(
+    () => providers.filter(provider =>
+      (provider.health === 'online' || provider.health === 'degraded') &&
+      provider.capabilities.includes('media.open')
+    ),
+    [providers]
+  );
+
+  const routedMediaProvider = useMemo(() => {
+    const configured = controller.nodeState?.routing?.media;
+    if (configured) {
+      return mediaOpenProviders.find(provider => provider.providerId === configured) || null;
+    }
+    return mediaOpenProviders.length === 1 ? mediaOpenProviders[0]! : null;
+  }, [controller.nodeState?.routing?.media, mediaOpenProviders]);
+
   const requests = useMemo(
     () => (controller.nodeState?.state.requests || [])
       .filter(request =>
@@ -119,6 +152,7 @@ export function LiveRequestInbox({
     request.status === 'accepted' &&
     (
       (request.kind === 'bible' && Boolean(preparedBible[request.id])) ||
+      (request.kind === 'media' && Boolean(selectedMedia[request.id])) ||
       (request.kind === 'message' && capabilitySet.has('stage.message'))
     )
   ).length;
@@ -232,6 +266,143 @@ export function LiveRequestInbox({
       setRequestError(
         request.id,
         error instanceof Error ? error.message : 'request_take_failed'
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function prepareMediaRequest(request: LiveRequest) {
+    const query = String(request.payload.query || '').trim();
+    if (!query) return;
+
+    const busyKey = `${request.id}:media-search`;
+    setBusy(busyKey);
+    clearError(request.id);
+
+    try {
+      const local = liveDropRequestMediaCandidates(
+        controller.nodeState?.liveDrop || [],
+        query
+      );
+
+      const kinds: RequestMediaKind[] = ['video', 'image', 'audio'];
+      const providerBatches = await Promise.all(
+        mediaSearchProviders.flatMap(provider =>
+          kinds.map(async kind => {
+            const results = await controller.executeCommand({
+              capability: 'media.search',
+              payload: {
+                kind,
+                filter: query,
+                includeMetadata: true,
+                includeThumbnail: kind !== 'audio'
+              },
+              liveSessionId,
+              actorId,
+              targetProviderIds: [provider.providerId],
+              safetyLevel: 'normal'
+            }).catch(() => []);
+
+            return normalizeRequestMediaResults(
+              results,
+              provider.providerId,
+              provider.displayName || provider.providerKey || 'provider',
+              kind
+            );
+          })
+        )
+      );
+
+      const candidates = [...local, ...providerBatches.flat()]
+        .filter((candidate, index, all) =>
+          all.findIndex(item => item.id === candidate.id) === index
+        )
+        .slice(0, 16);
+
+      if (!candidates.length) {
+        throw new Error('media_request_no_results');
+      }
+
+      setPreparedMedia(current => ({
+        ...current,
+        [request.id]: candidates
+      }));
+      setSelectedMedia(current => ({
+        ...current,
+        [request.id]: candidates[0]!.id
+      }));
+    } catch (error) {
+      setRequestError(
+        request.id,
+        error instanceof Error ? error.message : 'media_request_search_failed'
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function takeMediaRequest(request: LiveRequest) {
+    const candidates = preparedMedia[request.id] || [];
+    const selectedId = selectedMedia[request.id];
+    const candidate = candidates.find(item => item.id === selectedId);
+    if (!candidate) return;
+
+    const busyKey = `${request.id}:media-take`;
+    setBusy(busyKey);
+    clearError(request.id);
+
+    try {
+      if (candidate.source === 'live-drop') {
+        if (!candidate.assetId) throw new Error('live_drop_asset_required');
+        if (!routedMediaProvider) {
+          throw new Error(
+            mediaOpenProviders.length > 1
+              ? 'media_route_required'
+              : 'media_open_unavailable'
+          );
+        }
+
+        const response = await controller.openLiveDrop(candidate.assetId, {
+          actorId,
+          liveSessionId,
+          providerId: routedMediaProvider.providerId
+        });
+        const failed = response.results.find(result => !result.accepted);
+        if (failed) throw new Error(failed.errorCode || 'media_open_failed');
+      } else {
+        if (!candidate.providerId) throw new Error('media_provider_required');
+        const results = await controller.executeCommand({
+          capability: 'media.open',
+          payload: {
+            kind: candidate.kind,
+            file: candidate.name
+          },
+          liveSessionId,
+          actorId,
+          targetProviderIds: [candidate.providerId],
+          safetyLevel: 'guarded',
+          confirmed: true
+        });
+        const failed = firstCommandFailure(results);
+        if (failed) throw new Error(failed.errorCode || 'media_open_failed');
+      }
+
+      await controller.updateRequestStatus(request.id, 'completed', actorId);
+      setPreparedMedia(current => {
+        const next = { ...current };
+        delete next[request.id];
+        return next;
+      });
+      setSelectedMedia(current => {
+        const next = { ...current };
+        delete next[request.id];
+        return next;
+      });
+    } catch (error) {
+      setRequestError(
+        request.id,
+        error instanceof Error ? error.message : 'media_request_take_failed'
       );
     } finally {
       setBusy(null);
@@ -352,8 +523,20 @@ export function LiveRequestInbox({
             request.kind === 'media' ? request.payload.query :
             request.payload.text;
           const prepared = preparedBible[request.id];
+          const mediaCandidates = preparedMedia[request.id] || [];
+          const selectedMediaId = selectedMedia[request.id];
           const canPrepareBible =
             request.kind === 'bible' && capabilitySet.has('bible.present');
+          const canPrepareMedia =
+            request.kind === 'media' &&
+            (
+              mediaSearchProviders.length > 0 ||
+              (controller.nodeState?.liveDrop || []).some(asset =>
+                asset.status === 'ready' &&
+                (asset.mediaType === 'video' || asset.mediaType === 'image' || asset.mediaType === 'audio')
+              )
+            ) &&
+            mediaOpenProviders.length > 0;
           const canSendStage =
             request.kind === 'message' && capabilitySet.has('stage.message');
           const requestBusy = busy?.startsWith(`${request.id}:`) === true;
@@ -365,7 +548,7 @@ export function LiveRequestInbox({
                 'live-request',
                 `kind-${request.kind}`,
                 `status-${request.status}`,
-                prepared ? 'is-prepared' : ''
+                prepared || selectedMediaId ? 'is-prepared' : ''
               ].filter(Boolean).join(' ')}
             >
               <div className="live-request-copy">
@@ -378,7 +561,7 @@ export function LiveRequestInbox({
                 <strong>{String(label || '')}</strong>
                 <span>
                   {request.status === 'accepted'
-                    ? prepared
+                    ? prepared || selectedMediaId
                       ? t('requestInbox.preparedHint')
                       : t('requestInbox.acceptedHint')
                     : t('requestInbox.pendingHint')}
@@ -388,7 +571,7 @@ export function LiveRequestInbox({
                   <div className="request-execution-flow" aria-label={t('requestInbox.flowLabel')}>
                     <span className="done">{t('requestInbox.flow.requested')}</span>
                     <i />
-                    <span className={prepared || canSendStage ? 'active' : ''}>
+                    <span className={prepared || selectedMediaId || canSendStage ? 'active' : ''}>
                       {t('requestInbox.flow.prepared')}
                     </span>
                     <i />
@@ -408,9 +591,70 @@ export function LiveRequestInbox({
                   </div>
                 )}
 
+                {request.kind === 'media' && mediaCandidates.length > 0 && (
+                  <div className="request-media-prepared">
+                    <div className="request-media-prepared-head">
+                      <div>
+                        <b>{t('requestInbox.mediaPrepared')}</b>
+                        <span>{t('requestInbox.mediaPreparedHint', { count: mediaCandidates.length })}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="ghost"
+                        disabled={requestBusy}
+                        onClick={() => void prepareMediaRequest(request)}
+                      >
+                        {t('requestInbox.mediaSearchAgain')}
+                      </button>
+                    </div>
+                    <div className="request-media-candidates" role="listbox" aria-label={t('requestInbox.mediaResultsLabel')}>
+                      {mediaCandidates.map(candidate => {
+                        const active = selectedMediaId === candidate.id;
+                        return (
+                          <button
+                            key={candidate.id}
+                            type="button"
+                            role="option"
+                            aria-selected={active}
+                            className={active ? 'active' : ''}
+                            onClick={() => setSelectedMedia(current => ({
+                              ...current,
+                              [request.id]: candidate.id
+                            }))}
+                          >
+                            <span className="request-media-thumb">
+                              {candidate.thumbnail ? (
+                                <img src={candidate.thumbnail} alt="" />
+                              ) : (
+                                <b>{candidate.kind.slice(0, 1).toUpperCase()}</b>
+                              )}
+                            </span>
+                            <span className="request-media-candidate-copy">
+                              <strong title={candidate.name}>{candidate.name}</strong>
+                              <small>
+                                {candidate.providerName || t('requestInbox.localMedia')}
+                                {' · '}
+                                {t(`universalLibrary.kinds.${candidate.kind}`)}
+                                {candidate.metadata ? ` · ${candidate.metadata}` : ''}
+                              </small>
+                            </span>
+                            <em>{active ? t('requestInbox.selected') : t('requestInbox.select')}</em>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {request.status === 'accepted' &&
-                  (request.kind === 'section' || request.kind === 'media') && (
-                    <p className="request-manual-hint">{t('requestInbox.manualHint')}</p>
+                  request.kind === 'section' && (
+                    <p className="request-manual-hint">{t('requestInbox.sectionManualHint')}</p>
+                  )}
+
+                {request.status === 'accepted' &&
+                  request.kind === 'media' &&
+                  !canPrepareMedia && (
+                    <p className="request-manual-hint">{t('requestInbox.mediaUnavailable')}</p>
                   )}
 
                 {request.status === 'accepted' &&
@@ -427,7 +671,11 @@ export function LiveRequestInbox({
 
                 {errors[request.id] && (
                   <p className="request-action-error" role="alert">
-                    {t('requestInbox.actionError', { code: errors[request.id] })}
+                    {t('requestInbox.actionError', {
+                      message: t(`requestInbox.errors.${errors[request.id]}`, {
+                        defaultValue: errors[request.id]
+                      })
+                    })}
                   </p>
                 )}
               </div>
@@ -471,6 +719,37 @@ export function LiveRequestInbox({
                         {busy === `${request.id}:take`
                           ? t('requestInbox.taking')
                           : t('requestInbox.take')}
+                      </button>
+                    )}
+                    <button
+                      className="ghost"
+                      disabled={requestBusy}
+                      onClick={() => void setStatus(request.id, 'completed')}
+                    >
+                      {t('requestInbox.complete')}
+                    </button>
+                  </>
+                ) : request.kind === 'media' && canPrepareMedia ? (
+                  <>
+                    {mediaCandidates.length === 0 ? (
+                      <button
+                        className="secondary request-prepare-action"
+                        disabled={requestBusy}
+                        onClick={() => void prepareMediaRequest(request)}
+                      >
+                        {busy === `${request.id}:media-search`
+                          ? t('requestInbox.mediaSearching')
+                          : t('requestInbox.prepareMedia')}
+                      </button>
+                    ) : (
+                      <button
+                        className="primary request-take-action"
+                        disabled={requestBusy || !selectedMediaId}
+                        onClick={() => void takeMediaRequest(request)}
+                      >
+                        {busy === `${request.id}:media-take`
+                          ? t('requestInbox.taking')
+                          : t('requestInbox.takeMedia')}
                       </button>
                     )}
                     <button
