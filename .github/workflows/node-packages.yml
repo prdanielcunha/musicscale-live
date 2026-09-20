@@ -17,8 +17,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: millionsnest-live-node-packages
-  cancel-in-progress: false
+  group: millionsnest-live-node-packages-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   package:
