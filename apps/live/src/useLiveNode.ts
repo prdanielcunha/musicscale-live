@@ -30,6 +30,7 @@ import {
   cacheNodeScenes,
   completePairing,
   completePeerNodePairing,
+  discoverPeerNodes,
   executeNodeCommand,
   executeNodeScene,
   fetchProviderOutputSnapshot,
@@ -44,6 +45,7 @@ import {
   setNodeProviderRoute,
   submitNodeLiveRequest,
   updateNodeLiveRequestStatus,
+  type DiscoveredLiveNode,
   type LiveNodeApiError,
   type LiveNodeStateResponse,
   type PeerNodePairingChallenge
@@ -65,6 +67,8 @@ export function useLiveNode() {
   const [nodeState, setNodeState] = useState<LiveNodeStateResponse | null>(null);
   const [pending, setPending] = useState<PendingPairing | null>(null);
   const [pendingPeer, setPendingPeer] = useState<PeerNodePairingChallenge | null>(null);
+  const [nearbyNodes, setNearbyNodes] = useState<DiscoveredLiveNode[]>([]);
+  const [discoveryStatus, setDiscoveryStatus] = useState<'idle' | 'starting' | 'online' | 'unavailable'>('idle');
   const [peerErrorCode, setPeerErrorCode] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const failures = useRef(0);
@@ -195,6 +199,25 @@ export function useLiveNode() {
     const refreshed = await loadNodeState(credential.baseUrl, credential.token);
     setNodeState(refreshed);
     return refreshed;
+  }, [credential]);
+
+  const refreshNearbyNodes = useCallback(async () => {
+    if (!credential) {
+      setNearbyNodes([]);
+      setDiscoveryStatus('idle');
+      return [];
+    }
+
+    try {
+      const response = await discoverPeerNodes(credential.baseUrl, credential.token);
+      setDiscoveryStatus(response.status);
+      setNearbyNodes(response.peers);
+      return response.peers;
+    } catch {
+      setDiscoveryStatus('unavailable');
+      setNearbyNodes([]);
+      return [];
+    }
   }, [credential]);
 
   const beginPeerPairing = useCallback(async (peerBaseUrl: string) => {
@@ -470,6 +493,8 @@ export function useLiveNode() {
     setCredential(null);
     setPending(null);
     setPendingPeer(null);
+    setNearbyNodes([]);
+    setDiscoveryStatus('idle');
     setPeerErrorCode(null);
     setHealth(null);
     setNodeState(null);
@@ -485,10 +510,13 @@ export function useLiveNode() {
     nodeState,
     pending,
     pendingPeer,
+    nearbyNodes,
+    discoveryStatus,
     peerErrorCode,
     errorCode,
     beginPairing,
     finishPairing,
+    refreshNearbyNodes,
     beginPeerPairing,
     finishPeerPairing,
     forgetPeerNode,
