@@ -55,7 +55,8 @@ export function buildServicePlan(
     };
   });
 
-  const scheduledAt = `${scale.date}T${scale.time || '00:00'}:00`;
+  const clock = scale.time?.trim() || '00:00';
+  const scheduledAt = `${scale.date}T${/^\d{1,2}:\d{2}:\d{2}$/.test(clock) ? clock : `${clock}:00`}`;
 
   const plan: ServicePlan = {
     id: `music-scale:${scale.id}`,
