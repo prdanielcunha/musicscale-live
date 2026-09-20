@@ -24,6 +24,7 @@ import { LiveRequestInbox } from './LiveRequestInbox';
 import { SceneStudio } from './SceneStudio';
 import { LiveSceneBar } from './LiveSceneBar';
 import { PlaylistSyncAutomation } from './PlaylistSyncAutomation';
+import { LiveDropPanel } from './LiveDropPanel';
 
 type Surface = 'live' | 'studio' | 'pastor' | 'conductor';
 type LiveSessionMode = 'service' | 'free';
@@ -147,7 +148,7 @@ export function App() {
     requiresScale?: boolean;
   }> = [
     { key: 'overview' },
-    { key: 'prepare', requiresNode: true, requiresScale: true },
+    { key: 'prepare', requiresNode: true },
     { key: 'computers', requiresNode: true },
     { key: 'routing', requiresNode: true },
     { key: 'signal', requiresNode: true },
@@ -350,6 +351,14 @@ export function App() {
 
         {surface === 'studio' && studioSection === 'diagnostics' && liveNode.state === 'connected' && (
           <DiagnosticsPanel controller={liveNode} />
+        )}
+
+        {surface === 'studio' && studioSection === 'prepare' && liveNode.state === 'connected' && (
+          <LiveDropPanel
+            controller={liveNode}
+            actorId={user.uid}
+            liveSessionId={liveSessionId}
+          />
         )}
 
         {surface === 'studio' && studioSection === 'prepare' && liveNode.state === 'connected' && scale && (
