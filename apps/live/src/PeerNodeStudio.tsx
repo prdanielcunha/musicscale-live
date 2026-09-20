@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { useLiveNode } from './useLiveNode';
 
@@ -12,10 +12,19 @@ export function PeerNodeStudio({
   const { t } = useTranslation();
   const [address, setAddress] = useState('');
   const [pin, setPin] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [busyNodeId, setBusyNodeId] = useState<string | null>(null);
 
   const peers = controller.nodeState?.peers || [];
   const providers = controller.nodeState?.providers || [];
+  const localNodeId = controller.nodeState?.nodeId || '';
+
+  useEffect(() => {
+    void controller.refreshNearbyNodes();
+    const timer = window.setInterval(() => {
+      void controller.refreshNearbyNodes();
+    }, 6000);
+    return () => window.clearInterval(timer);
+  }, [controller.credential?.baseUrl]);
 
   const providersByNode = useMemo(() => {
     const counts = new Map<string, number>();
@@ -26,33 +35,51 @@ export function PeerNodeStudio({
     return counts;
   }, [providers]);
 
-  const startPairing = async () => {
-    if (!address.trim() || busy) return;
-    setBusy(true);
+  const pairedNodeIds = useMemo(
+    () => new Set(peers.map(peer => peer.nodeId)),
+    [peers]
+  );
+
+  const nearby = useMemo(
+    () => controller.nearbyNodes.filter(node =>
+      node.nodeId !== localNodeId && !pairedNodeIds.has(node.nodeId)
+    ),
+    [controller.nearbyNodes, localNodeId, pairedNodeIds]
+  );
+
+  const startPairing = async (baseUrl: string, nodeId: string) => {
+    if (!baseUrl.trim() || busyNodeId) return;
+    setBusyNodeId(nodeId);
     try {
-      const challenge = await controller.beginPeerPairing(address.trim());
+      const challenge = await controller.beginPeerPairing(baseUrl.trim());
       if (challenge) setPin('');
     } finally {
-      setBusy(false);
+      setBusyNodeId(null);
     }
   };
 
   const completePairing = async () => {
-    if (!controller.pendingPeer || pin.replace(/\D/g, '').length !== 6 || busy) return;
-    setBusy(true);
+    if (!controller.pendingPeer || pin.replace(/\D/g, '').length !== 6 || busyNodeId) return;
+    setBusyNodeId(controller.pendingPeer.remoteNodeId);
     try {
       const ok = await controller.finishPeerPairing(pin);
       if (ok) {
         setAddress('');
         setPin('');
+        await controller.refreshNearbyNodes();
       }
     } finally {
-      setBusy(false);
+      setBusyNodeId(null);
     }
   };
 
+  const manualPair = async () => {
+    if (!address.trim()) return;
+    await startPairing(address.trim(), 'manual');
+  };
+
   return (
-    <section className="peer-node-studio panel">
+    <section className="peer-node-studio panel premium-system-card">
       <div className="peer-node-head">
         <div>
           <span className="eyebrow">{t('peerNodes.kicker')}</span>
@@ -62,7 +89,17 @@ export function PeerNodeStudio({
         <div className="peer-node-summary">
           <small>{t('peerNodes.computers')}</small>
           <strong>{1 + peers.length}</strong>
+          <span>{t('peerNodes.onlineEnvironment')}</span>
         </div>
+      </div>
+
+      <div className="network-requirement">
+        <span className="network-requirement-mark" aria-hidden="true" />
+        <div>
+          <strong>{t('peerNodes.sameNetworkTitle')}</strong>
+          <p>{t('peerNodes.sameNetworkHint')}</p>
+        </div>
+        <span className="network-requirement-badge">{t('peerNodes.internetOptional')}</span>
       </div>
 
       <div className="peer-node-grid">
@@ -76,7 +113,7 @@ export function PeerNodeStudio({
           </div>
           <div className="peer-node-card-meta">
             <span>{t('peerNodes.online')}</span>
-            <span>{providersByNode.get(controller.nodeState?.nodeId || '') || 0} {t('peerNodes.providers')}</span>
+            <span>{providersByNode.get(localNodeId) || 0} {t('peerNodes.providers')}</span>
           </div>
         </article>
 
@@ -95,7 +132,7 @@ export function PeerNodeStudio({
             </div>
             <div className="peer-node-card-meta">
               <span>{peer.providersOnline}/{peer.providers} {t('peerNodes.providers')}</span>
-              <span>{peer.baseUrl.replace(/^https?:\/\//, '')}</span>
+              <span>{t('peerNodes.connectedAutomatically')}</span>
             </div>
             <button
               type="button"
@@ -109,31 +146,90 @@ export function PeerNodeStudio({
       </div>
 
       {!controller.pendingPeer ? (
-        <div className="peer-node-add">
-          <div>
-            <strong>{t('peerNodes.addTitle')}</strong>
-            <p>{t('peerNodes.addHint')}</p>
-          </div>
-          <div className="peer-node-add-form">
-            <input
-              value={address}
-              onChange={event => setAddress(event.target.value)}
-              placeholder={t('peerNodes.addressPlaceholder')}
-              autoComplete="off"
-              inputMode="url"
-            />
+        <div className="peer-discovery-shell">
+          <div className="peer-discovery-head">
+            <div>
+              <span className="eyebrow">{t('peerNodes.discoveryKicker')}</span>
+              <strong>{t('peerNodes.addTitle')}</strong>
+              <p>{t('peerNodes.discoveryHint')}</p>
+            </div>
             <button
               type="button"
-              className="primary"
-              disabled={busy || !address.trim()}
-              onClick={() => void startPairing()}
+              className="secondary"
+              onClick={() => void controller.refreshNearbyNodes()}
             >
-              {busy ? t('peerNodes.connecting') : t('peerNodes.connect')}
+              {t('peerNodes.searchAgain')}
             </button>
           </div>
+
+          {nearby.length > 0 ? (
+            <div className="peer-discovery-grid">
+              {nearby.map(node => (
+                <article key={node.nodeId} className="peer-discovery-card">
+                  <div className="peer-discovery-icon" aria-hidden="true">
+                    <span />
+                  </div>
+                  <div className="peer-discovery-copy">
+                    <strong>{node.displayName}</strong>
+                    <small>{t('peerNodes.liveNodeFound')}</small>
+                    <span>{t('peerNodes.readyToPair')}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={Boolean(busyNodeId)}
+                    onClick={() => void startPairing(node.baseUrl, node.nodeId)}
+                  >
+                    {busyNodeId === node.nodeId
+                      ? t('peerNodes.connecting')
+                      : t('peerNodes.connect')}
+                  </button>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="peer-discovery-empty">
+              <div className={`discovery-orb ${controller.discoveryStatus === 'online' ? 'searching' : 'warn'}`} />
+              <div>
+                <strong>{controller.discoveryStatus === 'online'
+                  ? t('peerNodes.searchingNearby')
+                  : t('peerNodes.discoveryUnavailable')}</strong>
+                <p>{controller.discoveryStatus === 'online'
+                  ? t('peerNodes.searchingNearbyHint')
+                  : t('peerNodes.discoveryUnavailableHint')}</p>
+              </div>
+            </div>
+          )}
+
+          <details className="peer-node-advanced">
+            <summary>{t('peerNodes.advanced')}</summary>
+            <div className="peer-node-add">
+              <div>
+                <strong>{t('peerNodes.manualTitle')}</strong>
+                <p>{t('peerNodes.manualHint')}</p>
+              </div>
+              <div className="peer-node-add-form">
+                <input
+                  value={address}
+                  onChange={event => setAddress(event.target.value)}
+                  placeholder={t('peerNodes.addressPlaceholder')}
+                  autoComplete="off"
+                  inputMode="url"
+                />
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={Boolean(busyNodeId) || !address.trim()}
+                  onClick={() => void manualPair()}
+                >
+                  {busyNodeId === 'manual' ? t('peerNodes.connecting') : t('peerNodes.connect')}
+                </button>
+              </div>
+            </div>
+          </details>
         </div>
       ) : (
-        <div className="peer-node-pairing">
+        <div className="peer-node-pairing pairing-premium">
           <div>
             <span className="eyebrow">{t('peerNodes.securePairing')}</span>
             <strong>{t('peerNodes.enterRemotePin')}</strong>
@@ -151,10 +247,10 @@ export function PeerNodeStudio({
             <button
               type="button"
               className="primary"
-              disabled={busy || pin.length !== 6}
+              disabled={Boolean(busyNodeId) || pin.length !== 6}
               onClick={() => void completePairing()}
             >
-              {busy ? t('peerNodes.connecting') : t('peerNodes.confirm')}
+              {busyNodeId ? t('peerNodes.connecting') : t('peerNodes.confirm')}
             </button>
           </div>
         </div>

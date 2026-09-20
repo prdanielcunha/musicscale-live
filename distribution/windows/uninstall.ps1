@@ -11,11 +11,13 @@ Remove-ItemProperty -Path $RunKey -Name "MusicScaleLiveNode" -ErrorAction Silent
 
 try {
   Start-Process -FilePath "netsh.exe" -ArgumentList "advfirewall firewall delete rule name=`"MillionsNest Live Node`"" -Verb RunAs -Wait
+  Start-Process -FilePath "netsh.exe" -ArgumentList "advfirewall firewall delete rule name=`"MillionsNest Live Node Discovery`"" -Verb RunAs -Wait
   Start-Process -FilePath "netsh.exe" -ArgumentList "advfirewall firewall delete rule name=`"MusicScale Live Node`"" -Verb RunAs -Wait
+  Start-Process -FilePath "netsh.exe" -ArgumentList "advfirewall firewall delete rule name=`"MusicScale Live Node Discovery`"" -Verb RunAs -Wait
 } catch {
   Write-Warning "Não foi possível remover automaticamente todas as regras de firewall."
 }
 
 Remove-Item $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item $LegacyInstallDir -Recurse -Force -ErrorAction SilentlyContinue
-Write-Host "MillionsNest Live Node removido." -ForegroundColor Green
+Write-Host "MusicScale Live Node removido." -ForegroundColor Green

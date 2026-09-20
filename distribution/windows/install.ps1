@@ -66,7 +66,9 @@ try {
     $FirewallScript = @"
 netsh advfirewall firewall delete rule name="MusicScale Live Node" >NUL 2>&1
 netsh advfirewall firewall delete rule name="MillionsNest Live Node" >NUL 2>&1
+netsh advfirewall firewall delete rule name="MillionsNest Live Node Discovery" >NUL 2>&1
 netsh advfirewall firewall add rule name="MillionsNest Live Node" dir=in action=allow protocol=TCP localport=4317 profile=private
+netsh advfirewall firewall add rule name="MillionsNest Live Node Discovery" dir=in action=allow protocol=UDP localport=4318 profile=private
 "@
     $TempFirewall = Join-Path $env:TEMP "millionsnest-live-firewall.cmd"
     Set-Content -Path $TempFirewall -Value $FirewallScript -Encoding ASCII
@@ -124,7 +126,7 @@ netsh advfirewall firewall add rule name="MillionsNest Live Node" dir=in action=
     throw "O Live Node iniciou, mas nao respondeu em http://127.0.0.1:4317/health."
   }
 
-  Write-InstallLog "Live Node online e respondendo na porta 4317."
+  Write-InstallLog "Live Node online na porta 4317; descoberta local preparada na porta UDP 4318."
   Start-Process "http://127.0.0.1:4317/node"
 
   Write-Host ""

@@ -1,49 +1,81 @@
 # MillionsNest Live Node — instalação alpha
 
-Este pacote contém o **MillionsNest Live Node** e a interface web local necessária para operar o MillionsNest Live na LAN.
+Este pacote contém o **MillionsNest Live Node** e a interface local usada para conectar os computadores de produção ao MillionsNest Live.
 
-## Windows
+> **Regra do produto:** o fluxo comercial normal não exige Git, PowerShell/Terminal, descoberta de IP, digitação de porta ou configuração do roteador. Os caminhos técnicos continuam apenas como fallback de desenvolvimento/recuperação enquanto a distribuição ainda está em alpha.
 
-1. Extraia o ZIP completo.
-2. Dê dois cliques em `INSTALAR-MILLIONSNEST-LIVE.cmd`.
-3. O Windows poderá pedir elevação apenas para liberar a porta TCP 4317 no perfil de rede **Privada**.
-4. O instalador copia o Node para o perfil do usuário, registra inicialização automática, inicia o processo e valida automaticamente `http://127.0.0.1:4317/health`.
-5. Se tudo estiver certo, o painel abre em `http://127.0.0.1:4317/node`.
+## Windows — fluxo normal
 
-A janela do instalador permanece aberta no final. Se houver erro, ela mostra a mensagem e informa o caminho do log em `%LOCALAPPDATA%\MillionsNestLive\logs\install.log`.
+1. Dê dois cliques em `MillionsNestLiveSetup.exe`.
+2. Confirme a instalação quando o Windows solicitar permissão.
+3. O instalador registra o Live Node para iniciar automaticamente, libera somente as regras necessárias no perfil de rede **Privada**, inicia o Node e abre a configuração local.
+4. No tablet/celular do operador, escaneie o QR mostrado no computador de produção.
+5. Confirme o pareamento com o PIN temporário exibido fisicamente naquele computador.
 
-O arquivo `install.ps1` continua no pacote como implementação interna/fallback técnico; o fluxo normal no Windows é usar o `.cmd`.
+O usuário não precisa descobrir ou digitar o endereço IP do computador.
+
+### Rede local
+
+Para controle local, o tablet/celular e os computadores de produção devem estar na **mesma rede local** — o mesmo Wi‑Fi, a mesma rede cabeada, ou ambos dentro da mesma LAN.
+
+- A internet **não é necessária** durante a operação local de um culto já preparado.
+- Redes de convidados/Guest Wi‑Fi podem usar isolamento de clientes e impedir que os aparelhos se encontrem.
+- A descoberta automática de outros Live Nodes usa apenas a rede local.
+- Quando a descoberta automática não for possível, endereço/IP manual existe somente em **Avançado** como fallback técnico.
+
+## Vários computadores
+
+Instale um Live Node em cada computador que precise conversar com apps ou hardware locais.
+
+Exemplos:
+
+- PC Projeção → Holyrics;
+- PC Visual → Resolume Arena;
+- PC Apresentação → ProPresenter;
+- futuros PCs de transmissão, stage, áudio e outros providers.
+
+Os Live Nodes anunciam sua presença localmente e aparecem no Studio para pareamento. **Descoberta não concede acesso:** a confiança só é criada depois da confirmação do PIN temporário e do vínculo com o ambiente/organização.
+
+## Providers
+
+O Live tenta esconder detalhes técnicos sempre que possível.
+
+- **Holyrics:** normalmente usa a API local no mesmo computador. Quando o Holyrics exigir habilitar o API Server/token, o Live guia esse passo e testa imediatamente.
+- **Resolume Arena/Avenue:** quando está no mesmo computador, o Live parte do endpoint local padrão e pede apenas que o Webserver/REST API esteja habilitado.
+- **ProPresenter:** como a configuração/porta pode variar, o Live mostra o passo necessário e mantém o endereço técnico dentro da configuração avançada.
+
+Nenhum provider deve ser exposto diretamente à internet para o fluxo local.
+
+## Fallback alpha do Windows
+
+Os arquivos `INSTALAR-MILLIONSNEST-LIVE.cmd` e `install.ps1` continuam temporariamente no artefato alpha para desenvolvimento e recuperação. **Eles não fazem parte da experiência comercial pretendida.**
 
 ## macOS
 
-1. Extraia o arquivo `.tar.gz`.
-2. Abra o Terminal no diretório extraído.
-3. Execute:
+A arquitetura já suporta o Live Node no macOS, mas a distribuição pública ainda precisa do instalador gráfico assinado/notarizado.
 
-```bash
-chmod +x install.command
-./install.command
-```
-
-O Node é instalado no perfil do usuário e registrado como LaunchAgent. O painel local é aberto automaticamente.
-
-## Primeiro uso
-
-No computador de produção:
-
-1. Abra o painel local.
-2. Configure o Holyrics usando a URL da API local e o token gerado no Holyrics.
-3. Confirme que o provider aparece como conectado.
-4. Escaneie o QR para abrir o MillionsNest Live no tablet/celular da mesma rede.
-5. Faça o pareamento com o PIN exibido somente no computador de produção.
+No pacote alpha atual, o fallback técnico ainda usa `install.command`. Antes de lançamento comercial, o happy path no macOS também deverá ser de duplo clique, sem Terminal.
 
 ## Segurança
 
-- O token do Holyrics não é enviado para Firebase, browser remoto ou MillionsNest.
-- O endpoint de configuração do provider responde apenas no loopback do computador do Node.
-- O pareamento de operadores usa PIN temporário e token persistido como hash no Node.
-- O modo remoto/cloud-relay permanece desabilitado.
+- Tokens de providers não são transmitidos nos beacons de descoberta.
+- A descoberta LAN transmite apenas identidade não secreta do Node e metadados de compatibilidade.
+- O IP do peer é derivado do pacote recebido, não confiado a partir do conteúdo anunciado.
+- O pareamento usa PIN temporário exibido fisicamente no computador alvo.
+- Credenciais de pareamento são armazenadas como hash no Node.
+- Configuração sensível de providers permanece local ao computador.
+- O modo remoto/cloud-relay continua desabilitado nesta distribuição alpha.
 
 ## Estado desta distribuição
 
-Esta é uma distribuição **alpha para testes controlados**. O binário macOS ainda não possui assinatura Developer ID/notarização e o Windows ainda não possui assinatura Authenticode. Esses itens são obrigatórios antes da distribuição pública.
+Esta é uma distribuição **alpha para testes controlados**.
+
+Antes de distribuição pública ainda são obrigatórios:
+
+- assinatura Authenticode do instalador/binário Windows;
+- Developer ID + notarização no macOS;
+- atualização automática assinada/verificada;
+- credential vault do sistema operacional;
+- certificação física Windows + iPad, Windows + Android e multi-PC;
+- teste de queda de internet durante sessão ativa;
+- validação de descoberta automática em roteadores/APs reais e diagnóstico de Guest Wi‑Fi/client isolation.

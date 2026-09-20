@@ -17,9 +17,9 @@ Open: dedicated Hosting validation from this repository; final cloud RBAC + Fire
 ## Phase 1 — Live Core + Node
 **Status: foundation-ready / physical certification open**
 
-Implemented: Live Node runtime; scoped pairing/revocation/rate limiting; LAN + same-origin Local Recovery; cache/crash recovery/reconnect; provider routing; diagnostics; SEA packaging/alpha installers; offline ServicePlan/ProviderLinks.
+Implemented: Live Node runtime; scoped pairing/revocation/rate limiting; LAN + same-origin Local Recovery; cache/crash recovery/reconnect; provider routing; diagnostics; SEA packaging/alpha installers; offline ServicePlan/ProviderLinks; QR handoff; human-first zero-config onboarding; best-effort LAN peer discovery with PIN trust; manual IP/port moved to Advanced fallback.
 
-Open: native packaging certification; Windows/macOS/iPad/Android physical matrix; internet-cut test; signing/notarization; OS credential vault.
+Open: native packaging certification; Windows/macOS/iPad/Android physical matrix; physical verification of multicast discovery across common church routers/APs; guest-network/client-isolation diagnostics; internet-cut test; signing/notarization; signed auto-update; OS credential vault.
 
 ## Phase 2 — Holyrics Deep Provider
 **Status: partial; deep adapter implemented, hardware gate open**
@@ -85,4 +85,4 @@ The next product proof remains:
 
 `MusicScale → ServicePlan/ProviderLinks → Live Node → routed provider(s) → TAKE → observed state`
 
-Validate it on real LAN hardware, then cut internet and prove that the prepared service keeps operating locally. The current church topology — Holyrics on one PC, Resolume Arena on another, final LED/output downstream — is a certification profile, not a hard-coded architecture.
+Validate it on real LAN hardware, prove zero-typing discovery/pairing across multiple computers, then cut internet and prove that the prepared service keeps operating locally. The current church topology — Holyrics on one PC, Resolume Arena on another, final LED/output downstream — is a certification profile, not a hard-coded architecture.
