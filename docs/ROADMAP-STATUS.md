@@ -38,9 +38,9 @@ Open: volunteer usability without Studio; iPad/Android touch QA; layout/latency 
 ## Phase 4 — Media, Live Drop & Collaboration
 **Status: partial, Live Drop foundation implemented**
 
-Implemented: provider media search/open; prepared media cue + thumbnail support; local Request inbox/status; structured system notices for playlist changes; ServicePlan domain supports non-song items; neutral signal-topology model for Sources / Inputs / Outputs; Live Drop LAN upload from desktop/mobile; extension + MIME validation; bounded streaming transfer; SHA-256 fingerprinting; Node-local quarantine; explicit operator approve/reject; approved local cache for offline use; guarded scope by paired organization/venue/live-system; direct open into an unambiguous local media provider for image/video/audio; PT/EN/ES responsive Studio surface.
+Implemented: provider media search/open; prepared media cue + thumbnail support; local Request inbox/status; structured system notices for playlist changes; ServicePlan domain supports non-song items; neutral signal-topology model for Sources / Inputs / Outputs; Live Drop LAN upload from desktop/mobile; extension + MIME validation; bounded streaming transfer; SHA-256 fingerprinting; Node-local quarantine; explicit operator approve/reject; approved local cache for offline use; guarded scope by paired organization/venue/live-system; direct open into local media providers; automatic paired-Node replication when the selected media provider runs on another production computer; peer-side size/hash verification, ready-copy dedupe and post-transfer open; PT/EN/ES responsive Studio surface.
 
-Open: cross-node Live Drop replication/transfer to the provider-hosting Node; richer preview/transcoding; universal library aggregator; configurable retention/permissions beyond quarantine expiry; complete neutral Announcement/Message domain; collaboration E2E.
+Open: richer Live Drop preview/transcoding; configurable retention/permissions beyond quarantine expiry; universal library aggregator; complete neutral Announcement/Message domain; collaboration E2E; physical cross-node throughput/latency validation with real church media files.
 
 ## Phase 5 — Resolume Arena Tier A
 **Status: partial; adapter implemented, hardware gate open**

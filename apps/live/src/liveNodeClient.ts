@@ -534,6 +534,10 @@ export async function openNodeLiveDrop(
   asset: LiveDropAsset;
   correlationId: string;
   results: CommandResult[];
+  transfer?: {
+    mode: 'local' | 'replicated' | 'reused';
+    targetNodeId: string;
+  };
 }> {
   return requestJson(
     baseUrl,

@@ -70,7 +70,6 @@ export function LiveDropPanel({
 
   const mediaRoute = useMemo(() => {
     const providers = (controller.nodeState?.providers || []).filter(provider =>
-      provider.nodeId === controller.nodeState?.nodeId &&
       (provider.health === 'online' || provider.health === 'degraded') &&
       provider.capabilities.includes('media.open')
     );
@@ -152,7 +151,22 @@ export function LiveDropPanel({
   async function openAsset(asset: LiveDropAsset) {
     if (!canOpenMedia(asset) || !mediaRoute.selected) return;
     setBusyAssetId(asset.id);
-    setMessage(null);
+
+    const providerName =
+      mediaRoute.selected.displayName ||
+      mediaRoute.selected.providerKey ||
+      'provider';
+    const remote =
+      Boolean(mediaRoute.selected.nodeId) &&
+      mediaRoute.selected.nodeId !== controller.nodeState?.nodeId;
+
+    setMessage(remote
+      ? t('liveDrop.transferring', {
+          name: asset.fileName,
+          provider: providerName
+        })
+      : null
+    );
 
     try {
       const response = await controller.openLiveDrop(asset.id, {
@@ -165,10 +179,20 @@ export function LiveDropPanel({
         setMessage(t('liveDrop.openFailed', {
           code: failed.errorCode || 'provider_error'
         }));
+      } else if (response.transfer?.mode === 'replicated') {
+        setMessage(t('liveDrop.replicatedAndOpened', {
+          name: asset.fileName,
+          provider: providerName
+        }));
+      } else if (response.transfer?.mode === 'reused') {
+        setMessage(t('liveDrop.reusedAndOpened', {
+          name: asset.fileName,
+          provider: providerName
+        }));
       } else {
         setMessage(t('liveDrop.opened', {
           name: asset.fileName,
-          provider: mediaRoute.selected.displayName || mediaRoute.selected.providerKey || 'provider'
+          provider: providerName
         }));
       }
     } catch (error) {
