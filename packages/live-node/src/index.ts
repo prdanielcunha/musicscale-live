@@ -173,27 +173,21 @@ async function registerHolyricsProvider(): Promise<{
 
 async function registerResolumeProvider(): Promise<{
   configured: boolean;
-  source: 'environment' | 'local' | 'none';
+  source: 'environment' | 'local' | 'detected' | 'none';
   probe?: Awaited<ReturnType<ResolumeAdapter['probe']>>;
   baseUrl?: string;
 }> {
   capabilityEngine.unregister('resolume-primary');
 
   const localConfig = await providerConfigStore.getResolume();
-  const baseUrl = RESOLUME_URL || localConfig?.baseUrl || '';
+  const explicitBaseUrl = RESOLUME_URL || localConfig?.baseUrl || '';
+  const autoDetect = !explicitBaseUrl;
+  const baseUrl = explicitBaseUrl || DEFAULT_RESOLUME_URL;
   const source = RESOLUME_URL
     ? 'environment' as const
     : localConfig
       ? 'local' as const
-      : 'none' as const;
-
-  if (!baseUrl) {
-    console.log(JSON.stringify({
-      event: 'provider_not_configured',
-      providerKey: 'resolume'
-    }));
-    return { configured: false, source };
-  }
+      : 'detected' as const;
 
   const adapter = new ResolumeAdapter({
     id: 'resolume-primary',
@@ -205,8 +199,23 @@ async function registerResolumeProvider(): Promise<{
   capabilityEngine.register(adapter);
   const probe = await adapter.probe();
 
+  if (autoDetect && !probe.reachable) {
+    capabilityEngine.unregister('resolume-primary');
+    console.log(JSON.stringify({
+      event: 'provider_not_detected',
+      providerKey: 'resolume',
+      candidate: baseUrl
+    }));
+    return {
+      configured: false,
+      source: 'none',
+      probe,
+      baseUrl
+    };
+  }
+
   console.log(JSON.stringify({
-    event: 'provider_probe',
+    event: autoDetect ? 'provider_auto_detected' : 'provider_probe',
     providerKey: 'resolume',
     providerId: adapter.descriptor.id,
     reachable: probe.reachable,
@@ -316,6 +325,13 @@ function observeOnlineProviders(): void {
 }
 
 async function recoverUnhealthyProviders(): Promise<void> {
+  if (!capabilityEngine.get('resolume-primary')) {
+    const configuredResolume = RESOLUME_URL || (await providerConfigStore.getResolume())?.baseUrl;
+    if (!configuredResolume) {
+      await registerResolumeProvider();
+    }
+  }
+
   const unhealthy = capabilityEngine
     .quickSnapshot()
     .filter(provider => provider.health !== 'online');
@@ -1203,10 +1219,10 @@ async function refreshProvider(){
     const rel=document.getElementById('resolume-status');
     document.getElementById('resolume-url').value=re.baseUrl||'http://127.0.0.1:8080';
     if(!re.configured){
-      rel.textContent='Resolume ainda não configurado.';
+      rel.textContent='Resolume não encontrado neste computador. Se você usa Arena/Avenue aqui, ative Webserver / REST API e clique em Conectar.';
     }else{
       const count=Array.isArray(re.capabilities)?re.capabilities.length:0;
-      rel.textContent=(re.health==='online'?'Conectado':'Configurado, mas offline')+' · '+count+' capacidades detectadas'+(re.source==='environment'?' · gerenciado pelo ambiente':'');
+      rel.textContent=(re.health==='online'?'Conectado':'Configurado, mas offline')+' · '+count+' capacidades detectadas'+(re.source==='detected'?' · encontrado automaticamente':re.source==='environment'?' · gerenciado pelo ambiente':'');
     }
 
     const pp=d.propresenter||{};
@@ -1460,8 +1476,14 @@ async function start(): Promise<void> {
           observed: holyrics?.observed || {}
         },
         resolume: {
-          configured: Boolean(RESOLUME_URL || resolumeConfig?.baseUrl),
-          source: RESOLUME_URL ? 'environment' : resolumeConfig ? 'local' : 'none',
+          configured: Boolean(RESOLUME_URL || resolumeConfig?.baseUrl || resolume),
+          source: RESOLUME_URL
+            ? 'environment'
+            : resolumeConfig
+              ? 'local'
+              : resolume
+                ? 'detected'
+                : 'none',
           baseUrl: RESOLUME_URL || resolumeConfig?.baseUrl || DEFAULT_RESOLUME_URL,
           health: resolume?.health || 'offline',
           capabilities: resolume?.capabilities || [],
