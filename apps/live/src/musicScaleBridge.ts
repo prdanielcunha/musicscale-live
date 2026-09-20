@@ -203,9 +203,10 @@ async function discoverOrganizations(
     })
   );
 
-  return hydrated
-    .filter((item): item is SharedOrganization => Boolean(item))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const visible = hydrated.filter(
+    (item): item is NonNullable<(typeof hydrated)[number]> => item !== null
+  );
+  return visible.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function loadSharedContext(user: User): Promise<SharedContext | null> {
