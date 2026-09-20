@@ -16,7 +16,8 @@ const RESOLUME_CAPABILITIES: Capability[] = [
   'visual.layer.clear',
   'visual.composition.clear',
   'visual.outputs.read',
-  'visual.output.snapshot'
+  'visual.output.snapshot',
+  'visual.clip.thumbnail'
 ];
 
 interface ProductInfo {
@@ -129,24 +130,42 @@ export class ResolumeAdapter implements ProviderAdapter {
   }
 
   async fetchAsset(request: ProviderAssetRequest): Promise<ProviderAsset> {
-    if (request.kind !== 'output.snapshot') {
-      throw new Error('capability_not_supported');
-    }
-    if (!this.supported.has('visual.output.snapshot')) {
-      throw new Error('capability_not_supported');
+    if (request.kind === 'output.snapshot') {
+      if (!this.supported.has('visual.output.snapshot')) {
+        throw new Error('capability_not_supported');
+      }
+
+      const targetId = String(request.targetId || '');
+      if (!targetId) throw new Error('resolume_monitor_id_required');
+      const extension = request.format === 'png' ? 'png' : 'jpg';
+      const response = await this.api.getBinary(
+        `/composition/monitors/${encodeURIComponent(targetId)}/snapshot.${extension}`
+      );
+      return {
+        contentType: response.contentType,
+        body: response.body,
+        cacheControl: 'no-store'
+      };
     }
 
-    const targetId = String(request.targetId || '');
-    if (!targetId) throw new Error('resolume_monitor_id_required');
-    const extension = request.format === 'png' ? 'png' : 'jpg';
-    const response = await this.api.getBinary(
-      `/composition/monitors/${encodeURIComponent(targetId)}/snapshot.${extension}`
-    );
-    return {
-      contentType: response.contentType,
-      body: response.body,
-      cacheControl: 'no-store'
-    };
+    if (request.kind === 'clip.thumbnail') {
+      if (!this.supported.has('visual.clip.thumbnail')) {
+        throw new Error('capability_not_supported');
+      }
+
+      const targetId = String(request.targetId || '');
+      if (!targetId) throw new Error('resolume_clip_id_required');
+      const response = await this.api.getBinary(
+        `/composition/clips/by-id/${encodeURIComponent(targetId)}/thumbnail`
+      );
+      return {
+        contentType: response.contentType,
+        body: response.body,
+        cacheControl: 'private, max-age=120'
+      };
+    }
+
+    throw new Error('capability_not_supported');
   }
 
   async execute(command: LiveCommand): Promise<CommandResult> {
