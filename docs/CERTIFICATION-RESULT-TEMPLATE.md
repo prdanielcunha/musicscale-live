@@ -1,4 +1,4 @@
-# MillionsNest Live — Certification Result
+# MusicScale Live — Certification Result
 
 ## Metadata
 
