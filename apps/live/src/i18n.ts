@@ -143,6 +143,18 @@ const resources = {
     readOnlyBridge: 'Bridge MusicScale em modo leitura',
     loading: 'Carregando contexto...',
     chooseMode: 'Superfícies preparadas',
+    studioNavigation: {
+      ariaLabel: 'Áreas do Live Studio',
+      sections: {
+        overview: 'Visão geral',
+        prepare: 'Preparar culto',
+        computers: 'Computadores',
+        routing: 'Rotas',
+        signal: 'Entradas e saídas',
+        scenes: 'Cenas',
+        diagnostics: 'Diagnóstico'
+      }
+    },
     now: 'Agora',
     timeline: 'Roteiro',
     bible: 'Bíblia',
@@ -693,7 +705,21 @@ const resources = {
     songs: 'songs', foundation: 'Foundation', providerAgnostic: 'Provider-agnostic', lanFirst: 'LAN-first',
     offlineReady: 'Offline-ready', health: 'System health', node: 'Live Node', cloud: 'Cloud Sync',
     providers: 'Providers', pending: 'Pending', connected: 'Connected', readOnlyBridge: 'MusicScale read-only bridge',
-    loading: 'Loading context...', chooseMode: 'Prepared surfaces', now: 'Now', timeline: 'Run of Show',
+    loading: 'Loading context...',
+    chooseMode: 'Prepared surfaces',
+    studioNavigation: {
+      ariaLabel: 'Live Studio areas',
+      sections: {
+        overview: 'Overview',
+        prepare: 'Prepare service',
+        computers: 'Computers',
+        routing: 'Routing',
+        signal: 'Inputs & outputs',
+        scenes: 'Scenes',
+        diagnostics: 'Diagnostics'
+      }
+    },
+    now: 'Now', timeline: 'Run of Show',
     bible: 'Bible', media: 'Media', requests: 'Requests',
     liveWorkspace: {
       onAir: 'LIVE',
@@ -1236,7 +1262,21 @@ const resources = {
     songs: 'canciones', foundation: 'Foundation', providerAgnostic: 'Provider-agnostic', lanFirst: 'LAN-first',
     offlineReady: 'Offline-ready', health: 'Salud del sistema', node: 'Live Node', cloud: 'Cloud Sync',
     providers: 'Providers', pending: 'Pendiente', connected: 'Conectado', readOnlyBridge: 'Bridge MusicScale en modo lectura',
-    loading: 'Cargando contexto...', chooseMode: 'Superficies preparadas', now: 'Ahora', timeline: 'Guion',
+    loading: 'Cargando contexto...',
+    chooseMode: 'Superficies preparadas',
+    studioNavigation: {
+      ariaLabel: 'Áreas de Live Studio',
+      sections: {
+        overview: 'Visión general',
+        prepare: 'Preparar culto',
+        computers: 'Computadoras',
+        routing: 'Rutas',
+        signal: 'Entradas y salidas',
+        scenes: 'Escenas',
+        diagnostics: 'Diagnóstico'
+      }
+    },
+    now: 'Ahora', timeline: 'Guion',
     bible: 'Biblia', media: 'Media', requests: 'Requests',
     liveWorkspace: {
       onAir: 'EN VIVO',
