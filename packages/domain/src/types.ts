@@ -8,6 +8,7 @@ export const CAPABILITIES = [
   'presentation.background.read',
   'presentation.background.set',
   'bible.search',
+  'bible.versions.read',
   'bible.present',
   'songs.search',
   'songs.create',
@@ -317,6 +318,7 @@ export interface ServicePlan {
   sourceMusicScaleId?: EntityId;
   title: string;
   scheduledAt: string;
+  metadata?: Record<string, unknown>;
   profileId?: EntityId;
   items: ServiceItem[];
   revision: number;
