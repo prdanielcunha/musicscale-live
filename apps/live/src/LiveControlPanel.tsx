@@ -189,12 +189,14 @@ export function LiveControlPanel({
   controller,
   actorId,
   liveSessionId,
-  servicePlanEnabled = true
+  servicePlanEnabled = true,
+  touchPrimary = false
 }: {
   controller: Controller;
   actorId: string;
   liveSessionId: string;
   servicePlanEnabled?: boolean;
+  touchPrimary?: boolean;
 }) {
   const { t } = useTranslation();
   const cueCoordinator = useLiveCueCoordinator();
@@ -217,6 +219,8 @@ export function LiveControlPanel({
   const [clearArmed, setClearArmed] = useState(false);
   const clearTimer = useRef<number | null>(null);
   const previewRequestSignature = useRef<string>('');
+  const slideRailRef = useRef<HTMLDivElement | null>(null);
+  const previousFrameSignature = useRef('');
 
   const providers = controller.nodeState?.providers || [];
   const servicePlan = servicePlanEnabled
@@ -762,6 +766,32 @@ export function LiveControlPanel({
   const currentScreenMode = String(
     providers.find(provider => provider.observed?.screenMode)?.observed?.screenMode || 'normal'
   );
+  const presentationFrameSignature = `${String(effectivePresentation?.id || '')}:${currentSlideIndex}`;
+
+  useEffect(() => {
+    if (currentSlideIndex < 0) return;
+
+    if (
+      previousFrameSignature.current &&
+      previousFrameSignature.current !== presentationFrameSignature
+    ) {
+      setSelectedSlideIndex(null);
+    }
+    previousFrameSignature.current = presentationFrameSignature;
+
+    const frame = window.requestAnimationFrame(() => {
+      const currentCard = slideRailRef.current?.querySelector<HTMLElement>(
+        `[data-slide-index="${currentSlideIndex}"]`
+      );
+      currentCard?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [currentSlideIndex, presentationFrameSignature]);
 
   useLiveOperatorShortcuts({
     enabled: can('presentation.navigation') && busy === null && !clearArmed,
@@ -947,9 +977,18 @@ export function LiveControlPanel({
             <div className="slide-rail-shell">
               <div className="slide-rail-head">
                 <strong>{t('liveControls.slides')}</strong>
-                <span>{t('liveControls.slideHint')}</span>
+                <span>
+                  {touchPrimary
+                    ? t('liveControls.slideHintTouch')
+                    : t('liveControls.slideHint')}
+                </span>
               </div>
-              <div className="slide-rail" role="listbox" aria-label={t('liveControls.slides')}>
+              <div
+                ref={slideRailRef}
+                className="slide-rail"
+                role="listbox"
+                aria-label={t('liveControls.slides')}
+              >
                 {slides.map((slide, index) => {
                   const thumbnail = slidePreviewUrl(slide);
                   const text = slide?.text ? String(slide.text) : '';
@@ -961,13 +1000,14 @@ export function LiveControlPanel({
                       type="button"
                       role="option"
                       aria-selected={isSelected}
+                      data-slide-index={index}
                       className={[
                         'slide-rail-card',
                         isCurrent ? 'current' : '',
                         isSelected ? 'selected' : ''
                       ].filter(Boolean).join(' ')}
                       onClick={() => setSelectedSlideIndex(isCurrent ? null : index)}
-                      onDoubleClick={() => void goToSlide(index)}
+                      onDoubleClick={touchPrimary ? undefined : () => void goToSlide(index)}
                       disabled={busy !== null}
                     >
                       <span className="slide-rail-number">{index + 1}</span>

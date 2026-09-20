@@ -448,3 +448,80 @@ code,kbd{font-variant-ligatures:none}
   .workspace{padding:18px 12px 38px}.hero{min-height:auto}.hero h1{font-size:34px}.top-actions{gap:6px}
 }
 @media(prefers-reduced-motion:reduce){button,.sidebar button{transition:none}}
+
+
+/* Adaptive Operator Workspace — touch-first, orientation-aware, premium live operation. */
+.operator-exit-button{display:none;border:1px solid rgba(255,255,255,.075);background:rgba(255,255,255,.035);color:#c5c8d2;border-radius:999px;padding:6px 10px;font:inherit;font-size:8px;font-weight:700;cursor:pointer}
+.operator-rotate-hint{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;margin:0 0 12px;padding:12px 13px;border:1px solid rgba(124,92,255,.16);border-radius:16px;background:radial-gradient(circle at 0 0,rgba(124,92,255,.12),transparent 45%),rgba(15,16,23,.88);box-shadow:0 18px 48px rgba(0,0,0,.20);backdrop-filter:blur(22px) saturate(130%)}
+.operator-rotate-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;background:rgba(124,92,255,.10);border:1px solid rgba(124,92,255,.17);color:#b8aeff;font-size:17px}
+.operator-rotate-hint>div:nth-child(2){min-width:0}.operator-rotate-hint strong{display:block;color:#eceaf8;font-size:11px}.operator-rotate-hint span{display:block;margin-top:3px;color:#858a9a;font-size:9px;line-height:1.45}.operator-rotate-hint button{min-height:34px;border:1px solid rgba(255,255,255,.075);background:#171821;color:#cdd0da;border-radius:10px;padding:7px 11px;font:inherit;font-size:8px;font-weight:700;cursor:pointer}
+.operator-touch button,.operator-touch [role="button"],.local-recovery-shell.operator-touch button{-webkit-tap-highlight-color:transparent}
+.operator-touch .slide-rail{scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-x}.operator-touch .slide-rail::-webkit-scrollbar{display:none}.operator-touch .slide-rail-card{touch-action:pan-x;user-select:none}
+.operator-touch .deck-take,.operator-touch .transport-primary button,.operator-touch .screen-mode-controls button,.operator-touch .live-tool-dock button{min-height:44px}
+
+@media(max-width:700px){
+  .operator-rotate-hint{grid-template-columns:auto minmax(0,1fr);gap:10px}
+  .operator-rotate-hint button{grid-column:1/-1;width:100%}
+}
+
+/* Portrait phone/tablet: Preview stays dominant while core transport remains reachable. */
+.operator-portrait .live-control-panel{padding-bottom:118px}
+.operator-portrait .deck-monitor-live .deck-frame{aspect-ratio:16/6.4}
+.operator-portrait .deck-monitor-live>footer{display:none}
+.operator-portrait .deck-monitor-next .deck-frame{aspect-ratio:16/9}
+.operator-portrait .live-command-strip{position:sticky;bottom:max(6px,env(safe-area-inset-bottom));z-index:24;margin:10px -5px 0;padding:6px;border:1px solid rgba(255,255,255,.075);border-radius:14px;background:rgba(12,13,19,.88);box-shadow:0 -14px 42px rgba(0,0,0,.30);backdrop-filter:blur(24px) saturate(145%)}
+.operator-portrait .live-command-strip>.screen-mode-controls{margin:0}
+.operator-portrait .transport-primary button{min-height:48px}
+.operator-portrait .slide-rail-card{flex-basis:126px}
+.operator-portrait .background-picker{position:fixed;z-index:45;left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));max-height:min(78dvh,760px);overflow:auto;margin:0;border-radius:22px;box-shadow:0 30px 100px rgba(0,0,0,.58);background:rgba(14,15,21,.97);backdrop-filter:blur(30px) saturate(150%)}
+.operator-portrait .background-picker:before{content:"";display:block;width:42px;height:4px;margin:8px auto 0;border-radius:999px;background:rgba(255,255,255,.14)}
+.operator-portrait .background-picker-body{grid-template-columns:1fr}.operator-portrait .background-library{border-right:0;border-bottom:1px solid rgba(255,255,255,.05);max-height:42dvh}.operator-portrait .background-take-card{min-height:170px}
+
+/* Landscape touch devices become an operator console automatically. */
+.app-shell.live-surface.operator-landscape{display:grid;grid-template-columns:1fr;grid-template-rows:1fr;min-height:100dvh;background:radial-gradient(circle at 50% -20%,rgba(124,92,255,.07),transparent 34%),#090a0f}
+.app-shell.live-surface.operator-landscape>.topbar,.app-shell.live-surface.operator-landscape>.sidebar{display:none}
+.app-shell.live-surface.operator-landscape>.workspace{grid-column:1;grid-row:1;width:100%;max-width:none;margin:0;padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) calc(86px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+.operator-landscape .live-session-strip{position:sticky;top:max(4px,env(safe-area-inset-top));z-index:30;min-height:48px;margin:0 0 6px;padding:6px 8px;border-radius:14px;border-color:rgba(255,255,255,.075);background:rgba(12,13,19,.82);box-shadow:0 10px 34px rgba(0,0,0,.22);backdrop-filter:blur(26px) saturate(145%)}
+.operator-landscape .live-session-identity{gap:8px}.operator-landscape .live-session-identity strong{font-size:11px}.operator-landscape .live-session-identity span{font-size:8px}.operator-landscape .live-session-dot{width:6px;height:6px}
+.operator-landscape .live-session-mode{gap:3px}.operator-landscape .live-session-mode button{min-height:34px;padding:5px 8px;border-radius:9px}.operator-landscape .live-session-mode button small{font-size:6px}.operator-landscape .live-session-mode button strong{font-size:8px}
+.operator-landscape .live-session-health{gap:4px;flex-wrap:nowrap}.operator-landscape .live-session-health>span{padding:5px 7px;font-size:7px}.operator-landscape .live-session-health .live-focus-button{padding:5px 8px;min-height:30px}.operator-landscape .operator-exit-button{display:inline-flex;align-items:center;justify-content:center;min-height:30px}
+.operator-landscape .operator-rotate-hint{display:none}
+.operator-landscape .live-control-panel{margin:0 0 10px;padding:7px;border-radius:18px;border-color:rgba(255,255,255,.075);background:linear-gradient(180deg,rgba(15,16,22,.94),rgba(9,10,15,.96));box-shadow:0 24px 70px rgba(0,0,0,.20)}
+.operator-landscape .live-control-header{display:none}
+.operator-landscape .live-control-grid{gap:6px}
+.operator-landscape .live-tool-dock{position:sticky;top:60px;z-index:22;gap:4px;padding:4px;border-radius:12px;background:rgba(11,12,17,.84);box-shadow:0 10px 30px rgba(0,0,0,.16);backdrop-filter:blur(22px) saturate(140%)}
+.operator-landscape .live-tool-dock button{min-height:38px;padding:6px 9px;border-radius:8px;text-align:center}.operator-landscape .live-tool-dock span{font-size:9px}.operator-landscape .live-tool-dock small{display:none}
+.operator-landscape .program-card{position:relative;top:auto;padding:7px;border-radius:14px;background:radial-gradient(circle at 50% 0,rgba(124,92,255,.075),transparent 36%),#0c0d12;box-shadow:inset 0 1px rgba(255,255,255,.015)}
+.operator-landscape .operator-card-head{min-height:28px;margin-bottom:5px;padding:0 2px}.operator-landscape .operator-card-head>div:first-child>span{font-size:8px}.operator-landscape .operator-subtitle{margin-top:2px;font-size:8px;max-width:46vw}.operator-landscape .program-head-actions button{min-height:28px;padding:4px 7px}
+.operator-landscape .now-next-deck{grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr);gap:6px}
+.operator-landscape .deck-flow span{width:22px;height:22px;font-size:11px}
+.operator-landscape .deck-monitor{border-radius:12px}.operator-landscape .deck-monitor>header{height:36px;padding:0 9px}.operator-landscape .deck-monitor>header strong{font-size:9px}.operator-landscape .deck-monitor>header small{font-size:7px}.operator-landscape .deck-frame{aspect-ratio:16/7.8}.operator-landscape .deck-monitor>footer{min-height:40px;padding:5px 7px}.operator-landscape .deck-monitor>footer>span{font-size:8px}.operator-landscape .deck-take{min-height:34px;padding:6px 9px;font-size:8px}
+.operator-landscape .slide-rail-shell{margin-top:6px;padding:5px;border-radius:11px;background:rgba(7,8,12,.92)}.operator-landscape .slide-rail-head{padding:0 1px 5px}.operator-landscape .slide-rail-head strong{font-size:8px}.operator-landscape .slide-rail-head span{font-size:7px}.operator-landscape .slide-rail{gap:5px;padding-bottom:2px}.operator-landscape .slide-rail-card{flex-basis:130px;padding:4px;border-radius:9px}.operator-landscape .slide-rail-number{top:7px;left:7px;min-width:18px;height:18px;font-size:7px}.operator-landscape .slide-rail-card>small{padding:4px 2px 1px;font-size:7px}
+.operator-landscape .live-command-strip{position:sticky;bottom:max(6px,env(safe-area-inset-bottom));z-index:28;display:grid;grid-template-columns:minmax(300px,1.2fr) minmax(250px,.85fr) auto;gap:6px;margin:6px -1px 0;padding:6px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(12,13,19,.90);box-shadow:0 -18px 46px rgba(0,0,0,.34);backdrop-filter:blur(26px) saturate(150%)}
+.operator-landscape .transport-primary{grid-template-columns:.72fr 1fr 1fr;gap:4px}.operator-landscape .transport-primary button{min-height:46px;border-radius:10px;font-size:10px}.operator-landscape .transport-primary .next-primary{background:linear-gradient(180deg,rgba(124,92,255,.24),rgba(124,92,255,.15));box-shadow:inset 0 1px rgba(255,255,255,.035)}
+.operator-landscape .screen-mode-controls{margin:0;align-self:stretch}.operator-landscape .screen-mode-controls button{min-height:46px;padding:5px 4px}.operator-landscape .live-command-strip>button{min-height:46px}
+.operator-landscape .live-tool-card{min-height:0;border-radius:14px;padding:10px}.operator-landscape .provider-search-results{max-height:180px}
+.operator-landscape .service-horizon{margin-top:2px}
+.operator-landscape .background-picker{position:fixed;z-index:48;top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));width:min(600px,48vw);margin:0;border-radius:20px;overflow:auto;background:rgba(13,14,20,.975);box-shadow:-24px 0 90px rgba(0,0,0,.52);backdrop-filter:blur(30px) saturate(155%)}
+.operator-landscape .background-picker-body{grid-template-columns:minmax(0,1fr) 190px;min-height:0}.operator-landscape .background-library{max-height:none}.operator-landscape .background-take-card{min-height:0}
+
+/* iPad / large tablets: generous previews and a persistent control surface. */
+.operator-tablet-landscape .deck-frame{aspect-ratio:16/8.35}
+.operator-tablet-landscape .slide-rail-card{flex-basis:152px}
+.operator-tablet-landscape .live-tool-dock button{min-height:42px}
+.operator-tablet-landscape .transport-primary button,.operator-tablet-landscape .screen-mode-controls button,.operator-tablet-landscape .live-command-strip>button{min-height:50px}
+.operator-tablet-landscape .background-picker{width:min(640px,52vw)}
+
+/* Phone landscape: compress chrome, not controls. Keep both Program and Preview visible. */
+.operator-phone-landscape .live-session-strip{min-height:38px;padding:4px 6px;border-radius:11px}.operator-phone-landscape .live-session-identity small,.operator-phone-landscape .live-session-identity span{display:none}.operator-phone-landscape .live-session-identity strong{font-size:9px}.operator-phone-landscape .live-session-mode button{min-height:30px;padding:3px 6px}.operator-phone-landscape .live-session-mode button small{display:none}.operator-phone-landscape .live-session-health>span{display:none}.operator-phone-landscape .live-session-health>span:nth-child(-n+2){display:inline-flex}.operator-phone-landscape .live-session-health .live-focus-button{display:none}.operator-phone-landscape .operator-exit-button{min-height:28px;padding:4px 8px}
+.operator-phone-landscape .live-control-panel{padding:4px;border-radius:13px}.operator-phone-landscape .live-tool-dock{top:46px;padding:3px}.operator-phone-landscape .live-tool-dock button{min-height:34px;padding:4px 6px}.operator-phone-landscape .program-card{padding:5px}.operator-phone-landscape .operator-card-head{min-height:22px;margin-bottom:3px}.operator-phone-landscape .program-head-actions button{display:none}.operator-phone-landscape .now-next-deck{grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr);gap:4px}.operator-phone-landscape .deck-flow span{width:18px;height:18px;font-size:9px}.operator-phone-landscape .deck-monitor>header{height:30px;padding:0 7px}.operator-phone-landscape .deck-monitor>header strong{font-size:8px}.operator-phone-landscape .deck-monitor>header small,.operator-phone-landscape .deck-monitor>header em{display:none}.operator-phone-landscape .deck-frame{aspect-ratio:16/6.35}.operator-phone-landscape .deck-monitor-live>footer{display:none}.operator-phone-landscape .deck-monitor-next>footer{min-height:34px;padding:3px 5px}.operator-phone-landscape .deck-monitor-next>footer>span{display:none}.operator-phone-landscape .deck-take{min-height:30px;padding:4px 7px;font-size:7px;margin-left:auto}
+.operator-phone-landscape .slide-rail-shell{margin-top:4px;padding:3px}.operator-phone-landscape .slide-rail-head{display:none}.operator-phone-landscape .slide-rail{gap:4px}.operator-phone-landscape .slide-rail-card{flex-basis:92px;padding:3px}.operator-phone-landscape .slide-rail-preview{aspect-ratio:16/8.2}.operator-phone-landscape .slide-rail-card>small{display:none}.operator-phone-landscape .slide-rail-number{top:5px;left:5px;min-width:16px;height:16px;padding:0 4px;font-size:6px}
+.operator-phone-landscape .live-command-strip{grid-template-columns:minmax(270px,1.2fr) minmax(190px,.8fr) auto;gap:4px;margin-top:4px;padding:4px;border-radius:11px}.operator-phone-landscape .transport-primary{gap:3px}.operator-phone-landscape .transport-primary button,.operator-phone-landscape .screen-mode-controls button,.operator-phone-landscape .live-command-strip>button{min-height:40px;font-size:8px}.operator-phone-landscape .screen-mode-controls{gap:2px;padding:2px}.operator-phone-landscape .screen-mode-controls button{font-size:6px;letter-spacing:.04em}.operator-phone-landscape .live-command-strip>button{padding:5px 8px}
+.operator-phone-landscape .background-picker{left:max(6px,env(safe-area-inset-left));right:max(6px,env(safe-area-inset-right));top:max(6px,env(safe-area-inset-top));bottom:max(6px,env(safe-area-inset-bottom));width:auto;border-radius:16px}.operator-phone-landscape .background-picker>header{padding:8px 10px}.operator-phone-landscape .background-picker-body{grid-template-columns:minmax(0,1fr) 170px}.operator-phone-landscape .background-library{grid-template-columns:repeat(auto-fill,minmax(92px,1fr));padding:7px;gap:5px}.operator-phone-landscape .background-take-card{padding:8px}
+.operator-phone-landscape .service-horizon{display:none}
+
+/* Safe-area polish for installed PWA / iPad home-screen use. */
+@supports(padding:max(0px)){
+  .operator-landscape .live-command-strip{margin-bottom:max(0px,env(safe-area-inset-bottom))}
+  .operator-portrait .live-command-strip{margin-bottom:max(0px,env(safe-area-inset-bottom))}
+}

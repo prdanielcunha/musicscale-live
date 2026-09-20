@@ -162,7 +162,11 @@ const resources = {
       fullscreen: 'Foco total',
       exitFullscreen: 'Sair do foco',
       screenAwake: 'Tela protegida contra bloqueio',
-      wakeUnavailable: 'Proteção de tela indisponível'
+      wakeUnavailable: 'Proteção de tela indisponível',
+      rotateTitle: 'Mais espaço para operar',
+      rotateHint: 'Gire o aparelho para a horizontal e o Live vira uma central de operação completa.',
+      gotIt: 'Entendi',
+      exitOperator: 'Studio'
     },
     nodeStatus: {
       connecting: 'Conectando',
@@ -540,6 +544,7 @@ const resources = {
       slides: 'Slides',
       slide: 'Slide {{number}}',
       slideHint: '1 clique prepara · 2 cliques colocam no ar',
+      slideHintTouch: '1 toque prepara · confirme em “Colocar no ar”',
       selectedSlide: 'Selecionado',
       onAir: 'NO AR',
       ready: 'PRONTO',
@@ -685,7 +690,11 @@ const resources = {
       fullscreen: 'Focus mode',
       exitFullscreen: 'Exit focus',
       screenAwake: 'Screen kept awake',
-      wakeUnavailable: 'Wake protection unavailable'
+      wakeUnavailable: 'Wake protection unavailable',
+      rotateTitle: 'More room to operate',
+      rotateHint: 'Rotate the device to landscape and Live becomes a full operator console.',
+      gotIt: 'Got it',
+      exitOperator: 'Studio'
     },
     nodeStatus: { connecting: 'Connecting', reconnecting: 'Reconnecting', offline: 'Offline' },
     nodeSetup: {
@@ -1059,6 +1068,7 @@ const resources = {
       slides: 'Slides',
       slide: 'Slide {{number}}',
       slideHint: 'Single click prepares · double click puts on air',
+      slideHintTouch: 'One tap prepares · confirm with “Put on air”',
       selectedSlide: 'Selected',
       onAir: 'ON AIR',
       ready: 'READY',
@@ -1204,7 +1214,11 @@ const resources = {
       fullscreen: 'Modo enfoque',
       exitFullscreen: 'Salir del enfoque',
       screenAwake: 'Pantalla protegida del bloqueo',
-      wakeUnavailable: 'Protección de pantalla no disponible'
+      wakeUnavailable: 'Protección de pantalla no disponible',
+      rotateTitle: 'Más espacio para operar',
+      rotateHint: 'Gire el dispositivo a horizontal y Live se convierte en una consola completa.',
+      gotIt: 'Entendido',
+      exitOperator: 'Studio'
     },
     nodeStatus: { connecting: 'Conectando', reconnecting: 'Reconectando', offline: 'Offline' },
     nodeSetup: {
@@ -1578,6 +1592,7 @@ const resources = {
       slides: 'Slides',
       slide: 'Slide {{number}}',
       slideHint: '1 clic prepara · 2 clics ponen al aire',
+      slideHintTouch: '1 toque prepara · confirme con “Poner al aire”',
       selectedSlide: 'Seleccionado',
       onAir: 'AL AIRE',
       ready: 'LISTO',

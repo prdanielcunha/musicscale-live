@@ -18,6 +18,7 @@ import { detectSameOriginLiveNode } from './liveNodeClient';
 import { markLiveMetric } from './telemetry';
 import { useLiveNode } from './useLiveNode';
 import { useLiveFocus } from './useLiveFocus';
+import { useOperatorViewport } from './useOperatorViewport';
 import { RequestSurface } from './RequestSurface';
 import { LiveRequestInbox } from './LiveRequestInbox';
 import { SceneStudio } from './SceneStudio';
@@ -39,6 +40,7 @@ export function App() {
   const [freeSessionId] = useState(() => crypto.randomUUID());
   const liveNode = useLiveNode();
   const liveFocus = useLiveFocus(surface === 'live');
+  const operatorViewport = useOperatorViewport(surface === 'live');
 
   useEffect(() => {
     let cancelled = false;
@@ -123,7 +125,8 @@ export function App() {
     <div className={[
       'app-shell',
       surface === 'live' ? 'live-surface' : '',
-      liveFocus.fullscreen ? 'live-focus-mode' : ''
+      liveFocus.fullscreen ? 'live-focus-mode' : '',
+      ...operatorViewport.classes
     ].filter(Boolean).join(' ')}>
       <header className="topbar">
         <div>
@@ -211,6 +214,13 @@ export function App() {
                   ? t('liveWorkspace.exitFullscreen')
                   : t('liveWorkspace.fullscreen')}
               </button>
+              <button
+                className="operator-exit-button"
+                type="button"
+                onClick={() => setSurface('studio')}
+              >
+                {t('liveWorkspace.exitOperator')}
+              </button>
             </div>
           </section>
         ) : (
@@ -238,6 +248,19 @@ export function App() {
               </article>
             </section>
           </>
+        )}
+
+        {surface === 'live' && operatorViewport.showLandscapeHint && (
+          <section className="operator-rotate-hint" role="status">
+            <div className="operator-rotate-mark" aria-hidden="true">↻</div>
+            <div>
+              <strong>{t('liveWorkspace.rotateTitle')}</strong>
+              <span>{t('liveWorkspace.rotateHint')}</span>
+            </div>
+            <button type="button" onClick={operatorViewport.dismissLandscapeHint}>
+              {t('liveWorkspace.gotIt')}
+            </button>
+          </section>
         )}
 
         {surface === 'studio' && context && liveFeatureFlags.liveNodeTransport && (
@@ -275,6 +298,7 @@ export function App() {
               actorId={user.uid}
               liveSessionId={liveSessionId}
               servicePlanEnabled={effectiveLiveMode === 'service'}
+              touchPrimary={operatorViewport.touchCapable}
             />
             <LiveSceneBar
               controller={liveNode}
