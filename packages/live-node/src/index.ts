@@ -44,8 +44,8 @@ import { toString as qrToString } from 'qrcode';
 
 function liveEnv(name: string): string | undefined {
   return (
-    process.env[`MILLIONSNEST_LIVE_${name}`] ??
-    process.env[`MUSICSCALE_LIVE_${name}`]
+    process.env[`MUSICSCALE_LIVE_${name}`] ??
+    process.env[`MILLIONSNEST_LIVE_${name}`]
   );
 }
 
@@ -60,8 +60,8 @@ const DEFAULT_RESOLUME_URL = 'http://127.0.0.1:8080';
 const RESOLUME_URL = liveEnv('RESOLUME_URL')?.trim() || '';
 const DEFAULT_PROPRESENTER_URL = '';
 const PROPRESENTER_URL = liveEnv('PROPRESENTER_URL')?.trim() || '';
-const MODERN_STATE_DIR = join(homedir(), '.millionsnest-live');
-const LEGACY_STATE_DIR = join(homedir(), '.musicscale-live');
+const MODERN_STATE_DIR = join(homedir(), '.musicscale-live');
+const LEGACY_STATE_DIR = join(homedir(), '.millionsnest-live');
 const STATE_DIR =
   liveEnv('STATE_DIR') ||
   (existsSync(MODERN_STATE_DIR) || !existsSync(LEGACY_STATE_DIR)
@@ -1040,7 +1040,7 @@ function localConsoleHtml(): string {
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>MillionsNest Live Node</title>
+<title>MusicScale Live Node</title>
 <style>
 :root{font-family:Inter,system-ui,sans-serif;color:#f5f6fa;background:#0b0c11}
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 70% 10%,#241d4a 0,transparent 35%),#0b0c11}
@@ -1070,7 +1070,7 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 <div class="box">
 <small>CÓDIGO DE PAREAMENTO ATIVO</small>
 <div id="pin" class="pin">------</div>
-<p id="status" class="muted">Solicite o pareamento no MillionsNest Live. O código aparece somente neste computador.</p>
+<p id="status" class="muted">Solicite o pareamento no MusicScale Live. O código aparece somente neste computador.</p>
 </div>
 <div class="box provider-card">
 <header><div><small>APRESENTAÇÃO · HOLYRICS</small><strong>Holyrics</strong></div><button class="btn secondary" onclick="refreshProvider()">Verificar</button></header>
@@ -1120,7 +1120,7 @@ async function refresh(){
     if(!r.ok){document.getElementById('status').textContent='Abra esta página no próprio computador do Live Node para ver o PIN.';return}
     const d=await r.json();
     document.getElementById('pin').textContent=d.pin||'------';
-    document.getElementById('status').textContent=d.pin?'Digite este código no MillionsNest Live. Expira em até 2 minutos.':'Aguardando solicitação de pareamento…';
+    document.getElementById('status').textContent=d.pin?'Digite este código no MusicScale Live. Expira em até 2 minutos.':'Aguardando solicitação de pareamento…';
   }catch{}
 }
 function routeGroupForCapabilityClient(capability){
@@ -1249,7 +1249,7 @@ async function downloadDiagnostics(){
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url;
-    a.download='millionsnest-live-diagnostics.json';
+    a.download='musicscale-live-diagnostics.json';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -1342,12 +1342,12 @@ async function start(): Promise<void> {
     if (
       req.method === 'GET' &&
       (
-        url.pathname === '/.well-known/millionsnest-live-node' ||
-        url.pathname === '/.well-known/musicscale-live-node'
+        url.pathname === '/.well-known/musicscale-live-node' ||
+        url.pathname === '/.well-known/millionsnest-live-node'
       )
     ) {
       return send(res, 200, {
-        product: 'MillionsNest Live Node',
+        product: 'MusicScale Live Node',
         protocolVersion: 1,
         version: VERSION,
         nodeId,
@@ -1359,7 +1359,7 @@ async function start(): Promise<void> {
     if (req.method === 'GET' && url.pathname === '/health') {
       const providerSnapshot = capabilityEngine.quickSnapshot();
       return send(res, 200, {
-        product: 'MillionsNest Live Node',
+        product: 'MusicScale Live Node',
         version: VERSION,
         nodeId,
         hostname: hostname(),
