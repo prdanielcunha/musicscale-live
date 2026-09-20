@@ -8,6 +8,7 @@ import type {
   SignalTransportKind
 } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
+import { createClientId } from './clientId';
 
 type Controller = ReturnType<typeof useLiveNode>;
 
@@ -42,7 +43,7 @@ const TRANSPORTS: SignalTransportKind[] = [
 ];
 
 function makeId(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+  return `${prefix}_${createClientId().replace(/-/g, '').slice(0, 16)}`;
 }
 
 export function SignalTopologyStudio({
