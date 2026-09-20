@@ -91,13 +91,13 @@ jobs:
           if (-not (Test-Path $iscc)) {
             throw "Inno Setup compiler not found at $iscc"
           }
-          & $iscc "/DSourceDir=$env:PACKAGE_DIR" "/DOutputDir=$env:PACKAGE_DIR" "distribution/windows/MusicScaleLiveNode.iss"
-          $setup = Join-Path $env:PACKAGE_DIR "MusicScaleLiveSetup.exe"
+          & $iscc "/DSourceDir=$env:PACKAGE_DIR" "/DOutputDir=$env:PACKAGE_DIR" "distribution/windows/MillionsNestLiveNode.iss"
+          $setup = Join-Path $env:PACKAGE_DIR "MillionsNestLiveSetup.exe"
           if (-not (Test-Path $setup)) {
-            throw "MusicScaleLiveSetup.exe was not created."
+            throw "MillionsNestLiveSetup.exe was not created."
           }
           $setupHash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
-          Add-Content -Path (Join-Path $env:PACKAGE_DIR "SHA256SUMS.txt") -Value "$setupHash  MusicScaleLiveSetup.exe"
+          Add-Content -Path (Join-Path $env:PACKAGE_DIR "SHA256SUMS.txt") -Value "$setupHash  MillionsNestLiveSetup.exe"
 
       - name: Stage Unix package
         if: runner.os != 'Windows'
