@@ -76,6 +76,14 @@ export function RequestSurface({
         </div>
       </div>
 
+      <div className="request-flow-rail" aria-label={t('requestsSurface.flowLabel')}>
+        <span><b>1</b><small>{t('requestsSurface.flowSteps.request')}</small></span>
+        <i />
+        <span><b>2</b><small>{t('requestsSurface.flowSteps.prepare')}</small></span>
+        <i />
+        <span><b>3</b><small>{t('requestsSurface.flowSteps.execute')}</small></span>
+      </div>
+
       <div className="request-compose">
         <div className="request-kind-tabs">
           {kinds.map(item => (
@@ -88,6 +96,7 @@ export function RequestSurface({
             </button>
           ))}
         </div>
+        <p className="request-kind-hint">{t(`requestsSurface.kindHints.${kind}`)}</p>
         <div className="request-input-row">
           <input
             value={value}
