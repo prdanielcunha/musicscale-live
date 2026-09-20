@@ -389,7 +389,32 @@ const resources = {
       ready: 'músicas vinculadas',
       offlineReady: 'Operação local pronta',
       check: 'Verificar repertório',
+      recheck: 'Verificar novamente',
       checking: 'Verificando…',
+      openLive: 'Abrir operação Live',
+      progressLabel: 'Preparação do culto em {{progress}}%',
+      guidance: {
+        idle: {
+          title: 'Vou conferir este culto automaticamente',
+          hint: 'O Live lê o repertório no provider sem alterar nada e mostra somente o que precisa de atenção.'
+        },
+        checking: {
+          title: 'Conferindo repertório em {{provider}}',
+          hint: 'Estou vinculando cada música da escala ao item correto do provider.'
+        },
+        attention: {
+          title: '{{count}} item(ns) ainda precisam de atenção',
+          hint: 'Resolva somente as linhas destacadas. O restante já está pronto e não precisa ser refeito.'
+        },
+        caching: {
+          title: 'Repertório conferido · preparando operação local',
+          hint: 'Os vínculos já estão corretos. O Live Node está salvando o culto para continuar funcionando mesmo sem internet.'
+        },
+        ready: {
+          title: 'Culto pronto para operar',
+          hint: 'O roteiro está no Live Node e pode seguir para a operação. A sincronização de playlist continua opcional e explícita.'
+        }
+      },
       sync: 'Sincronizar playlist atual',
       confirmReplace: 'Confirmar substituição',
       replaceWarning: 'A playlist de músicas atualmente selecionada no provider será substituída por esta escala. Clique novamente para confirmar.',
@@ -1191,7 +1216,32 @@ const resources = {
       ready: 'songs linked',
       offlineReady: 'Local operation ready',
       check: 'Check repertoire',
+      recheck: 'Check again',
       checking: 'Checking…',
+      openLive: 'Open Live operation',
+      progressLabel: 'Service preparation at {{progress}}%',
+      guidance: {
+        idle: {
+          title: 'I’ll check this service automatically',
+          hint: 'Live reads the provider repertoire without changing anything and only surfaces what needs attention.'
+        },
+        checking: {
+          title: 'Checking repertoire in {{provider}}',
+          hint: 'I’m linking every schedule song to the correct provider item.'
+        },
+        attention: {
+          title: '{{count}} item(s) still need attention',
+          hint: 'Resolve only the highlighted rows. Everything else is already ready and does not need to be redone.'
+        },
+        caching: {
+          title: 'Repertoire checked · preparing local operation',
+          hint: 'The links are correct. Live Node is caching the service so it keeps working even without internet.'
+        },
+        ready: {
+          title: 'Service ready to operate',
+          hint: 'The run of show is on Live Node and can move into operation. Playlist sync remains optional and explicit.'
+        }
+      },
       sync: 'Sync current playlist',
       confirmReplace: 'Confirm replacement',
       replaceWarning: 'The song playlist currently selected on the provider will be replaced by this schedule. Click again to confirm.',
@@ -1993,7 +2043,32 @@ const resources = {
       ready: 'canciones vinculadas',
       offlineReady: 'Operación local lista',
       check: 'Verificar repertorio',
+      recheck: 'Verificar nuevamente',
       checking: 'Verificando…',
+      openLive: 'Abrir operación Live',
+      progressLabel: 'Preparación del culto al {{progress}}%',
+      guidance: {
+        idle: {
+          title: 'Voy a revisar este culto automáticamente',
+          hint: 'Live lee el repertorio del provider sin cambiar nada y muestra solo lo que necesita atención.'
+        },
+        checking: {
+          title: 'Revisando repertorio en {{provider}}',
+          hint: 'Estoy vinculando cada canción de la escala con el elemento correcto del provider.'
+        },
+        attention: {
+          title: '{{count}} elemento(s) todavía necesitan atención',
+          hint: 'Resuelva solo las filas destacadas. El resto ya está listo y no necesita rehacerse.'
+        },
+        caching: {
+          title: 'Repertorio revisado · preparando operación local',
+          hint: 'Los vínculos son correctos. Live Node está guardando el culto para seguir funcionando incluso sin internet.'
+        },
+        ready: {
+          title: 'Culto listo para operar',
+          hint: 'El guion está en Live Node y puede pasar a operación. La sincronización de playlist sigue siendo opcional y explícita.'
+        }
+      },
       sync: 'Sincronizar playlist actual',
       confirmReplace: 'Confirmar sustitución',
       replaceWarning: 'La playlist de canciones actualmente seleccionada en el provider será sustituida por esta escala. Haga clic de nuevo para confirmar.',
