@@ -19,7 +19,6 @@ import { markLiveMetric } from './telemetry';
 import { useLiveNode } from './useLiveNode';
 import { useLiveFocus } from './useLiveFocus';
 import { useOperatorViewport } from './useOperatorViewport';
-import { createClientId } from './clientId';
 import { RequestSurface } from './RequestSurface';
 import { LiveRequestInbox } from './LiveRequestInbox';
 import { SceneStudio } from './SceneStudio';
@@ -40,6 +39,31 @@ type StudioSection =
   | 'scenes'
   | 'diagnostics';
 
+function createEphemeralSessionId(): string {
+  const randomUuid = globalThis.crypto?.randomUUID;
+  if (typeof randomUuid === 'function') {
+    return randomUuid.call(globalThis.crypto);
+  }
+
+  const randomValues = globalThis.crypto?.getRandomValues;
+  if (typeof randomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    randomValues.call(globalThis.crypto, bytes);
+    bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+    bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+    const hex = [...bytes].map(value => value.toString(16).padStart(2, '0'));
+    return [
+      hex.slice(0, 4).join(''),
+      hex.slice(4, 6).join(''),
+      hex.slice(6, 8).join(''),
+      hex.slice(8, 10).join(''),
+      hex.slice(10, 16).join('')
+    ].join('-');
+  }
+
+  return `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 export function App() {
   const { t, i18n } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
@@ -51,7 +75,7 @@ export function App() {
   const [surface, setSurface] = useState<Surface>('studio');
   const [studioSection, setStudioSection] = useState<StudioSection>('overview');
   const [liveMode, setLiveMode] = useState<LiveSessionMode>('service');
-  const [freeSessionId] = useState(() => createClientId());
+  const [freeSessionId] = useState(createEphemeralSessionId);
   const liveNode = useLiveNode();
   const liveFocus = useLiveFocus(surface === 'live');
   const operatorViewport = useOperatorViewport(surface === 'live');
