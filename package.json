@@ -1,5 +1,5 @@
 {
-  "name": "millionsnest-live",
+  "name": "musicscale-live",
   "private": true,
   "version": "0.0.1",
   "workspaces": [
@@ -7,6 +7,7 @@
     "packages/*"
   ],
   "scripts": {
+    "check:brand": "node scripts/check-brand-contract.mjs",
     "setup": "npm install --no-audit --no-fund",
     "dev:live": "npm run dev --workspace=@millionsnest/live-web",
     "dev:node": "npm run dev --workspace=@millionsnest/live-node",

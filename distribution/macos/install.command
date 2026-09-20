@@ -2,21 +2,21 @@
 set -euo pipefail
 
 SOURCE_DIR="$(cd "$(dirname "$0")" && pwd)"
-INSTALL_DIR="$HOME/Library/Application Support/MillionsNestLive"
-LEGACY_INSTALL_DIR="$HOME/Library/Application Support/MusicScaleLive"
+INSTALL_DIR="$HOME/Library/Application Support/MusicScaleLive"
+LEGACY_INSTALL_DIR="$HOME/Library/Application Support/MillionsNestLive"
 LAUNCH_DIR="$HOME/Library/LaunchAgents"
-PLIST="$LAUNCH_DIR/com.millionsnest.live-node.plist"
-LEGACY_PLIST="$LAUNCH_DIR/com.millionsnest.musicscale-live-node.plist"
-EXE="$INSTALL_DIR/MillionsNestLiveNode"
+PLIST="$LAUNCH_DIR/com.millionsnest.musicscale-live-node.plist"
+LEGACY_PLIST="$LAUNCH_DIR/com.millionsnest.live-node.plist"
+EXE="$INSTALL_DIR/MusicScaleLiveNode"
 
-echo "Instalando MillionsNest Live Node..."
+echo "Instalando MusicScale Live Node..."
 
-launchctl bootout "gui/$UID/com.millionsnest.live-node" >/dev/null 2>&1 || true
 launchctl bootout "gui/$UID/com.millionsnest.musicscale-live-node" >/dev/null 2>&1 || true
+launchctl bootout "gui/$UID/com.millionsnest.live-node" >/dev/null 2>&1 || true
 rm -f "$LEGACY_PLIST"
 
 mkdir -p "$INSTALL_DIR/web" "$LAUNCH_DIR"
-cp "$SOURCE_DIR/MillionsNestLiveNode" "$EXE"
+cp "$SOURCE_DIR/MusicScaleLiveNode" "$EXE"
 chmod +x "$EXE"
 rm -rf "$INSTALL_DIR/web"
 cp -R "$SOURCE_DIR/web" "$INSTALL_DIR/web"
@@ -27,7 +27,7 @@ cat > "$PLIST" <<PLIST
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.millionsnest.live-node</string>
+  <string>com.millionsnest.musicscale-live-node</string>
   <key>ProgramArguments</key>
   <array>
     <string>$EXE</string>
@@ -37,9 +37,9 @@ cat > "$PLIST" <<PLIST
   <key>KeepAlive</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>$HOME/Library/Logs/MillionsNestLiveNode.log</string>
+  <string>$HOME/Library/Logs/MusicScaleLiveNode.log</string>
   <key>StandardErrorPath</key>
-  <string>$HOME/Library/Logs/MillionsNestLiveNode.error.log</string>
+  <string>$HOME/Library/Logs/MusicScaleLiveNode.error.log</string>
 </dict>
 </plist>
 PLIST
@@ -54,6 +54,6 @@ sleep 2
 open "http://127.0.0.1:4317/node"
 
 echo
-echo "MillionsNest Live Node instalado."
+echo "MusicScale Live Node instalado."
 echo "Ele iniciará automaticamente quando você entrar no macOS."
 echo "Na primeira conexão pela rede local, o macOS pode pedir permissão de firewall."

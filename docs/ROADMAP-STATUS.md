@@ -1,6 +1,6 @@
 # Blueprint v0.1 — Implementation Status
 
-This document tracks engineering progress against the **MillionsNest Live Blueprint Mestre v0.1**. It is a status map, not a replacement for the blueprint.
+This document tracks engineering progress against the **MusicScale Live Blueprint Mestre v0.1**. It is a status map, not a replacement for the blueprint.
 
 Status labels:
 - **foundation-ready**: core implementation exists; production gates may still require hardware/external validation.

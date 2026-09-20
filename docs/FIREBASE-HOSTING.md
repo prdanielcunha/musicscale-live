@@ -1,17 +1,17 @@
-# Firebase Hosting — MillionsNest Live
+# Firebase Hosting — MusicScale Live
 
-MillionsNest Live usa o mesmo projeto Firebase canônico do ecossistema:
+MusicScale Live usa o mesmo projeto Firebase canônico do ecossistema:
 
 - project: `millionsnest`
 - Auth/Firestore: compartilhados com o ecossistema MillionsNest/MusicScale
 - Hosting site dedicado: `mn-live-555464791734`
-- target local: `millionsnest-live`
+- target local: `musicscale-live`
 - domínio oficial: `live.millionsnest.com`
 - fallback Firebase: `https://mn-live-555464791734.web.app`
 
 ## Isolamento
 
-O Live tem bundle e Hosting próprios. O target `millionsnest-live` aponta exclusivamente para o site `mn-live-555464791734`. Nenhum deploy do Live deve publicar no Hosting do MusicScale, Hub, NestFinance, Connect, NestJourney ou NestLocal.
+O Live tem bundle e Hosting próprios. O target `musicscale-live` aponta exclusivamente para o site `mn-live-555464791734`. Nenhum deploy do Live deve publicar no Hosting do MusicScale, Hub, NestFinance, Connect, NestJourney ou NestLocal.
 
 ## Deploy
 
@@ -22,7 +22,7 @@ npm run setup
 npm run typecheck
 npm test
 npm run build --workspace=@millionsnest/live-web
-firebase deploy --project millionsnest --only hosting:millionsnest-live --non-interactive
+firebase deploy --project millionsnest --only hosting:musicscale-live --non-interactive
 ```
 
 ## Regras
@@ -35,13 +35,13 @@ firebase deploy --project millionsnest --only hosting:millionsnest-live --non-in
 
 ## CI/CD
 
-O repositório atual continua em `prdanielcunha/musicscale-live` enquanto o slug físico não puder ser renomeado pela automação conectada. A marca do produto, packages, executáveis e infraestrutura usam **MillionsNest Live**.
+O repositório atual continua em `prdanielcunha/musicscale-live` enquanto o slug físico não puder ser renomeado pela automação conectada. A marca canônica do produto, do app, dos executáveis e da distribuição é **MusicScale Live**. O projeto Firebase e o domínio `millionsnest.com` continuam pertencendo à infraestrutura corporativa MillionsNest.
 
 O pipeline de produção deve:
 
 1. construir e testar antes da autenticação cloud;
 2. autenticar via WIF;
-3. publicar somente `hosting:millionsnest-live`;
+3. publicar somente `hosting:musicscale-live`;
 4. smoke-testar o fallback e o domínio oficial;
 5. executar produção somente a partir da branch `production`.
 

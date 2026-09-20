@@ -5,7 +5,7 @@
   "targets": {
     "millionsnest": {
       "hosting": {
-        "millionsnest-live": [
+        "musicscale-live": [
           "mn-live-555464791734"
         ]
       }

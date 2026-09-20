@@ -1,10 +1,10 @@
 @echo off
 setlocal
-title MillionsNest Live - Instalador
+title MusicScale Live - Instalador
 
 echo.
 echo ==========================================
-echo        MILLIONSNEST LIVE NODE
+echo        MUSICSCALE LIVE NODE
 echo ==========================================
 echo.
 echo O instalador vai configurar o Node e testar
@@ -25,7 +25,7 @@ if not "%ERR%"=="0" (
   echo e envie para diagnostico.
   echo.
   echo Log:
-  echo %LOCALAPPDATA%\MillionsNestLive\logs\install.log
+  echo %LOCALAPPDATA%\MusicScaleLive\logs\install.log
   echo.
   pause
   exit /b %ERR%
@@ -35,7 +35,7 @@ echo ==========================================
 echo        INSTALACAO CONCLUIDA
 echo ==========================================
 echo.
-echo O painel do MillionsNest Live deve ter sido
+echo O painel do MusicScale Live deve ter sido
 echo aberto no navegador.
 echo.
 echo Pressione qualquer tecla para fechar.

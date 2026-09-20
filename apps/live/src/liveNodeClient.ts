@@ -376,8 +376,8 @@ export async function detectSameOriginLiveNode(): Promise<boolean> {
   const timeout = window.setTimeout(() => controller.abort(), 1200);
   try {
     for (const path of [
-      '/.well-known/millionsnest-live-node',
-      '/.well-known/musicscale-live-node'
+      '/.well-known/musicscale-live-node',
+      '/.well-known/millionsnest-live-node'
     ]) {
       const response = await fetch(path, {
         cache: 'no-store',
@@ -386,8 +386,8 @@ export async function detectSameOriginLiveNode(): Promise<boolean> {
       if (!response?.ok) continue;
       const body = await response.json().catch(() => null);
       if (
-        body?.product === 'MillionsNest Live Node' ||
-        body?.product === 'MusicScale Live Node'
+        body?.product === 'MusicScale Live Node' ||
+        body?.product === 'MillionsNest Live Node'
       ) {
         return true;
       }

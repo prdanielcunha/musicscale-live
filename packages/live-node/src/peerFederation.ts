@@ -114,8 +114,8 @@ async function discoverPeerNode(
 ): Promise<PeerDiscovery> {
   let lastError: unknown = null;
   for (const path of [
-    '/.well-known/millionsnest-live-node',
-    '/.well-known/musicscale-live-node'
+    '/.well-known/musicscale-live-node',
+    '/.well-known/millionsnest-live-node'
   ]) {
     try {
       const discovery = await fetchJson<PeerDiscovery>(
@@ -125,8 +125,8 @@ async function discoverPeerNode(
         2500
       );
       if (
-        (discovery.product === 'MillionsNest Live Node' ||
-          discovery.product === 'MusicScale Live Node') &&
+        (discovery.product === 'MusicScale Live Node' ||
+          discovery.product === 'MillionsNest Live Node') &&
         discovery.nodeId &&
         discovery.protocolVersion === 1
       ) {
@@ -230,7 +230,7 @@ export class PeerFederation {
     }
 
     const deviceId = `live-node:${this.options.localNodeId}`;
-    const deviceName = `MillionsNest Live Node · ${this.options.localDisplayName}`;
+    const deviceName = `MusicScale Live Node · ${this.options.localDisplayName}`;
     const challenge = await fetchJson<PairingChallenge>(
       this.fetchImpl,
       `${baseUrl}/pairing/request`,

@@ -1,12 +1,12 @@
-# MillionsNest Live Node — instalação alpha
+# MusicScale Live Node — instalação alpha
 
-Este pacote contém o **MillionsNest Live Node** e a interface local usada para conectar os computadores de produção ao MillionsNest Live.
+Este pacote contém o **MusicScale Live Node** e a interface local usada para conectar os computadores de produção ao MusicScale Live.
 
 > **Regra do produto:** o fluxo comercial normal não exige Git, PowerShell/Terminal, descoberta de IP, digitação de porta ou configuração do roteador. Os caminhos técnicos continuam apenas como fallback de desenvolvimento/recuperação enquanto a distribuição ainda está em alpha.
 
 ## Windows — fluxo normal
 
-1. Dê dois cliques em `MillionsNestLiveSetup.exe`.
+1. Dê dois cliques em `MusicScaleLiveSetup.exe`.
 2. Confirme a instalação quando o Windows solicitar permissão.
 3. O instalador registra o Live Node para iniciar automaticamente, libera somente as regras necessárias no perfil de rede **Privada**, inicia o Node e abre a configuração local.
 4. No tablet/celular do operador, escaneie o QR mostrado no computador de produção.
@@ -48,7 +48,7 @@ Nenhum provider deve ser exposto diretamente à internet para o fluxo local.
 
 ## Fallback alpha do Windows
 
-Os arquivos `INSTALAR-MILLIONSNEST-LIVE.cmd` e `install.ps1` continuam temporariamente no artefato alpha para desenvolvimento e recuperação. **Eles não fazem parte da experiência comercial pretendida.**
+Os arquivos `INSTALAR-MUSICSCALE-LIVE.cmd` e `install.ps1` continuam temporariamente no artefato alpha para desenvolvimento e recuperação. **Eles não fazem parte da experiência comercial pretendida.**
 
 ## macOS
 

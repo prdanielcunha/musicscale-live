@@ -4,7 +4,8 @@ const DEFAULT_GROUP = '239.255.43.17';
 const DEFAULT_PORT = 4318;
 const DEFAULT_BEACON_MS = 3000;
 const DEFAULT_TTL_MS = 12_000;
-const PRODUCT = 'MillionsNest Live Node';
+const PRODUCT = 'MusicScale Live Node';
+const LEGACY_PRODUCTS = new Set(['MillionsNest Live Node']);
 const PROTOCOL_VERSION = 1;
 
 export interface DiscoveredLiveNode {
@@ -52,7 +53,7 @@ export function parseDiscoveryBeacon(
     const payload = JSON.parse(raw) as Partial<BeaconPayload>;
 
     if (
-      payload.product !== PRODUCT ||
+      (payload.product !== PRODUCT && !LEGACY_PRODUCTS.has(String(payload.product || ''))) ||
       payload.protocolVersion !== PROTOCOL_VERSION ||
       typeof payload.nodeId !== 'string' ||
       !payload.nodeId.trim() ||
