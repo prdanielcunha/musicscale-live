@@ -16,7 +16,7 @@ AppId={{7C2385B6-752E-4E7D-9E5B-CC9DF3A5E936}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#Publisher}
-DefaultDirName={autopf}\MusicScale Live
+DefaultDirName={autopf}\MillionsNest Live
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir={#OutputDir}
@@ -44,8 +44,8 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 [Run]
 Filename: "{sys}\taskkill.exe"; Parameters: "/IM MillionsNestLiveNode.exe /F"; Flags: runhidden waituntilterminated
 Filename: "{sys}\taskkill.exe"; Parameters: "/IM MusicScaleLiveNode.exe /F"; Flags: runhidden waituntilterminated
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MillionsNest Live Node"""; Flags: runhidden waituntilterminated
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MillionsNest Live Node Discovery"""; Flags: runhidden waituntilterminated
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MusicScale Live Node"""; Flags: runhidden waituntilterminated
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MusicScale Live Node Discovery"""; Flags: runhidden waituntilterminated
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MillionsNest Live Node"""; Flags: runhidden waituntilterminated
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MillionsNest Live Node Discovery"""; Flags: runhidden waituntilterminated
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""MillionsNest Live Node"" dir=in action=allow protocol=TCP localport=4317 profile=private"; Flags: runhidden waituntilterminated
@@ -55,8 +55,8 @@ Filename: "http://127.0.0.1:4317/node"; Description: "Abrir configuração do Mi
 
 [UninstallRun]
 Filename: "{sys}\taskkill.exe"; Parameters: "/IM {#NodeExe} /F"; Flags: runhidden waituntilterminated; RunOnceId: "StopNode"
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MillionsNest Live Node"""; Flags: runhidden waituntilterminated; RunOnceId: "DeleteLegacyFirewallTcp"
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MillionsNest Live Node Discovery"""; Flags: runhidden waituntilterminated; RunOnceId: "DeleteLegacyFirewallUdp"
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MusicScale Live Node"""; Flags: runhidden waituntilterminated; RunOnceId: "DeleteLegacyFirewallTcp"
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MusicScale Live Node Discovery"""; Flags: runhidden waituntilterminated; RunOnceId: "DeleteLegacyFirewallUdp"
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MillionsNest Live Node"""; Flags: runhidden waituntilterminated; RunOnceId: "DeleteFirewallTcp"
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MillionsNest Live Node Discovery"""; Flags: runhidden waituntilterminated; RunOnceId: "DeleteFirewallUdp"
 
