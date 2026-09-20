@@ -4,7 +4,7 @@ import { parseDiscoveryBeacon } from '../src/peerDiscovery';
 describe('peer discovery beacon', () => {
   it('builds the LAN base URL from the packet sender instead of trusting a host from payload', () => {
     const payload = JSON.stringify({
-      product: 'MillionsNest Live Node',
+      product: 'MusicScale Live Node',
       protocolVersion: 1,
       nodeId: 'node_remote',
       displayName: 'PC Visual',
@@ -24,7 +24,7 @@ describe('peer discovery beacon', () => {
 
   it('normalizes IPv4-mapped addresses', () => {
     const payload = JSON.stringify({
-      product: 'MillionsNest Live Node',
+      product: 'MusicScale Live Node',
       protocolVersion: 1,
       nodeId: 'node_remote',
       displayName: 'PC Projeção',
