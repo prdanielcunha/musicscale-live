@@ -3,6 +3,7 @@ import type {
   Capability,
   CommandOrigin,
   CommandResult,
+  LiveDropAsset,
   LiveNodeConnectionState,
   LiveNodeHealth,
   LiveCommand,
@@ -35,15 +36,19 @@ import {
   executeNodeScene,
   fetchProviderOutputSnapshot,
   heartbeatNode,
+  listNodeLiveDrop,
   loadNodeState,
+  openNodeLiveDrop,
   probeNode,
   requestPairing,
   requestPeerNodePairing,
   removePeerNode,
   revokeNodePairing,
+  reviewNodeLiveDrop,
   saveNodeSignalTopology,
   setNodeProviderRoute,
   submitNodeLiveRequest,
+  uploadNodeLiveDrop,
   updateNodeLiveRequestStatus,
   type DiscoveredLiveNode,
   type LiveNodeApiError,
@@ -439,6 +444,65 @@ export function useLiveNode() {
     return result;
   }, [credential]);
 
+  const listLiveDrop = useCallback(async (): Promise<{
+    assets: LiveDropAsset[];
+    maxBytes: number;
+  }> => {
+    if (!credential) throw new Error('node_not_paired');
+    return listNodeLiveDrop(credential.baseUrl, credential.token);
+  }, [credential]);
+
+  const uploadLiveDrop = useCallback(async (
+    file: File,
+    actorId: string
+  ): Promise<LiveDropAsset> => {
+    if (!credential) throw new Error('node_not_paired');
+    const asset = await uploadNodeLiveDrop(
+      credential.baseUrl,
+      credential.token,
+      file,
+      actorId
+    );
+    await refreshState();
+    return asset;
+  }, [credential, refreshState]);
+
+  const reviewLiveDrop = useCallback(async (
+    assetId: string,
+    status: 'ready' | 'rejected',
+    reviewedBy: string
+  ): Promise<LiveDropAsset> => {
+    if (!credential) throw new Error('node_not_paired');
+    const asset = await reviewNodeLiveDrop(
+      credential.baseUrl,
+      credential.token,
+      assetId,
+      status,
+      reviewedBy
+    );
+    await refreshState();
+    return asset;
+  }, [credential, refreshState]);
+
+  const openLiveDrop = useCallback(async (
+    assetId: string,
+    input: {
+      actorId: string;
+      liveSessionId: string;
+      providerId?: string;
+    }
+  ) => {
+    if (!credential) throw new Error('node_not_paired');
+    const response = await openNodeLiveDrop(
+      credential.baseUrl,
+      credential.token,
+      assetId,
+      input
+    );
+    await refreshState();
+    return response;
+  }, [credential, refreshState]);
+
   const fetchOutputSnapshot = useCallback(async (
     providerId: string,
     targetId: string,
@@ -525,6 +589,10 @@ export function useLiveNode() {
     saveSignalTopology,
     executeCommand,
     executeScene,
+    listLiveDrop,
+    uploadLiveDrop,
+    reviewLiveDrop,
+    openLiveDrop,
     fetchOutputSnapshot,
     cacheServicePlan,
     refreshState,
