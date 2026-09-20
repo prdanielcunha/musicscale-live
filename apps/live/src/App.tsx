@@ -27,6 +27,14 @@ import { PlaylistSyncAutomation } from './PlaylistSyncAutomation';
 
 type Surface = 'live' | 'studio' | 'pastor' | 'conductor';
 type LiveSessionMode = 'service' | 'free';
+type StudioSection =
+  | 'overview'
+  | 'prepare'
+  | 'computers'
+  | 'routing'
+  | 'signal'
+  | 'scenes'
+  | 'diagnostics';
 
 export function App() {
   const { t, i18n } = useTranslation();
@@ -37,6 +45,7 @@ export function App() {
   const [localNodeOrigin, setLocalNodeOrigin] = useState(false);
   const [localNodeDetectionDone, setLocalNodeDetectionDone] = useState(false);
   const [surface, setSurface] = useState<Surface>('studio');
+  const [studioSection, setStudioSection] = useState<StudioSection>('overview');
   const [liveMode, setLiveMode] = useState<LiveSessionMode>('service');
   const [freeSessionId] = useState(() => crypto.randomUUID());
   const liveNode = useLiveNode();
@@ -63,6 +72,7 @@ export function App() {
       setContext(null);
       setScale(null);
       setLiveMode('service');
+      setStudioSection('overview');
 
       if (!currentUser) {
         setLoading(false);
@@ -130,6 +140,20 @@ export function App() {
     effectiveLiveMode === 'service' && scale
       ? `music-scale:${scale.id}`
       : `ad-hoc:${context?.organizationId || user.uid}:${freeSessionId}`;
+
+  const studioSections: Array<{
+    key: StudioSection;
+    requiresNode?: boolean;
+    requiresScale?: boolean;
+  }> = [
+    { key: 'overview' },
+    { key: 'prepare', requiresNode: true, requiresScale: true },
+    { key: 'computers', requiresNode: true },
+    { key: 'routing', requiresNode: true },
+    { key: 'signal', requiresNode: true },
+    { key: 'scenes', requiresNode: true },
+    { key: 'diagnostics', requiresNode: true }
+  ];
 
   return (
     <div className={[
@@ -257,6 +281,33 @@ export function App() {
                 <div><small>{t('providers')}</small><strong>{providersConnected ? `${liveNode.health?.providersOnline ?? 0}/${liveNode.health?.providers ?? 0}` : t('pending')}</strong></div>
               </article>
             </section>
+
+            {surface === 'studio' && (
+              <nav className="studio-section-nav" aria-label={t('studioNavigation.ariaLabel')}>
+                {studioSections.map(section => {
+                  const disabled =
+                    (section.requiresNode && !nodeConnected) ||
+                    (section.requiresScale && !scale);
+                  return (
+                    <button
+                      key={section.key}
+                      type="button"
+                      className={studioSection === section.key ? 'active' : ''}
+                      disabled={disabled}
+                      onClick={() => setStudioSection(section.key)}
+                    >
+                      <span>{t(`studioNavigation.sections.${section.key}`)}</span>
+                      {section.key === 'diagnostics' && nodeConnected && (
+                        <b className={providersConnected ? 'ok' : 'warn'} />
+                      )}
+                      {section.key === 'prepare' && scale && (
+                        <em>{scale.songs.length}</em>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            )}
           </>
         )}
 
@@ -281,31 +332,31 @@ export function App() {
           />
         )}
 
-        {surface === 'studio' && context && liveFeatureFlags.liveNodeTransport && (
+        {surface === 'studio' && studioSection === 'overview' && context && liveFeatureFlags.liveNodeTransport && (
           <LiveNodeSetup controller={liveNode} organizationId={context.organizationId} />
         )}
 
-        {surface === 'studio' && liveNode.state === 'connected' && (
+        {surface === 'studio' && studioSection === 'computers' && liveNode.state === 'connected' && (
           <PeerNodeStudio controller={liveNode} />
         )}
 
-        {surface === 'studio' && liveNode.state === 'connected' && (
+        {surface === 'studio' && studioSection === 'routing' && liveNode.state === 'connected' && (
           <SystemTopologyPanel controller={liveNode} />
         )}
 
-        {surface === 'studio' && liveNode.state === 'connected' && (
+        {surface === 'studio' && studioSection === 'signal' && liveNode.state === 'connected' && (
           <SignalTopologyStudio controller={liveNode} />
         )}
 
-        {surface === 'studio' && liveNode.state === 'connected' && (
+        {surface === 'studio' && studioSection === 'diagnostics' && liveNode.state === 'connected' && (
           <DiagnosticsPanel controller={liveNode} />
         )}
 
-        {surface === 'studio' && liveNode.state === 'connected' && scale && (
+        {surface === 'studio' && studioSection === 'prepare' && liveNode.state === 'connected' && scale && (
           <ScalePreflight controller={liveNode} scale={scale} actorId={user.uid} />
         )}
 
-        {surface === 'studio' && liveNode.state === 'connected' && (
+        {surface === 'studio' && studioSection === 'scenes' && liveNode.state === 'connected' && (
           <SceneStudio controller={liveNode} actorId={user.uid} />
         )}
 
@@ -352,7 +403,7 @@ export function App() {
           </section>
         )}
 
-        {surface === 'studio' && <section className="content-grid">
+        {surface === 'studio' && studioSection === 'overview' && <section className="content-grid">
           <article className="panel next-service">
             <div className="panel-head"><span>{t('nextService')}</span><small>{t('readOnlyBridge')}</small></div>
             {scale ? (
