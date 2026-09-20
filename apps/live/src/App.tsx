@@ -586,7 +586,10 @@ export function App() {
         )}
 
         {surface === 'studio' && studioSection === 'diagnostics' && liveNode.state === 'connected' && (
-          <DiagnosticsPanel controller={liveNode} />
+          <DiagnosticsPanel
+            controller={liveNode}
+            onOpenSection={setStudioSection}
+          />
         )}
 
         {surface === 'studio' && studioSection === 'library' && liveNode.state === 'connected' && (
