@@ -180,7 +180,7 @@ export function ScalePreflight({
     setOfflinePrepared(false);
     setSyncArmed(false);
     setSyncMessage(null);
-  }, [scaleSignature, scale.songs]);
+  }, [scaleSignature]);
 
   const capabilities = useMemo(
     () => new Set(
