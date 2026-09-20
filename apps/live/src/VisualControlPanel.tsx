@@ -226,7 +226,7 @@ function normalizeComposition(value: unknown): VisualLayer[] {
       groupRecord,
       ['layers', 'layerIds', 'layer_ids', 'members', 'children', 'items']
     );
-    members.forEach((layerValue, memberIndex) => {
+    members.forEach(layerValue => {
       const layerRecord = asRecord(layerValue);
       const layerId = entityId(
         layerRecord?.id ??
@@ -236,11 +236,15 @@ function normalizeComposition(value: unknown): VisualLayer[] {
       );
       if (layerId) groupByLayerId.set(layerId, group);
 
+      const primitiveLayerIndex =
+        typeof layerValue === 'number' || typeof layerValue === 'string'
+          ? layerValue
+          : undefined;
       const layerIndex = displayText(
         layerRecord?.index ??
         layerRecord?.position ??
         layerRecord?.layer_index ??
-        memberIndex + 1,
+        primitiveLayerIndex,
         ''
       );
       if (layerIndex) groupByLayerIndex.set(layerIndex, group);
