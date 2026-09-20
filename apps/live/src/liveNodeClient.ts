@@ -1,6 +1,7 @@
 import type {
   CommandResult,
   LiveCommand,
+  LiveDropAsset,
   LiveNodeHealth,
   LiveNodeRuntimeState,
   LiveRequest,
@@ -66,6 +67,7 @@ export interface LiveNodeStateResponse {
   routing?: Partial<Record<ProviderRouteGroup, string>>;
   peers?: PeerNodeStatus[];
   signalTopology?: SignalTopology;
+  liveDrop?: LiveDropAsset[];
 }
 
 export class LiveNodeApiError extends Error {
@@ -443,6 +445,106 @@ export async function fetchProviderOutputSnapshot(
   } finally {
     window.clearTimeout(timeout);
   }
+}
+
+
+export async function listNodeLiveDrop(
+  baseUrl: string,
+  token: string
+): Promise<{ assets: LiveDropAsset[]; maxBytes: number }> {
+  return requestJson(baseUrl, '/live-drop', {
+    headers: { Authorization: `Bearer ${token}` }
+  }, 5000);
+}
+
+export async function uploadNodeLiveDrop(
+  baseUrl: string,
+  token: string,
+  file: File,
+  actorId: string
+): Promise<LiveDropAsset> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 5 * 60_000);
+
+  try {
+    const networkInit = {
+      method: 'POST',
+      cache: 'no-store',
+      signal: controller.signal,
+      targetAddressSpace: targetAddressSpaceFor(baseUrl),
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': file.type || 'application/octet-stream',
+        'x-live-file-name': encodeURIComponent(file.name),
+        'x-live-actor-id': actorId
+      },
+      body: file
+    } as RequestInit & { targetAddressSpace?: 'local' | 'loopback' };
+
+    const response = await fetch(`${baseUrl}/live-drop`, networkInit);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new LiveNodeApiError(
+        String(body?.error || 'live_drop_upload_failed'),
+        response.status
+      );
+    }
+    return body.asset as LiveDropAsset;
+  } catch (error) {
+    if (error instanceof LiveNodeApiError) throw error;
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new LiveNodeApiError('live_drop_upload_timeout', 0);
+    }
+    throw new LiveNodeApiError('live_drop_upload_unreachable', 0);
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+export async function reviewNodeLiveDrop(
+  baseUrl: string,
+  token: string,
+  assetId: string,
+  status: 'ready' | 'rejected',
+  reviewedBy: string
+): Promise<LiveDropAsset> {
+  const response = await requestJson<{ asset: LiveDropAsset }>(
+    baseUrl,
+    `/live-drop/${encodeURIComponent(assetId)}/review`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status, reviewedBy })
+    },
+    5000
+  );
+  return response.asset;
+}
+
+export async function openNodeLiveDrop(
+  baseUrl: string,
+  token: string,
+  assetId: string,
+  input: {
+    actorId: string;
+    liveSessionId: string;
+    providerId?: string;
+  }
+): Promise<{
+  asset: LiveDropAsset;
+  correlationId: string;
+  results: CommandResult[];
+}> {
+  return requestJson(
+    baseUrl,
+    `/live-drop/${encodeURIComponent(assetId)}/open`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(input)
+    },
+    15_000
+  );
 }
 
 

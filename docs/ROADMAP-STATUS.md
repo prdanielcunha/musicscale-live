@@ -36,11 +36,11 @@ Implemented: provider-neutral NOW/NEXT; Program/Preview/TAKE; prepared song/Bibl
 Open: volunteer usability without Studio; iPad/Android touch QA; layout/latency measurement; Pastor/Conductor acceptance against live providers; accessibility certification.
 
 ## Phase 4 — Media, Live Drop & Collaboration
-**Status: partial**
+**Status: partial, Live Drop foundation implemented**
 
-Implemented: provider media search/open; prepared media cue + thumbnail support; local Request inbox/status; structured system notices for playlist changes; ServicePlan domain supports non-song items; neutral signal-topology model for Sources / Inputs / Outputs.
+Implemented: provider media search/open; prepared media cue + thumbnail support; local Request inbox/status; structured system notices for playlist changes; ServicePlan domain supports non-song items; neutral signal-topology model for Sources / Inputs / Outputs; Live Drop LAN upload from desktop/mobile; extension + MIME validation; bounded streaming transfer; SHA-256 fingerprinting; Node-local quarantine; explicit operator approve/reject; approved local cache for offline use; guarded scope by paired organization/venue/live-system; direct open into an unambiguous local media provider for image/video/audio; PT/EN/ES responsive Studio surface.
 
-Open: Live Drop quarantine/transfer/cache; universal library aggregator; retention/permissions; complete neutral Announcement/Message domain; collaboration E2E.
+Open: cross-node Live Drop replication/transfer to the provider-hosting Node; richer preview/transcoding; universal library aggregator; configurable retention/permissions beyond quarantine expiry; complete neutral Announcement/Message domain; collaboration E2E.
 
 ## Phase 5 — Resolume Arena Tier A
 **Status: partial; adapter implemented, hardware gate open**
