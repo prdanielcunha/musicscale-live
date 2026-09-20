@@ -68,6 +68,22 @@ const LIVE_DROP_MAX_BYTES =
   Number.isFinite(LIVE_DROP_MAX_BYTES_ENV) && LIVE_DROP_MAX_BYTES_ENV > 0
     ? Math.floor(LIVE_DROP_MAX_BYTES_ENV)
     : 250 * 1024 * 1024;
+
+function liveDropHours(name: string, fallback: number | null): number | null {
+  const raw = liveEnv(name)?.trim();
+  if (!raw) return fallback;
+  const hours = Number(raw);
+  if (!Number.isFinite(hours)) return fallback;
+  if (hours <= 0) return null;
+  return hours;
+}
+
+const LIVE_DROP_QUARANTINE_HOURS =
+  liveDropHours('LIVE_DROP_QUARANTINE_HOURS', 24) ?? 24;
+const LIVE_DROP_REJECTED_HOURS =
+  liveDropHours('LIVE_DROP_REJECTED_HOURS', 1) ?? 1;
+const LIVE_DROP_READY_HOURS =
+  liveDropHours('LIVE_DROP_READY_HOURS', null);
 const MODERN_STATE_DIR = join(homedir(), '.musicscale-live');
 const LEGACY_STATE_DIR = join(homedir(), '.millionsnest-live');
 const STATE_DIR =
@@ -107,7 +123,14 @@ const signalTopologyStore = new SignalTopologyStore(join(STATE_DIR, 'signal-topo
 const liveDropStore = new LiveDropStore(
   join(STATE_DIR, 'live-drop'),
   undefined,
-  LIVE_DROP_MAX_BYTES
+  LIVE_DROP_MAX_BYTES,
+  {
+    quarantineTtlMs: LIVE_DROP_QUARANTINE_HOURS * 60 * 60 * 1000,
+    rejectedTtlMs: LIVE_DROP_REJECTED_HOURS * 60 * 60 * 1000,
+    readyTtlMs: LIVE_DROP_READY_HOURS === null
+      ? null
+      : LIVE_DROP_READY_HOURS * 60 * 60 * 1000
+  }
 );
 const peerFederation = new PeerFederation({
   localNodeId: nodeId,
@@ -1902,7 +1925,8 @@ async function start(): Promise<void> {
       const scope = liveDropScopeFromSession(session);
       return send(res, 200, {
         assets: await liveDropStore.list(scope),
-        maxBytes: LIVE_DROP_MAX_BYTES
+        maxBytes: LIVE_DROP_MAX_BYTES,
+        retention: liveDropStore.retention
       });
     }
 
