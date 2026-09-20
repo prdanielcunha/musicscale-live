@@ -318,6 +318,7 @@ export interface ServicePlan {
   sourceMusicScaleId?: EntityId;
   title: string;
   scheduledAt: string;
+  metadata?: Record<string, unknown>;
   profileId?: EntityId;
   items: ServiceItem[];
   revision: number;
