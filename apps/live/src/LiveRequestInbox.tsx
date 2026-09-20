@@ -8,6 +8,10 @@ import {
   type PreparedRequestMediaCandidate,
   type RequestMediaKind
 } from './requestMedia';
+import {
+  sectionCandidatesFromResults,
+  type PreparedSectionCandidate
+} from './requestSection';
 
 type Controller = ReturnType<typeof useLiveNode>;
 
@@ -81,6 +85,8 @@ export function LiveRequestInbox({
   const [preparedBible, setPreparedBible] = useState<Record<string, PreparedBibleRequest>>({});
   const [preparedMedia, setPreparedMedia] = useState<Record<string, PreparedRequestMediaCandidate[]>>({});
   const [selectedMedia, setSelectedMedia] = useState<Record<string, string>>({});
+  const [preparedSections, setPreparedSections] = useState<Record<string, PreparedSectionCandidate[]>>({});
+  const [selectedSection, setSelectedSection] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -132,6 +138,23 @@ export function LiveRequestInbox({
     return mediaOpenProviders.length === 1 ? mediaOpenProviders[0]! : null;
   }, [controller.nodeState?.routing?.media, mediaOpenProviders]);
 
+  const sectionProviders = useMemo(
+    () => providers.filter(provider =>
+      (provider.health === 'online' || provider.health === 'degraded') &&
+      provider.capabilities.includes('presentation.slides.read') &&
+      provider.capabilities.includes('presentation.navigation')
+    ),
+    [providers]
+  );
+
+  const sectionProvider = useMemo(() => {
+    const configured = controller.nodeState?.routing?.presentation;
+    if (configured) {
+      return sectionProviders.find(provider => provider.providerId === configured) || null;
+    }
+    return sectionProviders.length === 1 ? sectionProviders[0]! : null;
+  }, [controller.nodeState?.routing?.presentation, sectionProviders]);
+
   const requests = useMemo(
     () => (controller.nodeState?.state.requests || [])
       .filter(request =>
@@ -152,6 +175,7 @@ export function LiveRequestInbox({
     request.status === 'accepted' &&
     (
       (request.kind === 'bible' && Boolean(preparedBible[request.id])) ||
+      (request.kind === 'section' && Boolean(selectedSection[request.id])) ||
       (request.kind === 'media' && Boolean(selectedMedia[request.id])) ||
       (request.kind === 'message' && capabilitySet.has('stage.message'))
     )
@@ -266,6 +290,110 @@ export function LiveRequestInbox({
       setRequestError(
         request.id,
         error instanceof Error ? error.message : 'request_take_failed'
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function prepareSectionRequest(request: LiveRequest) {
+    const section = String(request.payload.section || '').trim();
+    if (!section) return;
+
+    const busyKey = `${request.id}:section-prepare`;
+    setBusy(busyKey);
+    clearError(request.id);
+
+    try {
+      if (!sectionProvider) {
+        throw new Error(
+          sectionProviders.length > 1
+            ? 'section_route_required'
+            : 'section_provider_unavailable'
+        );
+      }
+
+      const results = await controller.executeCommand({
+        capability: 'presentation.slides.read',
+        payload: {},
+        liveSessionId,
+        actorId,
+        targetProviderIds: [sectionProvider.providerId],
+        safetyLevel: 'normal'
+      });
+      const failed = firstCommandFailure(results);
+      if (failed) throw new Error(failed.errorCode || 'provider_error');
+
+      const candidates = sectionCandidatesFromResults(
+        results,
+        sectionProvider.providerId,
+        sectionProvider.displayName || sectionProvider.providerKey || 'provider',
+        section
+      );
+
+      if (!candidates.length) {
+        throw new Error('section_request_no_markers');
+      }
+
+      setPreparedSections(current => ({
+        ...current,
+        [request.id]: candidates
+      }));
+      setSelectedSection(current => ({
+        ...current,
+        [request.id]: candidates[0]!.id
+      }));
+    } catch (error) {
+      setRequestError(
+        request.id,
+        error instanceof Error ? error.message : 'section_request_prepare_failed'
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function takeSectionRequest(request: LiveRequest) {
+    const candidates = preparedSections[request.id] || [];
+    const selectedId = selectedSection[request.id];
+    const candidate = candidates.find(item => item.id === selectedId);
+    if (!candidate) return;
+
+    const busyKey = `${request.id}:section-take`;
+    setBusy(busyKey);
+    clearError(request.id);
+
+    try {
+      const results = await controller.executeCommand({
+        capability: 'presentation.navigation',
+        payload: {
+          action: 'goto',
+          index: candidate.index
+        },
+        liveSessionId,
+        actorId,
+        targetProviderIds: [candidate.providerId],
+        safetyLevel: 'guarded',
+        confirmed: true
+      });
+      const failed = firstCommandFailure(results);
+      if (failed) throw new Error(failed.errorCode || 'section_navigation_failed');
+
+      await controller.updateRequestStatus(request.id, 'completed', actorId);
+      setPreparedSections(current => {
+        const next = { ...current };
+        delete next[request.id];
+        return next;
+      });
+      setSelectedSection(current => {
+        const next = { ...current };
+        delete next[request.id];
+        return next;
+      });
+    } catch (error) {
+      setRequestError(
+        request.id,
+        error instanceof Error ? error.message : 'section_request_take_failed'
       );
     } finally {
       setBusy(null);
@@ -523,10 +651,14 @@ export function LiveRequestInbox({
             request.kind === 'media' ? request.payload.query :
             request.payload.text;
           const prepared = preparedBible[request.id];
+          const sectionCandidates = preparedSections[request.id] || [];
+          const selectedSectionId = selectedSection[request.id];
           const mediaCandidates = preparedMedia[request.id] || [];
           const selectedMediaId = selectedMedia[request.id];
           const canPrepareBible =
             request.kind === 'bible' && capabilitySet.has('bible.present');
+          const canPrepareSection =
+            request.kind === 'section' && Boolean(sectionProvider);
           const canPrepareMedia =
             request.kind === 'media' &&
             (
@@ -548,7 +680,7 @@ export function LiveRequestInbox({
                 'live-request',
                 `kind-${request.kind}`,
                 `status-${request.status}`,
-                prepared || selectedMediaId ? 'is-prepared' : ''
+                prepared || selectedSectionId || selectedMediaId ? 'is-prepared' : ''
               ].filter(Boolean).join(' ')}
             >
               <div className="live-request-copy">
@@ -561,7 +693,7 @@ export function LiveRequestInbox({
                 <strong>{String(label || '')}</strong>
                 <span>
                   {request.status === 'accepted'
-                    ? prepared || selectedMediaId
+                    ? prepared || selectedSectionId || selectedMediaId
                       ? t('requestInbox.preparedHint')
                       : t('requestInbox.acceptedHint')
                     : t('requestInbox.pendingHint')}
@@ -571,7 +703,7 @@ export function LiveRequestInbox({
                   <div className="request-execution-flow" aria-label={t('requestInbox.flowLabel')}>
                     <span className="done">{t('requestInbox.flow.requested')}</span>
                     <i />
-                    <span className={prepared || selectedMediaId || canSendStage ? 'active' : ''}>
+                    <span className={prepared || selectedSectionId || selectedMediaId || canSendStage ? 'active' : ''}>
                       {t('requestInbox.flow.prepared')}
                     </span>
                     <i />
@@ -588,6 +720,54 @@ export function LiveRequestInbox({
                         ? ` · ${t('requestInbox.verseCount', { count: prepared.verseCount })}`
                         : ''}
                     </span>
+                  </div>
+                )}
+
+                {request.kind === 'section' && sectionCandidates.length > 0 && (
+                  <div className="request-section-prepared">
+                    <div className="request-section-prepared-head">
+                      <div>
+                        <b>{t('requestInbox.sectionPrepared')}</b>
+                        <span>{t('requestInbox.sectionPreparedHint', { count: sectionCandidates.length })}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="ghost"
+                        disabled={requestBusy}
+                        onClick={() => void prepareSectionRequest(request)}
+                      >
+                        {t('requestInbox.sectionRefresh')}
+                      </button>
+                    </div>
+                    <div className="request-section-candidates" role="listbox" aria-label={t('requestInbox.sectionResultsLabel')}>
+                      {sectionCandidates.map(candidate => {
+                        const active = selectedSectionId === candidate.id;
+                        return (
+                          <button
+                            key={candidate.id}
+                            type="button"
+                            role="option"
+                            aria-selected={active}
+                            className={active ? 'active' : ''}
+                            onClick={() => setSelectedSection(current => ({
+                              ...current,
+                              [request.id]: candidate.id
+                            }))}
+                          >
+                            <span className="request-section-index">
+                              {String(candidate.index + 1).padStart(2, '0')}
+                            </span>
+                            <span className="request-section-copy">
+                              <strong>{candidate.label}</strong>
+                              <small>
+                                {candidate.excerpt || candidate.providerName}
+                              </small>
+                            </span>
+                            <em>{active ? t('requestInbox.selected') : t('requestInbox.select')}</em>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
@@ -647,8 +827,13 @@ export function LiveRequestInbox({
                 )}
 
                 {request.status === 'accepted' &&
-                  request.kind === 'section' && (
-                    <p className="request-manual-hint">{t('requestInbox.sectionManualHint')}</p>
+                  request.kind === 'section' &&
+                  !canPrepareSection && (
+                    <p className="request-manual-hint">
+                      {sectionProviders.length > 1
+                        ? t('requestInbox.sectionRouteRequired')
+                        : t('requestInbox.sectionUnavailable')}
+                    </p>
                   )}
 
                 {request.status === 'accepted' &&
@@ -719,6 +904,37 @@ export function LiveRequestInbox({
                         {busy === `${request.id}:take`
                           ? t('requestInbox.taking')
                           : t('requestInbox.take')}
+                      </button>
+                    )}
+                    <button
+                      className="ghost"
+                      disabled={requestBusy}
+                      onClick={() => void setStatus(request.id, 'completed')}
+                    >
+                      {t('requestInbox.complete')}
+                    </button>
+                  </>
+                ) : request.kind === 'section' && canPrepareSection ? (
+                  <>
+                    {sectionCandidates.length === 0 ? (
+                      <button
+                        className="secondary request-prepare-action"
+                        disabled={requestBusy}
+                        onClick={() => void prepareSectionRequest(request)}
+                      >
+                        {busy === `${request.id}:section-prepare`
+                          ? t('requestInbox.sectionPreparing')
+                          : t('requestInbox.prepareSection')}
+                      </button>
+                    ) : (
+                      <button
+                        className="primary request-take-action"
+                        disabled={requestBusy || !selectedSectionId}
+                        onClick={() => void takeSectionRequest(request)}
+                      >
+                        {busy === `${request.id}:section-take`
+                          ? t('requestInbox.taking')
+                          : t('requestInbox.takeSection')}
                       </button>
                     )}
                     <button
