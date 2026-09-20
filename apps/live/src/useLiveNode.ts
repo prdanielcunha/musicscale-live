@@ -51,6 +51,7 @@ import {
   uploadNodeLiveDrop,
   updateNodeLiveRequestStatus,
   type DiscoveredLiveNode,
+  type LiveDropRetentionPolicy,
   type LiveNodeApiError,
   type LiveNodeStateResponse,
   type PeerNodePairingChallenge
@@ -448,6 +449,7 @@ export function useLiveNode() {
   const listLiveDrop = useCallback(async (): Promise<{
     assets: LiveDropAsset[];
     maxBytes: number;
+    retention: LiveDropRetentionPolicy;
   }> => {
     if (!credential) throw new Error('node_not_paired');
     return listNodeLiveDrop(credential.baseUrl, credential.token);
