@@ -32,6 +32,11 @@ function canOpenMedia(asset: LiveDropAsset): boolean {
   return ['image', 'video', 'audio'].includes(asset.mediaType);
 }
 
+function retentionHours(value: number | null | undefined): number | null {
+  if (!value || value <= 0) return null;
+  return Math.max(1, Math.round(value / (60 * 60 * 1000)));
+}
+
 export function LiveDropPanel({
   controller,
   actorId,
@@ -45,6 +50,11 @@ export function LiveDropPanel({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [assets, setAssets] = useState<LiveDropAsset[]>(controller.nodeState?.liveDrop || []);
   const [maxBytes, setMaxBytes] = useState(250 * 1024 * 1024);
+  const [retention, setRetention] = useState<{
+    quarantineTtlMs: number;
+    rejectedTtlMs: number;
+    readyTtlMs: number | null;
+  } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [busyAssetId, setBusyAssetId] = useState<string | null>(null);
@@ -61,6 +71,7 @@ export function LiveDropPanel({
         if (cancelled) return;
         setAssets(result.assets);
         setMaxBytes(result.maxBytes);
+        setRetention(result.retention || null);
       })
       .catch(() => undefined);
     return () => {
@@ -119,6 +130,7 @@ export function LiveDropPanel({
       const refreshed = await controller.listLiveDrop();
       setAssets(refreshed.assets);
       setMaxBytes(refreshed.maxBytes);
+      setRetention(refreshed.retention || null);
       if (uploaded > 0) {
         setMessage(t('liveDrop.uploaded', { count: uploaded }));
       }
@@ -135,6 +147,7 @@ export function LiveDropPanel({
       await controller.reviewLiveDrop(asset.id, status, actorId);
       const refreshed = await controller.listLiveDrop();
       setAssets(refreshed.assets);
+      setRetention(refreshed.retention || null);
       setMessage(status === 'ready'
         ? t('liveDrop.approved', { name: asset.fileName })
         : t('liveDrop.rejected', { name: asset.fileName })
@@ -219,6 +232,60 @@ export function LiveDropPanel({
         <div className="live-drop-security">
           <strong>{t('liveDrop.quarantineTitle')}</strong>
           <small>{t('liveDrop.quarantineHint')}</small>
+        </div>
+      </div>
+
+      <div className="live-drop-policy" aria-label={t('liveDrop.policy.label')}>
+        <div className="live-drop-policy-copy">
+          <span>{t('liveDrop.policy.kicker')}</span>
+          <strong>{t('liveDrop.policy.title')}</strong>
+          <small>{t('liveDrop.policy.description')}</small>
+        </div>
+        <div className="live-drop-policy-states">
+          <article>
+            <span className="policy-dot quarantine" />
+            <div>
+              <small>{t('liveDrop.policy.quarantine')}</small>
+              <strong>
+                {retention
+                  ? t('liveDrop.policy.hours', {
+                      count: retentionHours(retention.quarantineTtlMs) || 24
+                    })
+                  : t('liveDrop.policy.nodeDefault')}
+              </strong>
+              <em>{t('liveDrop.policy.quarantineHint')}</em>
+            </div>
+          </article>
+          <article>
+            <span className="policy-dot ready" />
+            <div>
+              <small>{t('liveDrop.policy.approved')}</small>
+              <strong>
+                {retention
+                  ? retention.readyTtlMs
+                    ? t('liveDrop.policy.hours', {
+                        count: retentionHours(retention.readyTtlMs) || 1
+                      })
+                    : t('liveDrop.policy.kept')
+                  : t('liveDrop.policy.nodeDefault')}
+              </strong>
+              <em>{t('liveDrop.policy.approvedHint')}</em>
+            </div>
+          </article>
+          <article>
+            <span className="policy-dot rejected" />
+            <div>
+              <small>{t('liveDrop.policy.rejected')}</small>
+              <strong>
+                {retention
+                  ? t('liveDrop.policy.hours', {
+                      count: retentionHours(retention.rejectedTtlMs) || 1
+                    })
+                  : t('liveDrop.policy.nodeDefault')}
+              </strong>
+              <em>{t('liveDrop.policy.rejectedHint')}</em>
+            </div>
+          </article>
         </div>
       </div>
 
