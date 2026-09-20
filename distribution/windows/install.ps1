@@ -5,9 +5,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 $SourceDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$InstallDir = Join-Path $env:LOCALAPPDATA "MillionsNestLive"
-$LegacyInstallDir = Join-Path $env:LOCALAPPDATA "MusicScaleLive"
-$ExePath = Join-Path $InstallDir "MillionsNestLiveNode.exe"
+$InstallDir = Join-Path $env:LOCALAPPDATA "MusicScaleLive"
+$LegacyInstallDir = Join-Path $env:LOCALAPPDATA "MillionsNestLive"
+$ExePath = Join-Path $InstallDir "MusicScaleLiveNode.exe"
 $WebDir = Join-Path $InstallDir "web"
 $LogDir = Join-Path $InstallDir "logs"
 $InstallLog = Join-Path $LogDir "install.log"
@@ -24,10 +24,10 @@ try {
   New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
   New-Item -ItemType Directory -Force -Path $WebDir | Out-Null
   New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
-  Set-Content -Path $InstallLog -Value "MillionsNest Live Node installer" -Encoding UTF8
+  Set-Content -Path $InstallLog -Value "MusicScale Live Node installer" -Encoding UTF8
 
   Write-Host ""
-  Write-Host "MillionsNest Live Node" -ForegroundColor Cyan
+  Write-Host "MusicScale Live Node" -ForegroundColor Cyan
   Write-Host "Instalacao e verificacao automatica" -ForegroundColor DarkGray
   Write-Host ""
 
@@ -41,11 +41,11 @@ try {
   Get-Process MusicScaleLiveNode -ErrorAction SilentlyContinue |
     Stop-Process -Force -ErrorAction SilentlyContinue
 
-  $SourceExe = Join-Path $SourceDir "MillionsNestLiveNode.exe"
+  $SourceExe = Join-Path $SourceDir "MusicScaleLiveNode.exe"
   $SourceWeb = Join-Path $SourceDir "web"
 
   if (-not (Test-Path $SourceExe)) {
-    throw "MillionsNestLiveNode.exe nao foi encontrado. Extraia o ZIP completo antes de instalar."
+    throw "MusicScaleLiveNode.exe nao foi encontrado. Extraia o ZIP completo antes de instalar."
   }
   if (-not (Test-Path (Join-Path $SourceWeb "index.html"))) {
     throw "A pasta web nao foi encontrada. Extraia o ZIP completo antes de instalar."
@@ -57,20 +57,21 @@ try {
 
   $RunKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
   New-Item -Path $RunKey -Force | Out-Null
-  Remove-ItemProperty -Path $RunKey -Name "MusicScaleLiveNode" -ErrorAction SilentlyContinue
+  Remove-ItemProperty -Path $RunKey -Name "MillionsNestLiveNode" -ErrorAction SilentlyContinue
   $RunValue = '"' + $ExePath + '"'
-  Set-ItemProperty -Path $RunKey -Name "MillionsNestLiveNode" -Value $RunValue
+  Set-ItemProperty -Path $RunKey -Name "MusicScaleLiveNode" -Value $RunValue
 
   if (-not $SkipFirewall) {
     Write-InstallLog "Configurando acesso pela rede local..."
     $FirewallScript = @"
-netsh advfirewall firewall delete rule name="MusicScale Live Node" >NUL 2>&1
 netsh advfirewall firewall delete rule name="MillionsNest Live Node" >NUL 2>&1
 netsh advfirewall firewall delete rule name="MillionsNest Live Node Discovery" >NUL 2>&1
-netsh advfirewall firewall add rule name="MillionsNest Live Node" dir=in action=allow protocol=TCP localport=4317 profile=private
-netsh advfirewall firewall add rule name="MillionsNest Live Node Discovery" dir=in action=allow protocol=UDP localport=4318 profile=private
+netsh advfirewall firewall delete rule name="MusicScale Live Node" >NUL 2>&1
+netsh advfirewall firewall delete rule name="MusicScale Live Node Discovery" >NUL 2>&1
+netsh advfirewall firewall add rule name="MusicScale Live Node" dir=in action=allow protocol=TCP localport=4317 profile=private
+netsh advfirewall firewall add rule name="MusicScale Live Node Discovery" dir=in action=allow protocol=UDP localport=4318 profile=private
 "@
-    $TempFirewall = Join-Path $env:TEMP "millionsnest-live-firewall.cmd"
+    $TempFirewall = Join-Path $env:TEMP "musicscale-live-firewall.cmd"
     Set-Content -Path $TempFirewall -Value $FirewallScript -Encoding ASCII
 
     try {
