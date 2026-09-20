@@ -1,7 +1,7 @@
 {
   "hosting": [
     {
-      "target": "millionsnest-live",
+      "target": "musicscale-live",
       "public": "apps/live/dist",
       "ignore": [
         "firebase.json",
