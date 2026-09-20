@@ -2,7 +2,7 @@
 
 ## Product boundary
 
-MillionsNest Live is a sibling product of MusicScale. It shares identity, organization, scales, repertoire, permissions and subscription data, but owns a separate deploy, bundle and runtime.
+MusicScale Live is a sibling product of MusicScale. It shares identity, organization, scales, repertoire, permissions and subscription data, but owns a separate deploy, bundle and runtime.
 
 ## Runtime planes
 
