@@ -315,7 +315,12 @@ const resources = {
       ready: 'Pronta',
       live: 'No ar',
       completed: 'Concluída',
-      notLinked: 'Sem vínculo'
+      notLinked: 'Sem vínculo',
+      resolving: 'Vinculando “{{title}}” ao provider local…',
+      resolvingShort: 'Vinculando…',
+      providerUnavailable: 'Não há um provider de músicas disponível com permissão para pesquisar e apresentar. Verifique o Holyrics no Diagnóstico.',
+      linkNeedsReview: 'Não encontrei uma correspondência única para “{{title}}”. Abra Preparar para escolher o vínculo correto.',
+      commandFailed: 'O provider recusou a ação: {{code}}'
     },
     liveDrop: {
       kicker: 'LIVE DROP',
@@ -1142,7 +1147,12 @@ const resources = {
       ready: 'Ready',
       live: 'Live',
       completed: 'Completed',
-      notLinked: 'Not linked'
+      notLinked: 'Not linked',
+      resolving: 'Linking “{{title}}” to the local provider…',
+      resolvingShort: 'Linking…',
+      providerUnavailable: 'No song provider is available with permission to search and present. Check Holyrics in Diagnostics.',
+      linkNeedsReview: 'I could not find a unique match for “{{title}}”. Open Prepare to choose the correct link.',
+      commandFailed: 'The provider rejected the action: {{code}}'
     },
     liveDrop: {
       kicker: 'LIVE DROP',
@@ -1969,7 +1979,12 @@ const resources = {
       ready: 'Lista',
       live: 'En vivo',
       completed: 'Completada',
-      notLinked: 'Sin vínculo'
+      notLinked: 'Sin vínculo',
+      resolving: 'Vinculando “{{title}}” al provider local…',
+      resolvingShort: 'Vinculando…',
+      providerUnavailable: 'No hay un provider de canciones disponible con permiso para buscar y presentar. Revise Holyrics en Diagnóstico.',
+      linkNeedsReview: 'No encontré una coincidencia única para “{{title}}”. Abra Preparar para elegir el vínculo correcto.',
+      commandFailed: 'El provider rechazó la acción: {{code}}'
     },
     liveDrop: {
       kicker: 'LIVE DROP',
