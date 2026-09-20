@@ -6,8 +6,28 @@ export interface HolyricsResponse<T = unknown> {
   error?: unknown;
 }
 
+export interface HolyricsSongDraft {
+  title: string;
+  lyrics?: string;
+  paragraphs?: Array<{
+    text: string;
+    description?: string;
+    translations?: Record<string, string>;
+  }>;
+  author?: string;
+  artist?: string;
+  copyright?: string;
+  note?: string;
+  key?: string;
+  bpm?: number;
+  time_sig?: string;
+  tags?: string[];
+}
+
 export interface HolyricsApi {
   request<T = unknown>(action: string, input?: Record<string, unknown>): Promise<T>;
+  canCreateSongDraft?(): boolean;
+  createSongDraft?(input: HolyricsSongDraft): Promise<{ opened: true }>;
 }
 
 export interface HolyricsHttpClientOptions {
@@ -51,6 +71,43 @@ export class HolyricsHttpClient implements HolyricsApi {
     this.token = options.token;
     this.timeoutMs = options.timeoutMs ?? 2500;
     this.fetchImpl = options.fetchImpl || fetch;
+  }
+
+  canCreateSongDraft(): boolean {
+    const host = new URL(this.baseUrl).hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    return host === 'localhost' || host === '::1' || host.startsWith('127.');
+  }
+
+  async createSongDraft(input: HolyricsSongDraft): Promise<{ opened: true }> {
+    if (!this.canCreateSongDraft()) {
+      throw new Error('holyrics_song_create_requires_loopback');
+    }
+    if (!input.title.trim()) throw new Error('holyrics_song_title_required');
+    if (!input.lyrics?.trim() && !input.paragraphs?.length) {
+      throw new Error('holyrics_song_lyrics_required');
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const response = await this.fetchImpl(`${this.baseUrl}/api/popup-createsong`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        throw new Error(`holyrics_popup_create_http_${response.status}`);
+      }
+      return { opened: true };
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('holyrics_popup_create_timeout');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   request<T = unknown>(
