@@ -1030,48 +1030,58 @@ function localConsoleHtml(): string {
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 70% 10%,#241d4a 0,transparent 35%),#0b0c11}
 main{width:min(680px,calc(100vw - 32px));background:#12131a;border:1px solid #292b36;border-radius:24px;padding:32px;box-shadow:0 24px 90px #0008}
 small{color:#aaaebe}.brand{letter-spacing:.16em;color:#9b8cff;font-size:11px;font-weight:800}.pin{font-size:58px;letter-spacing:.12em;font-variant-numeric:tabular-nums;margin:18px 0}.muted{color:#8e93a5}.box{background:#0d0e14;border:1px solid #252733;border-radius:16px;padding:18px;margin-top:18px}code{color:#b8aeff}ul{padding-left:20px}.field{display:grid;gap:6px;margin-top:10px}.field span{font-size:11px;color:#8e93a5}.field input,.field select{background:#111219;border:1px solid #2d303c;color:#f5f6fa;border-radius:10px;padding:10px 11px;font:inherit}.routing-field{margin-top:12px}.row{display:flex;gap:8px;align-items:center;margin-top:12px}.btn{border:0;border-radius:10px;background:#7c5cff;color:white;padding:10px 13px;font:inherit;font-weight:700;cursor:pointer}.btn.secondary{background:#191b24;color:#d9dbe4;border:1px solid #2a2d38}.statusline{font-size:11px;color:#8e93a5;margin-top:10px;line-height:1.45}
+.hero-note{margin:18px 0 0;padding:14px 16px;border:1px solid rgba(74,141,255,.18);background:linear-gradient(90deg,rgba(74,141,255,.08),rgba(74,141,255,.025));border-radius:16px}
+.hero-note strong{display:block;font-size:13px}.hero-note span{display:block;margin-top:5px;color:#8e93a5;font-size:11px;line-height:1.5}
+.connect-card{display:grid;grid-template-columns:180px 1fr;gap:20px;align-items:center;background:radial-gradient(circle at 0 50%,rgba(124,92,255,.13),transparent 45%),#0d0e14}
+.connect-card img{width:164px;height:164px;background:#fff;border-radius:18px;padding:9px;box-shadow:0 16px 42px #0006}
+.connect-card h2{margin:4px 0 7px;font-size:22px;letter-spacing:-.03em}.connect-card p{margin:0;color:#8e93a5;font-size:12px;line-height:1.55}
+.connect-badge{display:inline-flex;margin-top:12px;padding:6px 9px;border-radius:999px;border:1px solid rgba(46,182,125,.18);background:rgba(46,182,125,.07);color:#79dcb0;font-size:10px;font-weight:700}
+.provider-card{border-color:rgba(255,255,255,.06)}.provider-card>header{display:flex;align-items:center;justify-content:space-between;gap:12px}.provider-card>header>div{min-width:0}.provider-card>header strong{display:block;margin-top:4px;font-size:15px}.provider-card>header small{color:#aaaebe}.provider-card .statusline{margin:10px 0 0}
+details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)}details.advanced>summary{cursor:pointer;color:#7f8495;font-size:10px;list-style:none}details.advanced>summary::-webkit-details-marker{display:none}details.advanced>summary:after{content:" +";color:#656a79}details.advanced[open]>summary:after{content:" −"}
+.tech-list{color:#7f8495;font-size:11px;line-height:1.55}.tech-list code{color:#aaa0e8}
+@media(max-width:620px){main{padding:22px}.connect-card{grid-template-columns:1fr;text-align:center}.connect-card img{margin:auto}.connect-badge{justify-self:center}}
 </style>
 </head>
 <body><main>
 <div class="brand">MUSICSCALE / LIVE NODE</div>
 <h1>${hostname()}</h1>
 <p class="muted">Node <code>${nodeId}</code> · v${VERSION}</p>
+<div class="hero-note"><strong>Conexão local, sem complicação</strong><span>Use o mesmo Wi‑Fi ou a mesma rede cabeada da igreja. A internet não é necessária para operar localmente. Redes de convidados podem impedir que os aparelhos se encontrem.</span></div>
+<div class="box connect-card">
+<img src="/local/connect-qr.svg" alt="QR para abrir o MusicScale Live na rede local"/>
+<div><small>CONECTAR TABLET OU CELULAR</small><h2>Escaneie e continue</h2><p>Abra a câmera do aparelho do operador e escaneie este QR. O Live abre pelo caminho local correto — sem digitar IP ou porta.</p><span class="connect-badge">Internet não obrigatória</span></div>
+</div>
 <div class="box">
 <small>CÓDIGO DE PAREAMENTO ATIVO</small>
 <div id="pin" class="pin">------</div>
 <p id="status" class="muted">Solicite o pareamento no MillionsNest Live. O código aparece somente neste computador.</p>
 </div>
-<div class="box">
-<small>PROVIDER · HOLYRICS</small>
-<div class="field"><span>Endereço da API local</span><input id="holyrics-url" value="http://127.0.0.1:8091" autocomplete="off"/></div>
-<div class="field"><span>Token do Holyrics</span><input id="holyrics-token" type="password" placeholder="Cole o token criado no Holyrics" autocomplete="new-password"/></div>
-<div class="row">
-<button class="btn" onclick="saveHolyrics()">Salvar e testar</button>
-<button class="btn secondary" onclick="refreshProvider()">Testar novamente</button>
-</div>
+<div class="box provider-card">
+<header><div><small>APRESENTAÇÃO · HOLYRICS</small><strong>Holyrics</strong></div><button class="btn secondary" onclick="refreshProvider()">Verificar</button></header>
 <div id="provider-status" class="statusline">Verificando configuração…</div>
+<details class="advanced"><summary>Configurar Holyrics</summary>
+<p class="muted" style="font-size:11px;line-height:1.5">Ative o API Server local uma única vez no Holyrics e cole o token gerado. O endereço técnico abaixo já usa o padrão local e normalmente não precisa ser alterado.</p>
+<div class="field"><span>Token do Holyrics</span><input id="holyrics-token" type="password" placeholder="Cole o token criado no Holyrics" autocomplete="new-password"/></div>
+<div class="field"><span>Avançado · endereço da API local</span><input id="holyrics-url" value="http://127.0.0.1:8091" autocomplete="off"/></div>
+<div class="row"><button class="btn" onclick="saveHolyrics()">Salvar e testar</button></div>
+</details>
 </div>
-<div class="box">
-<small>PROVIDER · RESOLUME ARENA / AVENUE</small>
-<div class="field"><span>Endereço do Webserver / REST API</span><input id="resolume-url" value="http://127.0.0.1:8080" autocomplete="off"/></div>
-<div class="row">
-<button class="btn" onclick="saveResolume()">Salvar e testar</button>
-<button class="btn secondary" onclick="refreshProvider()">Testar novamente</button>
-</div>
+<div class="box provider-card">
+<header><div><small>VISUAIS · RESOLUME</small><strong>Resolume Arena / Avenue</strong></div><button class="btn" onclick="saveResolume()">Conectar</button></header>
 <div id="resolume-status" class="statusline">Verificando configuração…</div>
+<details class="advanced"><summary>Detalhes avançados</summary>
+<p class="muted" style="font-size:11px;line-height:1.5">Ative Webserver / REST API no Resolume. Quando ele está neste mesmo computador, o Live usa automaticamente o endereço padrão local.</p>
+<div class="field"><span>Endereço do Webserver / REST API</span><input id="resolume-url" value="http://127.0.0.1:8080" autocomplete="off"/></div>
+</details>
 </div>
-<div class="box">
-<small>PROVIDER · PROPRESENTER</small>
-<div class="field">
-<span>Endereço da Network API</span>
-<input id="propresenter-url" value="" placeholder="Ex.: 192.168.1.44:porta exibida no ProPresenter" autocomplete="off"/>
-</div>
-<p class="muted" style="font-size:11px;line-height:1.45">No ProPresenter, habilite Network e copie exatamente o IP e a porta mostrados ali. O MillionsNest Live não presume uma porta fixa.</p>
-<div class="row">
-<button class="btn" onclick="saveProPresenter()">Salvar e testar</button>
-<button class="btn secondary" onclick="refreshProvider()">Testar novamente</button>
-</div>
+<div class="box provider-card">
+<header><div><small>APRESENTAÇÃO · PROPRESENTER</small><strong>ProPresenter</strong></div><button class="btn secondary" onclick="refreshProvider()">Verificar</button></header>
 <div id="propresenter-status" class="statusline">Verificando configuração…</div>
+<details class="advanced"><summary>Configurar ProPresenter</summary>
+<p class="muted" style="font-size:11px;line-height:1.5">Ative Network no ProPresenter. Como a porta pode variar por instalação, informe aqui exatamente o endereço exibido pelo próprio ProPresenter.</p>
+<div class="field"><span>Endereço da Network API</span><input id="propresenter-url" value="" placeholder="Ex.: 127.0.0.1:porta exibida no ProPresenter" autocomplete="off"/></div>
+<div class="row"><button class="btn" onclick="saveProPresenter()">Salvar e testar</button></div>
+</details>
 </div>
 <div class="box" id="routing-box" style="display:none">
 <small>QUEM CONTROLA O QUÊ</small>
@@ -1086,14 +1096,7 @@ small{color:#aaaebe}.brand{letter-spacing:.16em;color:#9b8cff;font-size:11px;fon
 <span class="muted" style="font-size:11px">O arquivo não inclui token do Holyrics nem credenciais de pareamento.</span>
 </div>
 </div>
-<div class="box">
-<small>CONECTAR TABLET OU CELULAR</small>
-<div style="display:flex;gap:16px;align-items:center;margin-top:12px;flex-wrap:wrap">
-<img src="/local/connect-qr.svg" alt="QR para abrir MillionsNest Live na rede local" width="150" height="150" style="background:white;border-radius:14px;padding:8px"/>
-<div class="muted" style="max-width:330px;line-height:1.5">Escaneie este QR no dispositivo que ficará com o operador. Ele abre o MillionsNest Live diretamente pelo Live Node, sem depender da internet.</div>
-</div>
-</div>
-<div class="box"><small>ENDEREÇOS NA REDE LOCAL</small><ul>${addresses || '<li>Nenhum IPv4 LAN detectado</li>'}</ul></div>
+<details class="box advanced"><summary>Detalhes técnicos da rede</summary><div class="tech-list"><p>Use estes endereços somente para diagnóstico ou fallback manual.</p><ul>${addresses || '<li>Nenhum IPv4 LAN detectado</li>'}</ul></div></details>
 <script>
 async function refresh(){
   try{
