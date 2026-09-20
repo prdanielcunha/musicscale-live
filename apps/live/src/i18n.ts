@@ -670,7 +670,10 @@ const resources = {
       nothingLive: 'Nenhum clip visual ativo',
       chooseClip: 'Escolha um clip abaixo para preparar',
       armed: 'Preparado para entrar',
-      take: 'Colocar no ar'
+      take: 'Colocar no ar',
+      libraryView: 'VISUALIZAÇÃO DA BIBLIOTECA',
+      visualView: 'Visual',
+      compactView: 'Compacta'
     },
     liveControls: {
       kicker: 'OPERADOR AO VIVO',
@@ -1502,7 +1505,10 @@ const resources = {
       nothingLive: 'No visual clip is active',
       chooseClip: 'Choose a clip below to prepare it',
       armed: 'Armed and ready',
-      take: 'Take'
+      take: 'Take',
+      libraryView: 'LIBRARY VIEW',
+      visualView: 'Visual',
+      compactView: 'Compact'
     },
     liveControls: {
       kicker: 'LIVE OPERATOR',
@@ -2334,7 +2340,10 @@ const resources = {
       nothingLive: 'No hay clip visual activo',
       chooseClip: 'Elija un clip abajo para prepararlo',
       armed: 'Preparado para entrar',
-      take: 'Poner al aire'
+      take: 'Poner al aire',
+      libraryView: 'VISTA DE LA BIBLIOTECA',
+      visualView: 'Visual',
+      compactView: 'Compacta'
     },
     liveControls: {
       kicker: 'OPERADOR EN VIVO',

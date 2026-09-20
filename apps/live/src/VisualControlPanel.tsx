@@ -231,6 +231,7 @@ export function VisualControlPanel({
   const [selectedOutputId, setSelectedOutputId] = useState('');
   const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null);
   const [clipThumbnails, setClipThumbnails] = useState<Record<string, string>>({});
+  const [clipViewMode, setClipViewMode] = useState<'visual' | 'compact'>('visual');
   const [localArmedClip, setLocalArmedClip] = useState<ArmedVisualCue | null>(null);
   const [clearAllArmed, setClearAllArmed] = useState(false);
   const outputDiscoveryProvider = useRef('');
@@ -758,7 +759,35 @@ export function VisualControlPanel({
       )}
 
       {layers.length ? (
-        <div className="visual-layer-list">
+        <>
+          <div className="visual-library-toolbar">
+            <div className="visual-library-toolbar-copy">
+              <small>{t('visualControls.libraryView')}</small>
+            </div>
+            <div
+              className="visual-library-view-switch"
+              role="group"
+              aria-label={t('visualControls.libraryView')}
+            >
+              <button
+                type="button"
+                className={clipViewMode === 'visual' ? 'active' : ''}
+                aria-pressed={clipViewMode === 'visual'}
+                onClick={() => setClipViewMode('visual')}
+              >
+                {t('visualControls.visualView')}
+              </button>
+              <button
+                type="button"
+                className={clipViewMode === 'compact' ? 'active' : ''}
+                aria-pressed={clipViewMode === 'compact'}
+                onClick={() => setClipViewMode('compact')}
+              >
+                {t('visualControls.compactView')}
+              </button>
+            </div>
+          </div>
+          <div className={`visual-layer-list ${clipViewMode === 'compact' ? 'compact' : 'visual'}`}>
           {layerSections.map(section => section.grouped ? (
             <section key={section.id} className="visual-layer-group">
               <header className="visual-layer-group-head">
@@ -773,7 +802,8 @@ export function VisualControlPanel({
               {section.layers.map(renderLayer)}
             </div>
           ))}
-        </div>
+          </div>
+        </>
       ) : (
         <div className="visual-empty-state">
           <p>{t('visualControls.loadHint')}</p>
