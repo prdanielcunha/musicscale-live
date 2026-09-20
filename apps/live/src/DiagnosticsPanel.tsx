@@ -155,7 +155,7 @@ export function DiagnosticsPanel({
   const copyReport = async () => {
     const report = {
       generatedAt: new Date().toISOString(),
-      product: 'MillionsNest Live',
+      product: 'MusicScale Live',
       node: {
         nodeId: controller.nodeState?.nodeId || null,
         hostname: controller.health?.hostname || null,
