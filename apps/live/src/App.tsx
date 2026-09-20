@@ -36,6 +36,7 @@ import { LiveDropPanel } from './LiveDropPanel';
 import { UniversalMediaLibrary } from './UniversalMediaLibrary';
 import { LiveContextSwitcher } from './LiveContextSwitcher';
 import { buildServicePlan, type PreparedSongLink } from './servicePlanBuilder';
+import { StudioGuidedHome } from './StudioGuidedHome';
 
 type Surface = 'live' | 'studio' | 'pastor' | 'conductor';
 type LiveSessionMode = 'service' | 'free';
@@ -538,6 +539,33 @@ export function App() {
           </section>
         )}
 
+        {surface === 'studio' && studioSection === 'overview' && (
+          <StudioGuidedHome
+            nodeConnected={nodeConnected}
+            providersOnline={liveNode.health?.providersOnline ?? 0}
+            providersTotal={liveNode.health?.providers ?? 0}
+            hasScale={Boolean(scale)}
+            scaleName={scale?.eventName || undefined}
+            scaleSongs={scale?.songs.length || 0}
+            scopeMatches={nodeScopeMatchesScale}
+            hasCachedPlan={Boolean(
+              scale &&
+              liveNode.nodeState?.state.servicePlan?.sourceMusicScaleId === scale.id
+            )}
+            onOpenSection={setStudioSection}
+            onOpenLive={freeMode => {
+              setLiveMode(freeMode ? 'free' : 'service');
+              setSurface('live');
+            }}
+            onResolveScope={() => {
+              const organizationId = liveNode.credential?.binding.organizationId;
+              if (!organizationId) return;
+              setOrganizationScope(organizationId);
+              setSelectedScaleId(null);
+            }}
+          />
+        )}
+
         {surface === 'studio' && studioSection === 'overview' && context && liveFeatureFlags.liveNodeTransport && (
           <LiveNodeSetup
             controller={liveNode}
@@ -653,8 +681,12 @@ export function App() {
               <strong>LIVE GRAPH</strong>
               <small>{surface === 'studio' ? 'Nodes · Providers · Routes · Outputs' : 'Preview / Program / Take'}</small>
             </div>
-            <nav className="quick-nav">
-              <button>{t('now')}</button><button>{t('timeline')}</button><button>{t('bible')}</button><button>{t('media')}</button><button>{t('requests')}</button>
+            <nav className="quick-nav" aria-label={t('guidedHome.previewShortcutsLabel')}>
+              <button type="button" onClick={() => setSurface('live')}>{t('now')}</button>
+              <button type="button" onClick={() => setSurface('live')}>{t('timeline')}</button>
+              <button type="button" onClick={() => setSurface('live')}>{t('bible')}</button>
+              <button type="button" onClick={() => setStudioSection('library')}>{t('media')}</button>
+              <button type="button" onClick={() => setSurface('live')}>{t('requests')}</button>
             </nav>
           </article>
         </section>}

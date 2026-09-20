@@ -33,8 +33,49 @@ export interface LiveDropUploadInput extends LiveDropScope {
 }
 
 const DEFAULT_MAX_BYTES = 250 * 1024 * 1024;
-const QUARANTINE_TTL_MS = 24 * 60 * 60 * 1000;
-const REJECTED_TTL_MS = 60 * 60 * 1000;
+const DEFAULT_QUARANTINE_TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_REJECTED_TTL_MS = 60 * 60 * 1000;
+
+export interface LiveDropRetentionPolicy {
+  quarantineTtlMs: number;
+  rejectedTtlMs: number;
+  readyTtlMs: number | null;
+}
+
+const DEFAULT_RETENTION_POLICY: LiveDropRetentionPolicy = {
+  quarantineTtlMs: DEFAULT_QUARANTINE_TTL_MS,
+  rejectedTtlMs: DEFAULT_REJECTED_TTL_MS,
+  readyTtlMs: null
+};
+
+function normalizeRetentionPolicy(
+  value: Partial<LiveDropRetentionPolicy> | undefined
+): LiveDropRetentionPolicy {
+  const positiveOrDefault = (candidate: number | undefined, fallback: number) =>
+    Number.isFinite(candidate) && Number(candidate) > 0
+      ? Math.floor(Number(candidate))
+      : fallback;
+
+  const readyCandidate = value?.readyTtlMs;
+  const readyTtlMs =
+    readyCandidate === null
+      ? null
+      : Number.isFinite(readyCandidate) && Number(readyCandidate) > 0
+        ? Math.floor(Number(readyCandidate))
+        : DEFAULT_RETENTION_POLICY.readyTtlMs;
+
+  return {
+    quarantineTtlMs: positiveOrDefault(
+      value?.quarantineTtlMs,
+      DEFAULT_RETENTION_POLICY.quarantineTtlMs
+    ),
+    rejectedTtlMs: positiveOrDefault(
+      value?.rejectedTtlMs,
+      DEFAULT_RETENTION_POLICY.rejectedTtlMs
+    ),
+    readyTtlMs
+  };
+}
 
 const EXTENSIONS: Record<
   string,
@@ -121,8 +162,24 @@ const EXTENSIONS: Record<
   }
 };
 
-function publicAsset(asset: StoredLiveDropAsset): LiveDropAsset {
+function publicAsset(
+  asset: StoredLiveDropAsset,
+  retention?: LiveDropRetentionPolicy
+): LiveDropAsset {
   const { storageName: _storageName, ...safe } = asset;
+  if (
+    !safe.expiresAt &&
+    safe.status === 'ready' &&
+    retention?.readyTtlMs
+  ) {
+    const base = Date.parse(safe.reviewedAt || safe.uploadedAt);
+    if (Number.isFinite(base)) {
+      return {
+        ...safe,
+        expiresAt: new Date(base + retention.readyTtlMs).toISOString()
+      };
+    }
+  }
   return safe;
 }
 
@@ -169,12 +226,19 @@ function validateContentType(
   return normalized || definition.fallbackContentType;
 }
 
-function expiresAtFrom(now: number, status: LiveDropStatus): string | null {
+function expiresAtFrom(
+  now: number,
+  status: LiveDropStatus,
+  policy: LiveDropRetentionPolicy
+): string | null {
   if (status === 'quarantined') {
-    return new Date(now + QUARANTINE_TTL_MS).toISOString();
+    return new Date(now + policy.quarantineTtlMs).toISOString();
   }
   if (status === 'rejected') {
-    return new Date(now + REJECTED_TTL_MS).toISOString();
+    return new Date(now + policy.rejectedTtlMs).toISOString();
+  }
+  if (status === 'ready' && policy.readyTtlMs) {
+    return new Date(now + policy.readyTtlMs).toISOString();
   }
   return null;
 }
@@ -191,12 +255,16 @@ export class LiveDropStore {
   private loaded = false;
   private assets: StoredLiveDropAsset[] = [];
   private writeQueue: Promise<void> = Promise.resolve();
+  readonly retention: LiveDropRetentionPolicy;
 
   constructor(
     private readonly rootDir: string,
     private readonly metadataPath = join(rootDir, 'index.json'),
-    private readonly maxBytes = DEFAULT_MAX_BYTES
-  ) {}
+    private readonly maxBytes = DEFAULT_MAX_BYTES,
+    retention?: Partial<LiveDropRetentionPolicy>
+  ) {
+    this.retention = normalizeRetentionPolicy(retention);
+  }
 
   async list(scope: LiveDropScope): Promise<LiveDropAsset[]> {
     await this.load();
@@ -204,7 +272,7 @@ export class LiveDropStore {
     return this.assets
       .filter(asset => scopeMatches(asset, scope))
       .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
-      .map(publicAsset);
+      .map(asset => publicAsset(asset, this.retention));
   }
 
   async get(id: string, scope: LiveDropScope): Promise<LiveDropAsset | null> {
@@ -212,7 +280,7 @@ export class LiveDropStore {
     const asset = this.assets.find(
       candidate => candidate.id === id && scopeMatches(candidate, scope)
     );
-    return asset ? publicAsset(asset) : null;
+    return asset ? publicAsset(asset, this.retention) : null;
   }
 
   async upload(
@@ -280,7 +348,7 @@ export class LiveDropStore {
       uploadedBy: input.uploadedBy,
       reviewedAt: null,
       reviewedBy: null,
-      expiresAt: expiresAtFrom(now, 'quarantined'),
+      expiresAt: expiresAtFrom(now, 'quarantined', this.retention),
       storageName
     };
 
@@ -293,7 +361,7 @@ export class LiveDropStore {
       throw error;
     }
 
-    return publicAsset(asset);
+    return publicAsset(asset, this.retention);
   }
 
   async review(
@@ -335,13 +403,13 @@ export class LiveDropStore {
         status,
         reviewedAt: new Date(now).toISOString(),
         reviewedBy,
-        expiresAt: expiresAtFrom(now, status)
+        expiresAt: expiresAtFrom(now, status, this.retention)
       };
       this.assets[index] = next;
       result = next;
     });
 
-    return publicAsset(result);
+    return publicAsset(result, this.retention);
   }
 
   async resolveReadyPath(
@@ -356,7 +424,7 @@ export class LiveDropStore {
     if (asset.status !== 'ready') throw new Error('live_drop_asset_not_ready');
 
     return {
-      asset: publicAsset(asset),
+      asset: publicAsset(asset, this.retention),
       path: join(this.rootDir, 'cache', asset.storageName)
     };
   }
@@ -364,8 +432,9 @@ export class LiveDropStore {
   async purgeExpired(now = Date.now()): Promise<number> {
     await this.load();
     const expired = this.assets.filter(asset => {
-      if (asset.status === 'ready' || !asset.expiresAt) return false;
-      const time = Date.parse(asset.expiresAt);
+      const expiresAt = publicAsset(asset, this.retention).expiresAt;
+      if (!expiresAt) return false;
+      const time = Date.parse(expiresAt);
       return Number.isFinite(time) && time <= now;
     });
     if (!expired.length) return 0;
