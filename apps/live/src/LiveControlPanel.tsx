@@ -330,7 +330,8 @@ export function LiveControlPanel({
     payload: Record<string, unknown>,
     safetyLevel: 'normal' | 'guarded' = 'normal',
     serviceItemId?: string,
-    targetProviderIds?: string[]
+    targetProviderIds?: string[],
+    confirmed = false
   ): Promise<CommandResult[]> {
     setBusy(key);
     setMessage(null);
@@ -342,7 +343,8 @@ export function LiveControlPanel({
         serviceItemId,
         actorId,
         targetProviderIds,
-        safetyLevel
+        safetyLevel,
+        confirmed
       });
       const rejected = results.find(result => !result.accepted);
       if (rejected) {
@@ -676,7 +678,7 @@ export function LiveControlPanel({
       return;
     }
     setClearArmed(false);
-    void run('clear', 'presentation.clear', {}, 'guarded');
+    void run('clear', 'presentation.clear', {}, 'guarded', undefined, undefined, true);
   }
 
   const effectivePresentation =
