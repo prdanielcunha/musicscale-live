@@ -2126,19 +2126,23 @@ async function start(): Promise<void> {
         return send(res, 404, { error: 'provider_asset_not_supported' });
       }
 
-      if (assetKind !== 'output-snapshot') {
+      if (!['output-snapshot', 'clip-thumbnail'].includes(assetKind)) {
         return send(res, 404, { error: 'provider_asset_kind_not_supported' });
       }
 
       const targetId = String(url.searchParams.get('targetId') || '');
-      const format = url.searchParams.get('format') === 'png' ? 'png' : 'jpeg';
       if (!targetId) return send(res, 400, { error: 'asset_target_required' });
 
-      const request: ProviderAssetRequest = {
-        kind: 'output.snapshot',
-        targetId,
-        format
-      };
+      const request: ProviderAssetRequest = assetKind === 'clip-thumbnail'
+        ? {
+            kind: 'clip.thumbnail',
+            targetId
+          }
+        : {
+            kind: 'output.snapshot',
+            targetId,
+            format: url.searchParams.get('format') === 'png' ? 'png' : 'jpeg'
+          };
       const asset = await provider.fetchAsset(request);
       return sendBinary(
         res,

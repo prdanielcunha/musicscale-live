@@ -34,6 +34,7 @@ import {
   discoverPeerNodes,
   executeNodeCommand,
   executeNodeScene,
+  fetchProviderClipThumbnail,
   fetchProviderOutputSnapshot,
   heartbeatNode,
   listNodeLiveDrop,
@@ -519,6 +520,19 @@ export function useLiveNode() {
     );
   }, [credential]);
 
+  const fetchClipThumbnail = useCallback(async (
+    providerId: string,
+    clipId: string
+  ): Promise<Blob> => {
+    if (!credential) throw new Error('node_not_paired');
+    return fetchProviderClipThumbnail(
+      credential.baseUrl,
+      credential.token,
+      providerId,
+      clipId
+    );
+  }, [credential]);
+
   const cacheServicePlan = useCallback(async (
     plan: ServicePlan,
     providerLinks: ProviderLink[] = []
@@ -595,6 +609,7 @@ export function useLiveNode() {
     reviewLiveDrop,
     openLiveDrop,
     fetchOutputSnapshot,
+    fetchClipThumbnail,
     cacheServicePlan,
     refreshState,
     submitRequest,

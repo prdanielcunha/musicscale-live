@@ -6,11 +6,16 @@ import type {
   ProviderState
 } from './types';
 
-export interface ProviderAssetRequest {
-  kind: 'output.snapshot';
-  targetId: string;
-  format?: 'jpeg' | 'png';
-}
+export type ProviderAssetRequest =
+  | {
+      kind: 'output.snapshot';
+      targetId: string;
+      format?: 'jpeg' | 'png';
+    }
+  | {
+      kind: 'clip.thumbnail';
+      targetId: string;
+    };
 
 export interface ProviderAsset {
   contentType: string;

@@ -63,6 +63,7 @@ describe('ResolumeAdapter', () => {
     expect(probe.capabilities).toContain('visual.composition.clear');
     expect(probe.capabilities).toContain('visual.outputs.read');
     expect(probe.capabilities).toContain('visual.output.snapshot');
+    expect(probe.capabilities).toContain('visual.clip.thumbnail');
   });
 
   it('triggers clips by stable id', async () => {
@@ -97,6 +98,24 @@ describe('ResolumeAdapter', () => {
     expect(api.calls.some(call =>
       call.method === 'GET_BINARY' &&
       call.path === '/composition/monitors/monitor-main/snapshot.jpg'
+    )).toBe(true);
+  });
+
+  it('fetches clip thumbnails by stable id', async () => {
+    const api = new FakeApi();
+    const adapter = new ResolumeAdapter({ id: 'resolume-1', nodeId: 'node-1', api });
+    await adapter.probe();
+
+    const asset = await adapter.fetchAsset({
+      kind: 'clip.thumbnail',
+      targetId: 'clip-44'
+    });
+
+    expect(asset.contentType).toBe('image/jpeg');
+    expect(asset.body.byteLength).toBe(3);
+    expect(api.calls.some(call =>
+      call.method === 'GET_BINARY' &&
+      call.path === '/composition/clips/by-id/clip-44/thumbnail'
     )).toBe(true);
   });
 

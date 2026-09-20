@@ -287,13 +287,18 @@ export class FederatedProviderAdapter implements ProviderAdapter {
   }
 
   async fetchAsset(request: ProviderAssetRequest): Promise<ProviderAsset> {
-    const query = new URLSearchParams({
-      targetId: request.targetId,
-      format: request.format || 'jpeg'
-    });
+    const query = new URLSearchParams({ targetId: request.targetId });
+    const assetKind = request.kind === 'clip.thumbnail'
+      ? 'clip-thumbnail'
+      : 'output-snapshot';
+
+    if (request.kind === 'output.snapshot') {
+      query.set('format', request.format || 'jpeg');
+    }
+
     const response = await withTimeout(
       this.fetchImpl,
-      `${this.peer.baseUrl}/provider-assets/${encodeURIComponent(this.remoteProviderId)}/output-snapshot?${query}`,
+      `${this.peer.baseUrl}/provider-assets/${encodeURIComponent(this.remoteProviderId)}/${assetKind}?${query}`,
       {
         headers: {
           Authorization: `Bearer ${this.peer.token}`

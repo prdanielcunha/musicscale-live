@@ -19,6 +19,8 @@ interface VisualLayer {
   id: string;
   name: string;
   clips: VisualClip[];
+  groupId?: string;
+  groupName?: string;
 }
 
 interface VisualOutput {
@@ -26,41 +28,166 @@ interface VisualOutput {
   name: string;
 }
 
+interface VisualLayerSection {
+  id: string;
+  name: string;
+  grouped: boolean;
+  layers: VisualLayer[];
+}
 
-function parameterValue(value: unknown): unknown {
-  if (value && typeof value === 'object' && 'value' in (value as Record<string, unknown>)) {
-    return (value as Record<string, unknown>).value;
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object'
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function parameterValue(value: unknown, depth = 0): unknown {
+  if (depth > 5) return value;
+  const record = asRecord(value);
+  if (record && 'value' in record) {
+    return parameterValue(record.value, depth + 1);
   }
   return value;
 }
 
-function normalizeComposition(value: unknown): VisualLayer[] {
-  if (!value || typeof value !== 'object') return [];
-  const composition = value as Record<string, unknown>;
-  const layers = Array.isArray(composition.layers) ? composition.layers : [];
+function displayText(value: unknown, fallback = ''): string {
+  const unwrapped = parameterValue(value);
+  if (typeof unwrapped === 'string') {
+    const text = unwrapped.trim();
+    return text || fallback;
+  }
+  if (typeof unwrapped === 'number' || typeof unwrapped === 'boolean') {
+    return String(unwrapped);
+  }
 
-  return layers
-    .filter(layer => layer && typeof layer === 'object')
-    .map(layerValue => {
-      const layer = layerValue as Record<string, unknown>;
-      const clips = Array.isArray(layer.clips) ? layer.clips : [];
+  const record = asRecord(unwrapped);
+  if (record) {
+    for (const key of ['display_name', 'displayName', 'name', 'title', 'label', 'text']) {
+      if (!(key in record)) continue;
+      const text = displayText(record[key], '');
+      if (text) return text;
+    }
+  }
+
+  return fallback;
+}
+
+function entityId(value: unknown): string {
+  const unwrapped = parameterValue(value);
+  if (typeof unwrapped === 'string' || typeof unwrapped === 'number') {
+    return String(unwrapped);
+  }
+  const record = asRecord(unwrapped);
+  if (!record) return '';
+  return entityId(record.id ?? record.uuid ?? record.identifier ?? '');
+}
+
+function booleanValue(value: unknown): boolean {
+  const unwrapped = parameterValue(value);
+  if (typeof unwrapped === 'string') {
+    return ['true', '1', 'on', 'yes'].includes(unwrapped.toLowerCase());
+  }
+  return Boolean(unwrapped);
+}
+
+function arrayValue(record: Record<string, unknown>, keys: string[]): unknown[] {
+  for (const key of keys) {
+    const candidate = parameterValue(record[key]);
+    if (Array.isArray(candidate)) return candidate;
+  }
+  return [];
+}
+
+function normalizeLayer(
+  layerValue: unknown,
+  group?: { id: string; name: string }
+): VisualLayer | null {
+  const layer = asRecord(layerValue);
+  if (!layer) return null;
+
+  const id = entityId(layer.id);
+  if (!id) return null;
+
+  const clips = arrayValue(layer, ['clips'])
+    .map(clipValue => {
+      const clip = asRecord(clipValue);
+      if (!clip) return null;
+      const clipId = entityId(clip.id);
+      if (!clipId) return null;
       return {
-        id: String(layer.id || ''),
-        name: String(parameterValue(layer.name) || layer.name || 'Layer'),
-        clips: clips
-          .filter(clip => clip && typeof clip === 'object')
-          .map(clipValue => {
-            const clip = clipValue as Record<string, unknown>;
-            return {
-              id: String(clip.id || ''),
-              name: String(parameterValue(clip.name) || clip.name || 'Clip'),
-              connected: Boolean(parameterValue(clip.connected))
-            };
-          })
-          .filter(clip => clip.id)
-      };
+        id: clipId,
+        name: displayText(clip.name, displayText(clip.display_name, 'Clip')),
+        connected: booleanValue(clip.connected)
+      } satisfies VisualClip;
     })
-    .filter(layer => layer.id);
+    .filter((clip): clip is VisualClip => Boolean(clip));
+
+  const ownGroupValue =
+    layer.layergroup ??
+    layer.layerGroup ??
+    layer.group ??
+    layer.layergroup_id ??
+    layer.layerGroupId ??
+    layer.group_id ??
+    layer.groupId;
+  const ownGroupRecord = asRecord(ownGroupValue);
+  const ownGroupId = entityId(ownGroupValue);
+  const ownGroupName = ownGroupRecord
+    ? displayText(ownGroupRecord.name, '')
+    : '';
+
+  return {
+    id,
+    name: displayText(layer.name, displayText(layer.display_name, 'Layer')),
+    clips,
+    groupId: group?.id || ownGroupId || undefined,
+    groupName: group?.name || ownGroupName || undefined
+  };
+}
+
+function normalizeComposition(value: unknown): VisualLayer[] {
+  const composition = asRecord(value);
+  if (!composition) return [];
+
+  const rawGroups = arrayValue(composition, ['layergroups', 'layerGroups', 'groups']);
+  const groupByLayerId = new Map<string, { id: string; name: string }>();
+  const embeddedGroupLayers: Array<{ layer: unknown; group: { id: string; name: string } }> = [];
+
+  rawGroups.forEach((groupValue, index) => {
+    const groupRecord = asRecord(groupValue);
+    if (!groupRecord) return;
+    const group = {
+      id: entityId(groupRecord.id) || `group-${index + 1}`,
+      name: displayText(groupRecord.name, `Group ${index + 1}`)
+    };
+    const members = arrayValue(groupRecord, ['layers']);
+    members.forEach(layerValue => {
+      const layerId = entityId(layerValue);
+      if (layerId) groupByLayerId.set(layerId, group);
+      if (asRecord(layerValue)) embeddedGroupLayers.push({ layer: layerValue, group });
+    });
+  });
+
+  const normalized: VisualLayer[] = [];
+  const seen = new Set<string>();
+
+  for (const layerValue of arrayValue(composition, ['layers'])) {
+    const layerRecord = asRecord(layerValue);
+    const layerId = entityId(layerRecord?.id);
+    const layer = normalizeLayer(layerValue, layerId ? groupByLayerId.get(layerId) : undefined);
+    if (!layer || seen.has(layer.id)) continue;
+    seen.add(layer.id);
+    normalized.push(layer);
+  }
+
+  for (const embedded of embeddedGroupLayers) {
+    const layer = normalizeLayer(embedded.layer, embedded.group);
+    if (!layer || seen.has(layer.id)) continue;
+    seen.add(layer.id);
+    normalized.push(layer);
+  }
+
+  return normalized;
 }
 
 function outputsFromResults(results: CommandResult[]): VisualOutput[] {
@@ -74,7 +201,7 @@ function outputsFromResults(results: CommandResult[]): VisualOutput[] {
   return raw
     .map(output => ({
       id: String(output.id || output.monitor_id || ''),
-      name: String(parameterValue(output.name) || output.display_name || output.id || 'Output')
+      name: displayText(output.name, displayText(output.display_name, displayText(output.id, 'Output')))
     }))
     .filter(output => output.id);
 }
@@ -103,6 +230,7 @@ export function VisualControlPanel({
   const [outputs, setOutputs] = useState<VisualOutput[]>([]);
   const [selectedOutputId, setSelectedOutputId] = useState('');
   const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null);
+  const [clipThumbnails, setClipThumbnails] = useState<Record<string, string>>({});
   const [localArmedClip, setLocalArmedClip] = useState<ArmedVisualCue | null>(null);
   const [clearAllArmed, setClearAllArmed] = useState(false);
   const outputDiscoveryProvider = useRef('');
@@ -187,6 +315,107 @@ export function VisualControlPanel({
   const activeClipSignature = activeClips
     .map(clip => `${clip.layerId}:${clip.clipId}`)
     .join('|');
+
+  const clipThumbnailSignature = layers
+    .flatMap(layer => layer.clips.map(clip => clip.id))
+    .join('|');
+
+  const layerSections = useMemo<VisualLayerSection[]>(() => {
+    const sections: VisualLayerSection[] = [];
+    const grouped = new Map<string, VisualLayerSection>();
+    const ungrouped: VisualLayer[] = [];
+
+    for (const layer of layers) {
+      if (!layer.groupId) {
+        ungrouped.push(layer);
+        continue;
+      }
+      let section = grouped.get(layer.groupId);
+      if (!section) {
+        section = {
+          id: layer.groupId,
+          name: layer.groupName || layer.groupId,
+          grouped: true,
+          layers: []
+        };
+        grouped.set(layer.groupId, section);
+        sections.push(section);
+      }
+      section.layers.push(layer);
+    }
+
+    if (ungrouped.length) {
+      sections.push({
+        id: 'ungrouped',
+        name: '',
+        grouped: false,
+        layers: ungrouped
+      });
+    }
+
+    return sections;
+  }, [layers]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const generatedUrls: string[] = [];
+
+    setClipThumbnails(current => {
+      Object.values(current).forEach(url => URL.revokeObjectURL(url));
+      return {};
+    });
+
+    if (
+      !provider ||
+      !provider.capabilities.includes('visual.clip.thumbnail') ||
+      !clipThumbnailSignature
+    ) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const clipIds = Array.from(new Set(
+      layers.flatMap(layer => layer.clips.map(clip => clip.id))
+    ));
+
+    void (async () => {
+      for (let index = 0; index < clipIds.length && !cancelled; index += 6) {
+        const batch = clipIds.slice(index, index + 6);
+        const entries = await Promise.all(batch.map(async clipId => {
+          try {
+            const blob = await controller.fetchClipThumbnail(provider.providerId, clipId);
+            if (!blob.size || cancelled) return null;
+            const url = URL.createObjectURL(blob);
+            generatedUrls.push(url);
+            return [clipId, url] as const;
+          } catch {
+            return null;
+          }
+        }));
+
+        if (cancelled) break;
+        const nextEntries = entries.filter(
+          (entry): entry is readonly [string, string] => Boolean(entry)
+        );
+        if (nextEntries.length) {
+          setClipThumbnails(current => ({
+            ...current,
+            ...Object.fromEntries(nextEntries)
+          }));
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      generatedUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [
+    clipThumbnailSignature,
+    controller.fetchClipThumbnail,
+    provider?.providerId
+  ]);
 
   // Snapshot only when the visual program actually changes (or output changes).
   // This keeps the left NOW preview fresh without turning health polling into a
@@ -331,6 +560,67 @@ export function VisualControlPanel({
     window.setTimeout(() => void refresh(), 120);
   }
 
+  function renderLayer(layer: VisualLayer) {
+    return (
+      <article key={layer.id} className="visual-layer">
+        <header>
+          <strong>{layer.name}</strong>
+          <button
+            disabled={busy !== null}
+            onClick={() => void clearLayer(layer.id)}
+          >
+            {t('visualControls.clearLayer')}
+          </button>
+        </header>
+        <div className="visual-clip-grid">
+          {layer.clips.map(clip => {
+            const thumbnailUrl = clipThumbnails[clip.id];
+            return (
+              <button
+                key={clip.id}
+                className={[
+                  clip.connected ? 'active' : '',
+                  armedClip?.clipId === clip.id ? 'armed' : ''
+                ].filter(Boolean).join(' ')}
+                disabled={busy !== null}
+                onClick={() => armVisualCue({
+                  providerId: activeProvider.providerId,
+                  clipId: clip.id,
+                  clipName: clip.name,
+                  layerId: layer.id,
+                  layerName: layer.name
+                })}
+                title={clip.name}
+              >
+                <span
+                  className={`visual-clip-thumbnail${thumbnailUrl ? '' : ' empty'}`}
+                  aria-hidden="true"
+                >
+                  {thumbnailUrl && (
+                    <img src={thumbnailUrl} alt="" loading="lazy" />
+                  )}
+                </span>
+                <span className="visual-clip-meta">
+                  <span className="visual-clip-title">{clip.name}</span>
+                  <small>
+                    {armedClip?.clipId === clip.id
+                      ? t('visualControls.next')
+                      : clip.connected
+                        ? t('visualControls.live')
+                        : t('visualControls.ready')}
+                  </small>
+                </span>
+              </button>
+            );
+          })}
+          {!layer.clips.length && (
+            <small className="visual-empty">{t('visualControls.noClips')}</small>
+          )}
+        </div>
+      </article>
+    );
+  }
+
   return (
     <section className="visual-control-panel">
       <div className="visual-control-head">
@@ -469,50 +759,19 @@ export function VisualControlPanel({
 
       {layers.length ? (
         <div className="visual-layer-list">
-          {layers.map(layer => (
-            <article key={layer.id} className="visual-layer">
-              <header>
-                <strong>{layer.name}</strong>
-                <button
-                  disabled={busy !== null}
-                  onClick={() => void clearLayer(layer.id)}
-                >
-                  {t('visualControls.clearLayer')}
-                </button>
+          {layerSections.map(section => section.grouped ? (
+            <section key={section.id} className="visual-layer-group">
+              <header className="visual-layer-group-head">
+                <strong>{section.name}</strong>
               </header>
-              <div className="visual-clip-grid">
-                {layer.clips.map(clip => (
-                  <button
-                    key={clip.id}
-                    className={[
-                      clip.connected ? 'active' : '',
-                      armedClip?.clipId === clip.id ? 'armed' : ''
-                    ].filter(Boolean).join(' ')}
-                    disabled={busy !== null}
-                    onClick={() => armVisualCue({
-                      providerId: activeProvider.providerId,
-                      clipId: clip.id,
-                      clipName: clip.name,
-                      layerId: layer.id,
-                      layerName: layer.name
-                    })}
-                    title={clip.id}
-                  >
-                    <span>{clip.name}</span>
-                    <small>
-                      {armedClip?.clipId === clip.id
-                        ? t('visualControls.next')
-                        : clip.connected
-                          ? t('visualControls.live')
-                          : t('visualControls.ready')}
-                    </small>
-                  </button>
-                ))}
-                {!layer.clips.length && (
-                  <small className="visual-empty">{t('visualControls.noClips')}</small>
-                )}
+              <div className="visual-layer-group-layers">
+                {section.layers.map(renderLayer)}
               </div>
-            </article>
+            </section>
+          ) : (
+            <div key={section.id} className="visual-layer-group-layers ungrouped">
+              {section.layers.map(renderLayer)}
+            </div>
           ))}
         </div>
       ) : (
