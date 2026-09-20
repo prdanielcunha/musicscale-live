@@ -680,6 +680,38 @@ const resources = {
         provider_timeout: 'O provider demorou demais para responder. O estado não foi assumido como concluído.'
       }
     },
+    bibleWorkspace: {
+      kicker: 'BÍBLIA AO VIVO',
+      title: 'Encontre, prepare e projete sem sair do Live',
+      subtitle: 'Referências, versões, favoritos e histórico no mesmo fluxo.',
+      version: 'Versão',
+      providerDefault: 'Padrão do provider',
+      library: 'Navegação da Bíblia',
+      tabs: { search: 'Buscar', favorites: 'Favoritos', history: 'Histórico' },
+      placeholder: 'João 3:16, Salmo 23 ou Romanos 8:28-30',
+      search: 'Buscar passagem',
+      searching: 'Buscando…',
+      searchHint: 'Digite uma referência bíblica para localizar os versos.',
+      notFound: 'Não encontrei essa referência no provider conectado.',
+      verseCount_one: '{{count}} verso',
+      verseCount_other: '{{count}} versos',
+      referenceReady: 'Referência pronta para o provider',
+      ready: 'Pronto',
+      preview: 'Ver',
+      addFavorite: 'Adicionar aos favoritos',
+      removeFavorite: 'Remover dos favoritos',
+      putOnAir: 'Colocar no ar',
+      sending: 'Enviando…',
+      onAir: '{{reference}} foi enviado para o Program.',
+      useAgain: 'Usar novamente',
+      noFavorites: 'Nenhuma passagem favorita ainda.',
+      noHistory: 'O histórico aparece aqui conforme você projeta passagens.',
+      directReferenceOnly: 'Este provider aceita apresentar referências, mas não disponibilizou busca estruturada. Você ainda pode digitar a passagem e colocar no ar.',
+      errors: {
+        search: 'Não foi possível buscar a passagem: {{code}}',
+        take: 'Não foi possível colocar a passagem no ar: {{code}}'
+      }
+    },
     requestsSurface: {
       safeFlow: 'Pedido, não comando',
       safeFlowHint: 'Nada entra no telão sem o operador',
@@ -1304,6 +1336,38 @@ const resources = {
         provider_timeout: 'The provider took too long to respond. Live did not assume the action completed.'
       }
     },
+    bibleWorkspace: {
+      kicker: 'LIVE BIBLE',
+      title: 'Find, prepare and present without leaving Live',
+      subtitle: 'References, versions, favorites and history in one flow.',
+      version: 'Version',
+      providerDefault: 'Provider default',
+      library: 'Bible navigation',
+      tabs: { search: 'Search', favorites: 'Favorites', history: 'History' },
+      placeholder: 'John 3:16, Psalm 23 or Romans 8:28-30',
+      search: 'Search passage',
+      searching: 'Searching…',
+      searchHint: 'Enter a Bible reference to find the verses.',
+      notFound: 'That reference was not found in the connected provider.',
+      verseCount_one: '{{count}} verse',
+      verseCount_other: '{{count}} verses',
+      referenceReady: 'Reference ready for the provider',
+      ready: 'Ready',
+      preview: 'View',
+      addFavorite: 'Add to favorites',
+      removeFavorite: 'Remove from favorites',
+      putOnAir: 'Put on air',
+      sending: 'Sending…',
+      onAir: '{{reference}} was sent to Program.',
+      useAgain: 'Use again',
+      noFavorites: 'No favorite passages yet.',
+      noHistory: 'History will appear here as passages are presented.',
+      directReferenceOnly: 'This provider can present references but did not expose structured search. You can still type a passage and put it on air.',
+      errors: {
+        search: 'Could not search the passage: {{code}}',
+        take: 'Could not put the passage on air: {{code}}'
+      }
+    },
     requestsSurface: {
       safeFlow: 'Request, not command',
       safeFlowHint: 'Nothing goes on air without the operator',
@@ -1926,6 +1990,38 @@ const resources = {
         configured_provider_route_unavailable: 'El provider elegido para esta función no está disponible. Revíselo en el computador del Live Node.',
         no_provider_for_capability: 'Ningún provider conectado puede ejecutar esta acción ahora.',
         provider_timeout: 'El provider tardó demasiado en responder. Live no asumió que la acción se completó.'
+      }
+    },
+    bibleWorkspace: {
+      kicker: 'BIBLIA EN VIVO',
+      title: 'Busca, prepara y proyecta sin salir de Live',
+      subtitle: 'Referencias, versiones, favoritos e historial en un mismo flujo.',
+      version: 'Versión',
+      providerDefault: 'Predeterminada del provider',
+      library: 'Navegación de la Biblia',
+      tabs: { search: 'Buscar', favorites: 'Favoritos', history: 'Historial' },
+      placeholder: 'Juan 3:16, Salmo 23 o Romanos 8:28-30',
+      search: 'Buscar pasaje',
+      searching: 'Buscando…',
+      searchHint: 'Escribe una referencia bíblica para localizar los versículos.',
+      notFound: 'No encontré esa referencia en el provider conectado.',
+      verseCount_one: '{{count}} versículo',
+      verseCount_other: '{{count}} versículos',
+      referenceReady: 'Referencia lista para el provider',
+      ready: 'Listo',
+      preview: 'Ver',
+      addFavorite: 'Añadir a favoritos',
+      removeFavorite: 'Quitar de favoritos',
+      putOnAir: 'Poner al aire',
+      sending: 'Enviando…',
+      onAir: '{{reference}} fue enviado a Program.',
+      useAgain: 'Usar de nuevo',
+      noFavorites: 'Todavía no hay pasajes favoritos.',
+      noHistory: 'El historial aparecerá aquí a medida que proyectes pasajes.',
+      directReferenceOnly: 'Este provider puede presentar referencias, pero no expuso búsqueda estructurada. Aún puedes escribir el pasaje y ponerlo al aire.',
+      errors: {
+        search: 'No fue posible buscar el pasaje: {{code}}',
+        take: 'No fue posible poner el pasaje al aire: {{code}}'
       }
     },
     requestsSurface: {
