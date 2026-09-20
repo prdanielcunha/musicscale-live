@@ -2036,7 +2036,9 @@ async function start(): Promise<void> {
           liveSessionId
         });
         const accepted = federated.results.some(result => result.accepted);
+        const failure = federated.results.find(result => !result.accepted);
         return send(res, accepted ? 200 : 409, {
+          ...(accepted ? {} : { error: failure?.errorCode || 'provider_error' }),
           asset: resolved.asset,
           correlationId: federated.correlationId,
           results: federated.results,
@@ -2072,7 +2074,9 @@ async function start(): Promise<void> {
 
       const results = await execute(command);
       const accepted = results.some(result => result.accepted);
+      const failure = results.find(result => !result.accepted);
       return send(res, accepted ? 200 : 409, {
+        ...(accepted ? {} : { error: failure?.errorCode || 'provider_error' }),
         asset: resolved.asset,
         correlationId: command.correlationId,
         results,
