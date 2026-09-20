@@ -6,6 +6,7 @@ import type { useLiveNode } from './useLiveNode';
 type Controller = ReturnType<typeof useLiveNode>;
 
 type Severity = 'ok' | 'warning' | 'critical';
+type DiagnosticDestination = 'overview' | 'prepare' | 'computers' | 'routing' | 'signal';
 
 const ROUTE_GROUPS: ProviderRouteGroup[] = [
   'presentation',
@@ -32,9 +33,11 @@ function groupForCapability(capability: string): ProviderRouteGroup {
 }
 
 export function DiagnosticsPanel({
-  controller
+  controller,
+  onOpenSection
 }: {
   controller: Controller;
+  onOpenSection?: (destination: DiagnosticDestination) => void;
 }) {
   const { t } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
@@ -76,19 +79,25 @@ export function DiagnosticsPanel({
       severity: Exclude<Severity, 'ok'>;
       title: string;
       description: string;
+      destination?: DiagnosticDestination;
+      action?: string;
     }> = [];
 
     if (providers.length === 0) {
       next.push({
         severity: 'critical',
         title: t('diagnostics.issues.noProviders.title'),
-        description: t('diagnostics.issues.noProviders.description')
+        description: t('diagnostics.issues.noProviders.description'),
+        destination: 'computers',
+        action: t('diagnostics.actions.openComputers')
       });
     } else if (providerOffline > 0) {
       next.push({
         severity: 'warning',
         title: t('diagnostics.issues.providersOffline.title', { count: providerOffline }),
-        description: t('diagnostics.issues.providersOffline.description')
+        description: t('diagnostics.issues.providersOffline.description'),
+        destination: 'computers',
+        action: t('diagnostics.actions.openComputers')
       });
     }
 
@@ -96,7 +105,9 @@ export function DiagnosticsPanel({
       next.push({
         severity: 'warning',
         title: t('diagnostics.issues.peersOffline.title', { count: peerOffline }),
-        description: t('diagnostics.issues.peersOffline.description')
+        description: t('diagnostics.issues.peersOffline.description'),
+        destination: 'computers',
+        action: t('diagnostics.actions.openComputers')
       });
     }
 
@@ -104,7 +115,9 @@ export function DiagnosticsPanel({
       next.push({
         severity: 'warning',
         title: t('diagnostics.issues.ambiguousRoutes.title', { count: ambiguousRoutes }),
-        description: t('diagnostics.issues.ambiguousRoutes.description')
+        description: t('diagnostics.issues.ambiguousRoutes.description'),
+        destination: 'routing',
+        action: t('diagnostics.actions.openRouting')
       });
     }
 
@@ -112,7 +125,9 @@ export function DiagnosticsPanel({
       next.push({
         severity: 'warning',
         title: t('diagnostics.issues.signalDisconnected.title'),
-        description: t('diagnostics.issues.signalDisconnected.description')
+        description: t('diagnostics.issues.signalDisconnected.description'),
+        destination: 'signal',
+        action: t('diagnostics.actions.openSignal')
       });
     }
 
@@ -120,7 +135,9 @@ export function DiagnosticsPanel({
       next.push({
         severity: 'warning',
         title: t('diagnostics.issues.noOfflinePlan.title'),
-        description: t('diagnostics.issues.noOfflinePlan.description')
+        description: t('diagnostics.issues.noOfflinePlan.description'),
+        destination: 'prepare',
+        action: t('diagnostics.actions.openPrepare')
       });
     }
 
@@ -328,6 +345,15 @@ export function DiagnosticsPanel({
                 <strong>{issue.title}</strong>
                 <p>{issue.description}</p>
               </div>
+              {issue.destination && issue.action && onOpenSection && (
+                <button
+                  type="button"
+                  className="diagnostic-fix"
+                  onClick={() => onOpenSection(issue.destination!)}
+                >
+                  {issue.action}
+                </button>
+              )}
             </article>
           ))}
         </div>
