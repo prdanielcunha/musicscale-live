@@ -448,6 +448,50 @@ export async function fetchProviderOutputSnapshot(
 }
 
 
+export async function fetchProviderClipThumbnail(
+  baseUrl: string,
+  token: string,
+  providerId: string,
+  clipId: string
+): Promise<Blob> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 5000);
+  try {
+    const networkInit = {
+      method: 'GET',
+      cache: 'force-cache',
+      signal: controller.signal,
+      targetAddressSpace: targetAddressSpaceFor(baseUrl),
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    } as RequestInit & { targetAddressSpace?: 'local' | 'loopback' };
+
+    const url =
+      `${baseUrl}/provider-assets/${encodeURIComponent(providerId)}/clip-thumbnail` +
+      `?targetId=${encodeURIComponent(clipId)}`;
+
+    const response = await fetch(url, networkInit);
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new LiveNodeApiError(
+        String(body?.error || 'provider_asset_failed'),
+        response.status
+      );
+    }
+    return response.blob();
+  } catch (error) {
+    if (error instanceof LiveNodeApiError) throw error;
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new LiveNodeApiError('provider_asset_timeout', 0);
+    }
+    throw new LiveNodeApiError('provider_asset_unreachable', 0);
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+
 export async function listNodeLiveDrop(
   baseUrl: string,
   token: string
