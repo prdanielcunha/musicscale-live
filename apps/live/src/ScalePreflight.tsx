@@ -315,9 +315,10 @@ export function ScalePreflight({
 
     const signature = `${scaleSignature}:${provider.providerId}`;
     if (autoCheckedSignature.current === signature) return;
-    autoCheckedSignature.current = signature;
 
     const timer = window.setTimeout(() => {
+      if (autoCheckedSignature.current === signature) return;
+      autoCheckedSignature.current = signature;
       void runPreflight();
     }, 420);
 
