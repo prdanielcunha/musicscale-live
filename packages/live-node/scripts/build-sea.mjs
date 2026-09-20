@@ -13,7 +13,7 @@ const blob = join(dist, 'sea-prep.blob');
 const config = join(dist, 'sea-config.json');
 const executable = join(
   dist,
-  process.platform === 'win32' ? 'MillionsNestLiveNode.exe' : 'MillionsNestLiveNode'
+  process.platform === 'win32' ? 'MusicScaleLiveNode.exe' : 'MusicScaleLiveNode'
 );
 
 await mkdir(dist, { recursive: true });
