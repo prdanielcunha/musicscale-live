@@ -7,8 +7,8 @@ export interface StoredLiveNodeCredential {
   binding: PairingBinding;
 }
 
-const DB_NAME = 'millionsnest-live';
-const LEGACY_DB_NAME = 'musicscale-live';
+const DB_NAME = 'musicscale-live';
+const LEGACY_DB_NAME = 'millionsnest-live';
 const STORE_NAME = 'secure-local';
 const KEY = 'live-node-credential';
 const DB_VERSION = 1;
