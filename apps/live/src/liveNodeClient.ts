@@ -35,6 +35,21 @@ export interface PeerNodePairingChallenge {
   displayedOnRemoteNode: true;
 }
 
+export interface DiscoveredLiveNode {
+  nodeId: string;
+  displayName: string;
+  baseUrl: string;
+  address: string;
+  port: number;
+  version?: string;
+  lastSeenAt: string;
+}
+
+export interface PeerDiscoveryResponse {
+  status: 'idle' | 'starting' | 'online' | 'unavailable';
+  peers: DiscoveredLiveNode[];
+}
+
 export interface LiveNodeStateResponse {
   nodeId: string;
   state: LiveNodeRuntimeState;
@@ -219,6 +234,15 @@ export async function revokeNodePairing(
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ deviceId })
   });
+}
+
+export async function discoverPeerNodes(
+  baseUrl: string,
+  token: string
+): Promise<PeerDiscoveryResponse> {
+  return requestJson<PeerDiscoveryResponse>(baseUrl, '/discovery/peers', {
+    headers: { Authorization: `Bearer ${token}` }
+  }, 3000);
 }
 
 export async function requestPeerNodePairing(
