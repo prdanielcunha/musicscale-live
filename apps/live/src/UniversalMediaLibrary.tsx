@@ -216,7 +216,7 @@ export function UniversalMediaLibrary({
       );
       setProviderItems(batches.flat());
       setMessage(t('universalLibrary.searchDone', {
-        count: batches.reduce((total, batch) => total + batch.length, 0),
+        count: batches.flat().length,
         providers: searchProviders.length
       }));
     } catch (error) {
