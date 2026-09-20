@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { matchExternalSong, type SongIdentity } from '@millionsnest/live-domain';
-import type { SharedScale, SharedScaleSong } from './musicScaleBridge';
-import { buildServicePlan } from './servicePlanBuilder';
+import { matchExternalSong, type ServicePlan, type SongIdentity } from '@millionsnest/live-domain';
+import type { SharedScale } from './musicScaleBridge';
+import { buildServicePlan, type PreparedSongLink } from './servicePlanBuilder';
 import { liveFeatureFlags } from './featureFlags';
 import { syncPreparedServicePlan } from './liveCloudRepository';
 import type { useLiveNode } from './useLiveNode';
@@ -37,16 +37,16 @@ function snapshotFromScale(scale: SharedScale): PlaylistSnapshot {
 
 function snapshotFromCachedPlan(
   scale: SharedScale,
-  plan: Controller['nodeState'] extends infer _T ? any : never
+  plan: ServicePlan | null | undefined
 ): PlaylistSnapshot | null {
   if (!plan || plan.sourceMusicScaleId !== scale.id || !Array.isArray(plan.items)) return null;
-  const songItems = plan.items.filter((item: any) => item?.type === 'song' && item?.sourceEntityId);
+  const songItems = plan.items.filter(item => item.type === 'song' && item.sourceEntityId);
   if (!songItems.length) return null;
   return {
     scaleId: scale.id,
     revision: Math.max(1, Number(plan.revision) || 1),
-    ids: songItems.map((item: any) => String(item.sourceEntityId)),
-    titles: new Map(songItems.map((item: any) => [String(item.sourceEntityId), String(item.title || 'Música')]))
+    ids: songItems.map(item => String(item.sourceEntityId)),
+    titles: new Map(songItems.map(item => [String(item.sourceEntityId), String(item.title || 'Música')]))
   };
 }
 
@@ -190,7 +190,7 @@ export function PlaylistSyncAutomation({
 
     void (async () => {
       try {
-        const prepared = [];
+        const prepared: PreparedSongLink[] = [];
         const unresolved: string[] = [];
 
         for (const source of scale.songs) {
