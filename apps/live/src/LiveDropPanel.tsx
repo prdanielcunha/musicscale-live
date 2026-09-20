@@ -70,6 +70,7 @@ export function LiveDropPanel({
 
   const mediaRoute = useMemo(() => {
     const providers = (controller.nodeState?.providers || []).filter(provider =>
+      provider.nodeId === controller.nodeState?.nodeId &&
       (provider.health === 'online' || provider.health === 'degraded') &&
       provider.capabilities.includes('media.open')
     );
