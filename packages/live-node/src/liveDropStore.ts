@@ -33,8 +33,49 @@ export interface LiveDropUploadInput extends LiveDropScope {
 }
 
 const DEFAULT_MAX_BYTES = 250 * 1024 * 1024;
-const QUARANTINE_TTL_MS = 24 * 60 * 60 * 1000;
-const REJECTED_TTL_MS = 60 * 60 * 1000;
+const DEFAULT_QUARANTINE_TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_REJECTED_TTL_MS = 60 * 60 * 1000;
+
+export interface LiveDropRetentionPolicy {
+  quarantineTtlMs: number;
+  rejectedTtlMs: number;
+  readyTtlMs: number | null;
+}
+
+const DEFAULT_RETENTION_POLICY: LiveDropRetentionPolicy = {
+  quarantineTtlMs: DEFAULT_QUARANTINE_TTL_MS,
+  rejectedTtlMs: DEFAULT_REJECTED_TTL_MS,
+  readyTtlMs: null
+};
+
+function normalizeRetentionPolicy(
+  value: Partial<LiveDropRetentionPolicy> | undefined
+): LiveDropRetentionPolicy {
+  const positiveOrDefault = (candidate: number | undefined, fallback: number) =>
+    Number.isFinite(candidate) && Number(candidate) > 0
+      ? Math.floor(Number(candidate))
+      : fallback;
+
+  const readyCandidate = value?.readyTtlMs;
+  const readyTtlMs =
+    readyCandidate === null
+      ? null
+      : Number.isFinite(readyCandidate) && Number(readyCandidate) > 0
+        ? Math.floor(Number(readyCandidate))
+        : DEFAULT_RETENTION_POLICY.readyTtlMs;
+
+  return {
+    quarantineTtlMs: positiveOrDefault(
+      value?.quarantineTtlMs,
+      DEFAULT_RETENTION_POLICY.quarantineTtlMs
+    ),
+    rejectedTtlMs: positiveOrDefault(
+      value?.rejectedTtlMs,
+      DEFAULT_RETENTION_POLICY.rejectedTtlMs
+    ),
+    readyTtlMs
+  };
+}
 
 const EXTENSIONS: Record<
   string,
@@ -169,12 +210,19 @@ function validateContentType(
   return normalized || definition.fallbackContentType;
 }
 
-function expiresAtFrom(now: number, status: LiveDropStatus): string | null {
+function expiresAtFrom(
+  now: number,
+  status: LiveDropStatus,
+  policy: LiveDropRetentionPolicy
+): string | null {
   if (status === 'quarantined') {
-    return new Date(now + QUARANTINE_TTL_MS).toISOString();
+    return new Date(now + policy.quarantineTtlMs).toISOString();
   }
   if (status === 'rejected') {
-    return new Date(now + REJECTED_TTL_MS).toISOString();
+    return new Date(now + policy.rejectedTtlMs).toISOString();
+  }
+  if (status === 'ready' && policy.readyTtlMs) {
+    return new Date(now + policy.readyTtlMs).toISOString();
   }
   return null;
 }
@@ -191,12 +239,16 @@ export class LiveDropStore {
   private loaded = false;
   private assets: StoredLiveDropAsset[] = [];
   private writeQueue: Promise<void> = Promise.resolve();
+  readonly retention: LiveDropRetentionPolicy;
 
   constructor(
     private readonly rootDir: string,
     private readonly metadataPath = join(rootDir, 'index.json'),
-    private readonly maxBytes = DEFAULT_MAX_BYTES
-  ) {}
+    private readonly maxBytes = DEFAULT_MAX_BYTES,
+    retention?: Partial<LiveDropRetentionPolicy>
+  ) {
+    this.retention = normalizeRetentionPolicy(retention);
+  }
 
   async list(scope: LiveDropScope): Promise<LiveDropAsset[]> {
     await this.load();
@@ -280,7 +332,7 @@ export class LiveDropStore {
       uploadedBy: input.uploadedBy,
       reviewedAt: null,
       reviewedBy: null,
-      expiresAt: expiresAtFrom(now, 'quarantined'),
+      expiresAt: expiresAtFrom(now, 'quarantined', this.retention),
       storageName
     };
 
@@ -335,7 +387,7 @@ export class LiveDropStore {
         status,
         reviewedAt: new Date(now).toISOString(),
         reviewedBy,
-        expiresAt: expiresAtFrom(now, status)
+        expiresAt: expiresAtFrom(now, status, this.retention)
       };
       this.assets[index] = next;
       result = next;
@@ -364,7 +416,7 @@ export class LiveDropStore {
   async purgeExpired(now = Date.now()): Promise<number> {
     await this.load();
     const expired = this.assets.filter(asset => {
-      if (asset.status === 'ready' || !asset.expiresAt) return false;
+      if (!asset.expiresAt) return false;
       const time = Date.parse(asset.expiresAt);
       return Number.isFinite(time) && time <= now;
     });
