@@ -39,7 +39,10 @@ export function LiveRequestInbox({
   const requests = useMemo(
     () => (controller.nodeState?.state.requests || [])
       .filter(request =>
-        request.liveSessionId === liveSessionId &&
+        (
+          request.liveSessionId === liveSessionId ||
+          request.payload.source === 'playlist-sync'
+        ) &&
         (request.status === 'pending' || request.status === 'accepted')
       )
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
