@@ -680,6 +680,29 @@ const resources = {
         provider_timeout: 'O provider demorou demais para responder. O estado não foi assumido como concluído.'
       }
     },
+    liveContext: {
+      kicker: 'CONTEXTO OPERACIONAL',
+      view: 'Visualização',
+      auto: 'Agora · automático',
+      all: 'Todas as organizações',
+      allTitle: 'Todos os cultos acessíveis',
+      allHint: 'O Live destaca o que está acontecendo agora e mantém os próximos à mão.',
+      open: 'Operar este culto',
+      serviceFallback: 'Culto',
+      noServiceTitle: 'Nenhum culto encontrado',
+      noServiceDescription: 'Não há uma escala disponível neste contexto.',
+      noServices: 'Nenhum culto atual ou futuro encontrado.',
+      states: {
+        live: 'Ao vivo agora',
+        upcoming: 'Próximo',
+        recent: 'Encerrado há pouco',
+        past: 'Passado'
+      },
+      nodeScopeKicker: 'PROTEÇÃO DE CONTEXTO',
+      nodeScopeTitle: 'Este Live Node está vinculado a outra organização',
+      nodeScopeDescription: 'O computador está vinculado a {{node}}, mas a tela está mostrando {{selected}}. O Live bloqueou os comandos para evitar operar a igreja errada.',
+      useNodeOrganization: 'Usar organização do Node'
+    },
     bibleWorkspace: {
       kicker: 'BÍBLIA AO VIVO',
       title: 'Encontre, prepare e projete sem sair do Live',
@@ -1336,6 +1359,29 @@ const resources = {
         provider_timeout: 'The provider took too long to respond. Live did not assume the action completed.'
       }
     },
+    liveContext: {
+      kicker: 'OPERATIONAL CONTEXT',
+      view: 'View',
+      auto: 'Now · automatic',
+      all: 'All organizations',
+      allTitle: 'All accessible services',
+      allHint: 'Live highlights what is happening now and keeps upcoming services close.',
+      open: 'Operate this service',
+      serviceFallback: 'Service',
+      noServiceTitle: 'No service found',
+      noServiceDescription: 'There is no schedule available in this context.',
+      noServices: 'No current or upcoming service found.',
+      states: {
+        live: 'Live now',
+        upcoming: 'Up next',
+        recent: 'Just ended',
+        past: 'Past'
+      },
+      nodeScopeKicker: 'CONTEXT PROTECTION',
+      nodeScopeTitle: 'This Live Node is bound to another organization',
+      nodeScopeDescription: 'This computer is bound to {{node}}, while the screen is showing {{selected}}. Live blocked commands to prevent operating the wrong church.',
+      useNodeOrganization: 'Use Node organization'
+    },
     bibleWorkspace: {
       kicker: 'LIVE BIBLE',
       title: 'Find, prepare and present without leaving Live',
@@ -1991,6 +2037,29 @@ const resources = {
         no_provider_for_capability: 'Ningún provider conectado puede ejecutar esta acción ahora.',
         provider_timeout: 'El provider tardó demasiado en responder. Live no asumió que la acción se completó.'
       }
+    },
+    liveContext: {
+      kicker: 'CONTEXTO OPERATIVO',
+      view: 'Vista',
+      auto: 'Ahora · automático',
+      all: 'Todas las organizaciones',
+      allTitle: 'Todos los cultos accesibles',
+      allHint: 'Live destaca lo que está sucediendo ahora y mantiene los próximos a mano.',
+      open: 'Operar este culto',
+      serviceFallback: 'Culto',
+      noServiceTitle: 'No se encontró un culto',
+      noServiceDescription: 'No hay una escala disponible en este contexto.',
+      noServices: 'No se encontró ningún culto actual o próximo.',
+      states: {
+        live: 'En vivo ahora',
+        upcoming: 'Próximo',
+        recent: 'Terminó hace poco',
+        past: 'Pasado'
+      },
+      nodeScopeKicker: 'PROTECCIÓN DE CONTEXTO',
+      nodeScopeTitle: 'Este Live Node está vinculado a otra organización',
+      nodeScopeDescription: 'Este equipo está vinculado a {{node}}, pero la pantalla muestra {{selected}}. Live bloqueó los comandos para evitar operar la iglesia equivocada.',
+      useNodeOrganization: 'Usar organización del Node'
     },
     bibleWorkspace: {
       kicker: 'BIBLIA EN VIVO',
