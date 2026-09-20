@@ -51,6 +51,17 @@ export function OfflineRunOfShow({
         <div>
           <span className="eyebrow">{t('offlineRun.kicker')}</span>
           <h2>{plan.title}</h2>
+          <div className="offline-run-context">
+            {plan.metadata?.organizationName && (
+              <strong>{String(plan.metadata.organizationName)}</strong>
+            )}
+            {plan.metadata?.locationName && (
+              <span>{String(plan.metadata.locationName)}</span>
+            )}
+            <time dateTime={plan.scheduledAt}>
+              {new Date(plan.scheduledAt).toLocaleString()}
+            </time>
+          </div>
           <p>{t('offlineRun.description')}</p>
         </div>
         <span className="offline-badge">{t('offlineRun.cached')}</span>
