@@ -154,8 +154,7 @@ function validateContentType(
   const definition = EXTENSIONS[extension];
   if (!definition) throw new Error('live_drop_file_type_not_allowed');
 
-  const normalized = String(contentType || '')
-    .split(';')[0]
+  const normalized = (String(contentType || '').split(';')[0] || '')
     .trim()
     .toLowerCase();
 
