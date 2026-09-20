@@ -171,7 +171,8 @@ export function BibleWorkspace({
   const [favorites, setFavorites] = useState<SavedBibleReference[]>([]);
   const [history, setHistory] = useState<SavedBibleReference[]>([]);
   const [view, setView] = useState<'search' | 'favorites' | 'history'>('search');
-  const [busy, setBusy] = useState<'search' | 'versions' | 'take' | null>(null);
+  const [busy, setBusy] = useState<'search' | 'take' | null>(null);
+  const [versionsLoading, setVersionsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const versionsLoadStarted = useRef(false);
 
@@ -204,7 +205,7 @@ export function BibleWorkspace({
     if (!canReadVersions || versionsLoadStarted.current) return;
     versionsLoadStarted.current = true;
     let cancelled = false;
-    setBusy(current => current || 'versions');
+    setVersionsLoading(true);
     void controller.executeCommand({
       capability: 'bible.versions.read',
       payload: {},
@@ -217,7 +218,7 @@ export function BibleWorkspace({
     }).catch(() => {
       // Version selection is progressive enhancement; the provider default remains usable.
     }).finally(() => {
-      if (!cancelled) setBusy(current => current === 'versions' ? null : current);
+      if (!cancelled) setVersionsLoading(false);
     });
     return () => {
       cancelled = true;
@@ -364,7 +365,7 @@ export function BibleWorkspace({
             id="live-bible-version"
             value={version}
             onChange={event => setVersion(event.target.value)}
-            disabled={!canPresent || busy === 'take'}
+            disabled={!canPresent || versionsLoading || busy === 'take'}
           >
             <option value="">{t('bibleWorkspace.providerDefault')}</option>
             {versions.map(item => (
