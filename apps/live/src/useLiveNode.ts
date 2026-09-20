@@ -311,6 +311,7 @@ export function useLiveNode() {
   }, [credential, refreshState]);
 
   const submitRequest = useCallback(async (input: {
+    id?: string;
     liveSessionId: string;
     actorId: string;
     kind: LiveRequest['kind'];
@@ -319,7 +320,7 @@ export function useLiveNode() {
     if (!credential) throw new Error('node_not_paired');
 
     const request: LiveRequest = {
-      id: crypto.randomUUID(),
+      id: input.id || crypto.randomUUID(),
       organizationId: credential.binding.organizationId,
       venueId: credential.binding.venueId,
       liveSessionId: input.liveSessionId,
