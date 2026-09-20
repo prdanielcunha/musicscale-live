@@ -1982,6 +1982,34 @@ async function start(): Promise<void> {
         return send(res, 409, { error: 'live_drop_media_open_not_supported' });
       }
 
+      const localMediaProviders = capabilityEngine
+        .targetsFor('media.open')
+        .filter(provider => provider.descriptor.nodeId === nodeId);
+      const configuredMediaProviderId = await providerRoutingStore.get('media');
+      let selectedProviderId = targetProviderId;
+
+      if (selectedProviderId) {
+        const selectedProvider = capabilityEngine.get(selectedProviderId);
+        if (
+          !selectedProvider ||
+          selectedProvider.descriptor.nodeId !== nodeId ||
+          !selectedProvider.capabilities().has('media.open')
+        ) {
+          return send(res, 409, { error: 'live_drop_local_provider_required' });
+        }
+      } else if (
+        configuredMediaProviderId &&
+        localMediaProviders.some(provider => provider.descriptor.id === configuredMediaProviderId)
+      ) {
+        selectedProviderId = configuredMediaProviderId;
+      } else if (localMediaProviders.length === 1) {
+        selectedProviderId = localMediaProviders[0]!.descriptor.id;
+      } else if (localMediaProviders.length > 1) {
+        return send(res, 409, { error: 'ambiguous_provider_route' });
+      } else {
+        return send(res, 409, { error: 'live_drop_local_provider_required' });
+      }
+
       const commandId = randomUUID();
       const command: LiveCommand = {
         id: commandId,
@@ -1993,7 +2021,7 @@ async function start(): Promise<void> {
         actorId,
         origin: 'live-ui',
         capability: 'media.open',
-        targetProviderIds: targetProviderId ? [targetProviderId] : [],
+        targetProviderIds: [selectedProviderId],
         outputTargets: ['main'],
         payload: {
           kind: resolved.asset.mediaType,
@@ -2274,7 +2302,8 @@ async function start(): Promise<void> {
       message === 'stale_service_plan' ? 409 :
       message === 'live_drop_asset_not_ready' ||
       message === 'live_drop_asset_not_quarantined' ||
-      message === 'live_drop_media_open_not_supported' ? 409 :
+      message === 'live_drop_media_open_not_supported' ||
+      message === 'live_drop_local_provider_required' ? 409 :
       message.includes('expired') ? 410 :
       message.includes('attempts_exceeded') ? 429 :
       message.includes('pin_invalid') || message.startsWith('invalid_') || message.startsWith('signal_') || message.startsWith('duplicate_signal_') || message.startsWith('live_drop_') ? 400 :
