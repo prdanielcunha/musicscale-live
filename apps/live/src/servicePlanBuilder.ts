@@ -66,6 +66,11 @@ export function buildServicePlan(
     sourceMusicScaleId: scale.id,
     title: scale.eventName || 'Culto',
     scheduledAt,
+    metadata: {
+      organizationName: scale.organizationName || null,
+      locationName: scale.locationName || null,
+      timeZone: scale.timeZone || null
+    },
     items,
     revision: Math.max(1, scale.publishRevision || 1)
   };
