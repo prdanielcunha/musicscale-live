@@ -5,6 +5,7 @@ import type { useLiveNode } from './useLiveNode';
 import { useLiveCueCoordinator } from './LiveCueCoordinator';
 import { useLiveOperatorShortcuts } from './useLiveOperatorShortcuts';
 import { createClientId } from './clientId';
+import { BibleWorkspace } from './BibleWorkspace';
 
 type Controller = ReturnType<typeof useLiveNode>;
 type ToolMode = 'song' | 'bible' | 'media' | 'stage';
@@ -24,11 +25,6 @@ interface SearchMediaResult {
   width?: number;
   height?: number;
   thumbnail?: string;
-}
-
-interface BibleReferenceMatch {
-  reference: string;
-  ids: string[];
 }
 
 interface PreparedProgramCue {
@@ -136,26 +132,6 @@ function samePresentationFrame(
   );
 }
 
-function getBibleReferenceMatch(results: CommandResult[]): BibleReferenceMatch | null {
-  for (const result of results) {
-    const raw = result.observedState?.matches;
-    const candidate = Array.isArray(raw) ? raw[0] : raw;
-    if (!candidate || typeof candidate !== 'object') continue;
-    const value = candidate as Record<string, unknown>;
-    const reference = String(value.reference || '').trim();
-    const ids = Array.isArray(value.ids)
-      ? value.ids.map(String).filter(Boolean)
-      : [];
-    if (reference || ids.length) {
-      return {
-        reference: reference || String(ids[0] || ''),
-        ids
-      };
-    }
-  }
-  return null;
-}
-
 function mediaThumbnailUrl(value: string | undefined): string | undefined {
   if (!value?.trim()) return undefined;
   const normalized = value.trim();
@@ -203,7 +179,6 @@ export function LiveControlPanel({
   const cueCoordinator = useLiveCueCoordinator();
   const [songQuery, setSongQuery] = useState('');
   const [songResults, setSongResults] = useState<SearchSongResult[]>([]);
-  const [bibleReference, setBibleReference] = useState('');
   const [mediaKind, setMediaKind] = useState<'video' | 'image' | 'audio'>('video');
   const [mediaQuery, setMediaQuery] = useState('');
   const [mediaResults, setMediaResults] = useState<SearchMediaResult[]>([]);
@@ -551,35 +526,6 @@ export function LiveControlPanel({
         .join(' · '),
       capability: 'songs.present',
       payload: { id: song.id }
-    });
-  }
-
-  async function prepareBible() {
-    const reference = bibleReference.trim();
-    if (!reference || !can('bible.present')) return;
-
-    let normalized: BibleReferenceMatch | null = null;
-    if (can('bible.search')) {
-      const results = await run('bible-prepare', 'bible.search', { text: reference });
-      normalized = getBibleReferenceMatch(results);
-      if (!normalized) {
-        setMessage(t('liveControls.bibleNotFound'));
-        return;
-      }
-    }
-
-    const title = normalized?.reference || reference;
-    setPreparedCue({
-      id: `bible:${title}`,
-      kind: 'bible',
-      title,
-      subtitle: normalized?.ids.length
-        ? t('liveControls.verseCount', { count: normalized.ids.length })
-        : t('liveControls.bible'),
-      capability: 'bible.present',
-      payload: normalized?.ids.length
-        ? { ids: normalized.ids }
-        : { references: reference }
     });
   }
 
@@ -1242,28 +1188,12 @@ export function LiveControlPanel({
         )}
 
         {toolMode === 'bible' && toolAvailability.bible && (
-        <article className="operator-card live-tool-card">
-          <div className="operator-card-head"><span>{t('liveControls.bible')}</span></div>
-          <div className="operator-inline">
-            <input
-              value={bibleReference}
-              onChange={event => setBibleReference(event.target.value)}
-              onKeyDown={event => {
-                if (event.key === 'Enter') void prepareBible();
-              }}
-              placeholder={t('liveControls.biblePlaceholder')}
-              disabled={!can('bible.present')}
-            />
-            <button
-              className="secondary"
-              disabled={!bibleReference.trim() || !can('bible.present') || busy !== null}
-              onClick={() => void prepareBible()}
-            >
-              {t('liveControls.prepare')}
-            </button>
-          </div>
-          <p className="operator-help">{t('liveControls.capabilityDriven')}</p>
-        </article>
+          <BibleWorkspace
+            controller={controller}
+            actorId={actorId}
+            liveSessionId={liveSessionId}
+            onPresentation={presentation => setPreviewPresentation(presentation)}
+          />
         )}
 
         {toolMode === 'media' && toolAvailability.media && (
