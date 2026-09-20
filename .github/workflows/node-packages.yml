@@ -82,6 +82,23 @@ jobs:
           "$hash  MillionsNestLiveNode.exe" | Set-Content (Join-Path $out "SHA256SUMS.txt")
           "PACKAGE_DIR=$out" | Out-File -FilePath $env:GITHUB_ENV -Append
 
+      - name: Build Windows one-click installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $iscc = "C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            throw "Inno Setup compiler not found at $iscc"
+          }
+          & $iscc "/DSourceDir=$env:PACKAGE_DIR" "/DOutputDir=$env:PACKAGE_DIR" "distribution/windows/MusicScaleLiveNode.iss"
+          $setup = Join-Path $env:PACKAGE_DIR "MusicScaleLiveSetup.exe"
+          if (-not (Test-Path $setup)) {
+            throw "MusicScaleLiveSetup.exe was not created."
+          }
+          $setupHash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
+          Add-Content -Path (Join-Path $env:PACKAGE_DIR "SHA256SUMS.txt") -Value "$setupHash  MusicScaleLiveSetup.exe"
+
       - name: Stage Unix package
         if: runner.os != 'Windows'
         shell: bash
