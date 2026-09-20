@@ -422,6 +422,27 @@ export interface MediaAsset {
   }>;
 }
 
+export type LiveDropStatus = 'quarantined' | 'ready' | 'rejected';
+
+export interface LiveDropAsset {
+  id: EntityId;
+  organizationId: EntityId;
+  venueId: EntityId;
+  liveSystemId: EntityId;
+  nodeId: EntityId;
+  fileName: string;
+  mediaType: MediaAsset['mediaType'];
+  contentType: string;
+  sizeBytes: number;
+  sha256: string;
+  status: LiveDropStatus;
+  uploadedAt: string;
+  uploadedBy: EntityId;
+  reviewedAt?: string | null;
+  reviewedBy?: EntityId | null;
+  expiresAt?: string | null;
+}
+
 export type RequestKind = 'bible' | 'section' | 'media' | 'message';
 
 export interface LiveRequest {
