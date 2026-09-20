@@ -561,7 +561,7 @@ export function LiveRequestInbox({
                 <strong>{String(label || '')}</strong>
                 <span>
                   {request.status === 'accepted'
-                    ? prepared
+                    ? prepared || selectedMediaId
                       ? t('requestInbox.preparedHint')
                       : t('requestInbox.acceptedHint')
                     : t('requestInbox.pendingHint')}
