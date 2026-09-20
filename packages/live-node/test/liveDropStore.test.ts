@@ -31,7 +31,7 @@ describe('LiveDropStore', () => {
     expect(asset.fileName).toBe('aviso.png');
     expect(asset.mediaType).toBe('image');
     expect(asset.sha256).toMatch(/^[a-f0-9]{64}$/);
-    expect((asset as Record<string, unknown>).storageName).toBeUndefined();
+    expect((asset as unknown as Record<string, unknown>).storageName).toBeUndefined();
 
     const listed = await store.list(scope);
     expect(listed).toHaveLength(1);
