@@ -4,6 +4,12 @@ import type { useLiveNode } from './useLiveNode';
 
 type Controller = ReturnType<typeof useLiveNode>;
 
+function stringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.map(String).map(item => item.trim()).filter(Boolean)
+    : [];
+}
+
 export function LiveRequestInbox({
   controller,
   actorId,
@@ -65,6 +71,57 @@ export function LiveRequestInbox({
       </div>
       <div className="live-request-list">
         {requests.map(request => {
+          const isPlaylistUpdate =
+            request.kind === 'message' &&
+            request.payload.source === 'playlist-sync';
+
+          if (isPlaylistUpdate) {
+            const syncStatus = String(request.payload.syncStatus || 'needs_attention');
+            const providerName = String(request.payload.providerName || 'provider');
+            const added = stringList(request.payload.added);
+            const removed = stringList(request.payload.removed);
+            const moved = stringList(request.payload.moved);
+            const unresolved = stringList(request.payload.unresolved);
+            const summary =
+              syncStatus === 'synced'
+                ? t('requestInbox.playlistSynced', { provider: providerName })
+                : syncStatus === 'failed'
+                  ? t('requestInbox.playlistSyncFailed', { provider: providerName })
+                  : t('requestInbox.playlistNeedsAttention');
+
+            return (
+              <article key={request.id} className={`live-request playlist-update status-${syncStatus}`}>
+                <div className="live-request-copy">
+                  <small>{t('requestInbox.playlistUpdate')}</small>
+                  <strong>{summary}</strong>
+                  <div className="playlist-change-list">
+                    {added.length > 0 && (
+                      <span><b>{t('requestInbox.added')}:</b> {added.join(', ')}</span>
+                    )}
+                    {removed.length > 0 && (
+                      <span><b>{t('requestInbox.removed')}:</b> {removed.join(', ')}</span>
+                    )}
+                    {moved.length > 0 && (
+                      <span><b>{t('requestInbox.moved')}:</b> {moved.join(', ')}</span>
+                    )}
+                    {unresolved.length > 0 && (
+                      <span><b>{t('requestInbox.unresolved')}:</b> {unresolved.join(', ')}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="live-request-actions">
+                  <button
+                    className="primary"
+                    disabled={busy === request.id}
+                    onClick={() => void setStatus(request.id, 'completed')}
+                  >
+                    {busy === request.id ? '…' : t('requestInbox.acknowledge')}
+                  </button>
+                </div>
+              </article>
+            );
+          }
+
           const label =
             request.kind === 'bible' ? request.payload.reference :
             request.kind === 'section' ? request.payload.section :
