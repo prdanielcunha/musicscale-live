@@ -62,10 +62,11 @@ const DEFAULT_RESOLUME_URL = 'http://127.0.0.1:8080';
 const RESOLUME_URL = liveEnv('RESOLUME_URL')?.trim() || '';
 const DEFAULT_PROPRESENTER_URL = '';
 const PROPRESENTER_URL = liveEnv('PROPRESENTER_URL')?.trim() || '';
-const LIVE_DROP_MAX_BYTES = Math.max(
-  1,
-  Number(liveEnv('LIVE_DROP_MAX_BYTES') || 250 * 1024 * 1024)
-);
+const LIVE_DROP_MAX_BYTES_ENV = Number(liveEnv('LIVE_DROP_MAX_BYTES') || '');
+const LIVE_DROP_MAX_BYTES =
+  Number.isFinite(LIVE_DROP_MAX_BYTES_ENV) && LIVE_DROP_MAX_BYTES_ENV > 0
+    ? Math.floor(LIVE_DROP_MAX_BYTES_ENV)
+    : 250 * 1024 * 1024;
 const MODERN_STATE_DIR = join(homedir(), '.musicscale-live');
 const LEGACY_STATE_DIR = join(homedir(), '.millionsnest-live');
 const STATE_DIR =
