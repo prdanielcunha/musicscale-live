@@ -31,6 +31,7 @@ import { PeerNodeStore } from './peerNodeStore';
 import { PeerFederation } from './peerFederation';
 import { SignalTopologyStore } from './signalTopologyStore';
 import { LiveDropStore, type LiveDropScope } from './liveDropStore';
+import { stageAndOpenPeerLiveDrop } from './liveDropFederation';
 import { buildLiveNodeDiagnostics } from './diagnostics';
 import { isTrustedLiveWebOrigin } from './networkPolicy';
 import { SceneExecutor } from './sceneExecutor';
@@ -1982,32 +1983,70 @@ async function start(): Promise<void> {
         return send(res, 409, { error: 'live_drop_media_open_not_supported' });
       }
 
-      const localMediaProviders = capabilityEngine
-        .targetsFor('media.open')
-        .filter(provider => provider.descriptor.nodeId === nodeId);
+      const mediaProviders = capabilityEngine.targetsFor('media.open');
       const configuredMediaProviderId = await providerRoutingStore.get('media');
       let selectedProviderId = targetProviderId;
 
       if (selectedProviderId) {
         const selectedProvider = capabilityEngine.get(selectedProviderId);
-        if (
-          !selectedProvider ||
-          selectedProvider.descriptor.nodeId !== nodeId ||
-          !selectedProvider.capabilities().has('media.open')
-        ) {
-          return send(res, 409, { error: 'live_drop_local_provider_required' });
+        if (!selectedProvider?.capabilities().has('media.open')) {
+          return send(res, 409, { error: 'configured_provider_route_unavailable' });
         }
       } else if (
         configuredMediaProviderId &&
-        localMediaProviders.some(provider => provider.descriptor.id === configuredMediaProviderId)
+        mediaProviders.some(provider => provider.descriptor.id === configuredMediaProviderId)
       ) {
         selectedProviderId = configuredMediaProviderId;
-      } else if (localMediaProviders.length === 1) {
-        selectedProviderId = localMediaProviders[0]!.descriptor.id;
-      } else if (localMediaProviders.length > 1) {
+      } else if (mediaProviders.length === 1) {
+        selectedProviderId = mediaProviders[0]!.descriptor.id;
+      } else if (mediaProviders.length > 1) {
         return send(res, 409, { error: 'ambiguous_provider_route' });
       } else {
-        return send(res, 409, { error: 'live_drop_local_provider_required' });
+        return send(res, 409, { error: 'no_provider_for_capability' });
+      }
+
+      const selectedProvider = capabilityEngine.get(selectedProviderId);
+      if (!selectedProvider) {
+        return send(res, 409, { error: 'configured_provider_route_unavailable' });
+      }
+
+      if (selectedProvider.descriptor.nodeId !== nodeId) {
+        const peerNodeId = selectedProvider.descriptor.nodeId;
+        const peer = await peerNodeStore.get(peerNodeId);
+        if (!peer) {
+          return send(res, 409, { error: 'peer_live_drop_target_not_paired' });
+        }
+
+        const federatedPrefix = `peer:${peerNodeId}:`;
+        if (!selectedProviderId.startsWith(federatedPrefix)) {
+          return send(res, 409, { error: 'peer_live_drop_provider_invalid' });
+        }
+        const remoteProviderId = selectedProviderId.slice(federatedPrefix.length);
+        if (!remoteProviderId) {
+          return send(res, 409, { error: 'peer_live_drop_provider_invalid' });
+        }
+
+        const federated = await stageAndOpenPeerLiveDrop({
+          peer,
+          localAsset: resolved.asset,
+          localPath: resolved.path,
+          remoteProviderId,
+          federatedProviderId: selectedProviderId,
+          actorId,
+          liveSessionId
+        });
+        const accepted = federated.results.some(result => result.accepted);
+        const failure = federated.results.find(result => !result.accepted);
+        return send(res, accepted ? 200 : 409, {
+          ...(accepted ? {} : { error: failure?.errorCode || 'provider_error' }),
+          asset: resolved.asset,
+          correlationId: federated.correlationId,
+          results: federated.results,
+          transfer: {
+            mode: federated.reused ? 'reused' : 'replicated',
+            targetNodeId: federated.targetNodeId
+          }
+        });
       }
 
       const commandId = randomUUID();
@@ -2035,10 +2074,16 @@ async function start(): Promise<void> {
 
       const results = await execute(command);
       const accepted = results.some(result => result.accepted);
+      const failure = results.find(result => !result.accepted);
       return send(res, accepted ? 200 : 409, {
+        ...(accepted ? {} : { error: failure?.errorCode || 'provider_error' }),
         asset: resolved.asset,
         correlationId: command.correlationId,
-        results
+        results,
+        transfer: {
+          mode: 'local',
+          targetNodeId: nodeId
+        }
       });
     }
 
@@ -2303,7 +2348,7 @@ async function start(): Promise<void> {
       message === 'live_drop_asset_not_ready' ||
       message === 'live_drop_asset_not_quarantined' ||
       message === 'live_drop_media_open_not_supported' ||
-      message === 'live_drop_local_provider_required' ? 409 :
+      message.startsWith('peer_live_drop_') ? 409 :
       message.includes('expired') ? 410 :
       message.includes('attempts_exceeded') ? 429 :
       message.includes('pin_invalid') || message.startsWith('invalid_') || message.startsWith('signal_') || message.startsWith('duplicate_signal_') || message.startsWith('live_drop_') ? 400 :
