@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
-$InstallDir = Join-Path $env:LOCALAPPDATA "MillionsNestLive"
-$LegacyInstallDir = Join-Path $env:LOCALAPPDATA "MusicScaleLive"
+$InstallDir = Join-Path $env:LOCALAPPDATA "MusicScaleLive"
+$LegacyInstallDir = Join-Path $env:LOCALAPPDATA "MillionsNestLive"
 $RunKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
 
 Get-Process MillionsNestLiveNode -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
