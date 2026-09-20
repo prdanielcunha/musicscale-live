@@ -13,6 +13,7 @@ interface VisualClip {
   id: string;
   name: string;
   connected: boolean;
+  empty: boolean;
 }
 
 interface VisualLayer {
@@ -90,12 +91,38 @@ function booleanValue(value: unknown): boolean {
   return Boolean(unwrapped);
 }
 
-function arrayValue(record: Record<string, unknown>, keys: string[]): unknown[] {
+function collectionValue(record: Record<string, unknown>, keys: string[]): unknown[] {
   for (const key of keys) {
     const candidate = parameterValue(record[key]);
     if (Array.isArray(candidate)) return candidate;
+    const candidateRecord = asRecord(candidate);
+    if (candidateRecord) return Object.values(candidateRecord);
   }
   return [];
+}
+
+function domSafeId(prefix: string, value: string): string {
+  const safe = value.replace(/[^a-zA-Z0-9_-]+/g, '-');
+  return `${prefix}-${safe || 'item'}`;
+}
+
+function clipNameFromRecord(clip: Record<string, unknown>): string {
+  return displayText(
+    clip.display_name,
+    displayText(
+      clip.displayName,
+      displayText(clip.name, '')
+    )
+  );
+}
+
+function visibleLayerClips(clips: VisualClip[]): VisualClip[] {
+  let emptyCount = 0;
+  return clips.filter(clip => {
+    if (!clip.empty) return true;
+    emptyCount += 1;
+    return emptyCount <= 4;
+  });
 }
 
 function normalizeLayer(
@@ -108,16 +135,18 @@ function normalizeLayer(
   const id = entityId(layer.id);
   if (!id) return null;
 
-  const clips = arrayValue(layer, ['clips'])
+  const clips = collectionValue(layer, ['clips'])
     .map(clipValue => {
       const clip = asRecord(clipValue);
       if (!clip) return null;
       const clipId = entityId(clip.id);
       if (!clipId) return null;
+      const clipName = clipNameFromRecord(clip);
       return {
         id: clipId,
-        name: displayText(clip.name, displayText(clip.display_name, 'Clip')),
-        connected: booleanValue(clip.connected)
+        name: clipName || 'Clip',
+        connected: booleanValue(clip.connected),
+        empty: !clipName
       } satisfies VisualClip;
     })
     .filter((clip): clip is VisualClip => Boolean(clip));
@@ -125,20 +154,38 @@ function normalizeLayer(
   const ownGroupValue =
     layer.layergroup ??
     layer.layerGroup ??
+    layer.layer_group ??
     layer.group ??
     layer.layergroup_id ??
     layer.layerGroupId ??
+    layer.layer_group_id ??
     layer.group_id ??
-    layer.groupId;
+    layer.groupId ??
+    layer.layergroupid ??
+    layer.groupid ??
+    layer.parentGroup ??
+    layer.parent_group;
   const ownGroupRecord = asRecord(ownGroupValue);
   const ownGroupId = entityId(ownGroupValue);
   const ownGroupName = ownGroupRecord
-    ? displayText(ownGroupRecord.name, '')
+    ? displayText(
+        ownGroupRecord.display_name,
+        displayText(
+          ownGroupRecord.displayName,
+          displayText(ownGroupRecord.name, '')
+        )
+      )
     : '';
 
   return {
     id,
-    name: displayText(layer.name, displayText(layer.display_name, 'Layer')),
+    name: displayText(
+      layer.display_name,
+      displayText(
+        layer.displayName,
+        displayText(layer.name, 'Layer')
+      )
+    ),
     clips,
     groupId: group?.id || ownGroupId || undefined,
     groupName: group?.name || ownGroupName || undefined
@@ -149,36 +196,79 @@ function normalizeComposition(value: unknown): VisualLayer[] {
   const composition = asRecord(value);
   if (!composition) return [];
 
-  const rawGroups = arrayValue(composition, ['layergroups', 'layerGroups', 'groups']);
+  const rawGroups = collectionValue(
+    composition,
+    ['layergroups', 'layerGroups', 'layer_groups', 'groups']
+  );
   const groupByLayerId = new Map<string, { id: string; name: string }>();
+  const groupByLayerIndex = new Map<string, { id: string; name: string }>();
   const embeddedGroupLayers: Array<{ layer: unknown; group: { id: string; name: string } }> = [];
 
   rawGroups.forEach((groupValue, index) => {
     const groupRecord = asRecord(groupValue);
     if (!groupRecord) return;
     const group = {
-      id: entityId(groupRecord.id) || `group-${index + 1}`,
-      name: displayText(groupRecord.name, `Group ${index + 1}`)
+      id: entityId(
+        groupRecord.id ??
+        groupRecord.layergroup_id ??
+        groupRecord.layerGroupId ??
+        groupRecord.group_id
+      ) || `group-${index + 1}`,
+      name: displayText(
+        groupRecord.display_name,
+        displayText(
+          groupRecord.displayName,
+          displayText(groupRecord.name, `Group ${index + 1}`)
+        )
+      )
     };
-    const members = arrayValue(groupRecord, ['layers']);
-    members.forEach(layerValue => {
-      const layerId = entityId(layerValue);
+    const members = collectionValue(
+      groupRecord,
+      ['layers', 'layerIds', 'layer_ids', 'members', 'children', 'items']
+    );
+    members.forEach((layerValue, memberIndex) => {
+      const layerRecord = asRecord(layerValue);
+      const layerId = entityId(
+        layerRecord?.id ??
+        layerRecord?.layer_id ??
+        layerRecord?.layerId ??
+        layerValue
+      );
       if (layerId) groupByLayerId.set(layerId, group);
-      if (asRecord(layerValue)) embeddedGroupLayers.push({ layer: layerValue, group });
+
+      const layerIndex = displayText(
+        layerRecord?.index ??
+        layerRecord?.position ??
+        layerRecord?.layer_index ??
+        memberIndex + 1,
+        ''
+      );
+      if (layerIndex) groupByLayerIndex.set(layerIndex, group);
+      if (layerRecord) embeddedGroupLayers.push({ layer: layerValue, group });
     });
   });
 
   const normalized: VisualLayer[] = [];
   const seen = new Set<string>();
 
-  for (const layerValue of arrayValue(composition, ['layers'])) {
+  collectionValue(composition, ['layers']).forEach((layerValue, index) => {
     const layerRecord = asRecord(layerValue);
     const layerId = entityId(layerRecord?.id);
-    const layer = normalizeLayer(layerValue, layerId ? groupByLayerId.get(layerId) : undefined);
-    if (!layer || seen.has(layer.id)) continue;
+    const explicitGroup =
+      layerId ? groupByLayerId.get(layerId) : undefined;
+    const layerIndex = displayText(
+      layerRecord?.index ??
+      layerRecord?.position ??
+      layerRecord?.layer_index ??
+      index + 1,
+      ''
+    );
+    const indexedGroup = layerIndex ? groupByLayerIndex.get(layerIndex) : undefined;
+    const layer = normalizeLayer(layerValue, explicitGroup || indexedGroup);
+    if (!layer || seen.has(layer.id)) return;
     seen.add(layer.id);
     normalized.push(layer);
-  }
+  });
 
   for (const embedded of embeddedGroupLayers) {
     const layer = normalizeLayer(embedded.layer, embedded.group);
@@ -201,7 +291,13 @@ function outputsFromResults(results: CommandResult[]): VisualOutput[] {
   return raw
     .map(output => ({
       id: String(output.id || output.monitor_id || ''),
-      name: displayText(output.name, displayText(output.display_name, displayText(output.id, 'Output')))
+      name: displayText(
+        output.display_name,
+        displayText(
+          output.displayName,
+          displayText(output.name, displayText(output.id, 'Output'))
+        )
+      )
     }))
     .filter(output => output.id);
 }
@@ -256,7 +352,7 @@ export function VisualControlPanel({
   const activeClips = useMemo(
     () => layers.flatMap(layer =>
       layer.clips
-        .filter(clip => clip.connected)
+        .filter(clip => clip.connected && !clip.empty)
         .map(clip => ({
           clipId: clip.id,
           clipName: clip.name,
@@ -318,7 +414,7 @@ export function VisualControlPanel({
     .join('|');
 
   const clipThumbnailSignature = layers
-    .flatMap(layer => layer.clips.map(clip => clip.id))
+    .flatMap(layer => layer.clips.filter(clip => !clip.empty).map(clip => clip.id))
     .join('|');
 
   const layerSections = useMemo<VisualLayerSection[]>(() => {
@@ -348,14 +444,29 @@ export function VisualControlPanel({
     if (ungrouped.length) {
       sections.push({
         id: 'ungrouped',
-        name: '',
+        name: t('visualControls.ungrouped'),
         grouped: false,
         layers: ungrouped
       });
     }
 
     return sections;
-  }, [layers]);
+  }, [layers, t]);
+
+  const navigationTargets = layerSections.flatMap(section => {
+    const targets = section.grouped
+      ? [{
+          id: domSafeId('visual-group', section.id),
+          label: section.name
+        }]
+      : [];
+    return targets.concat(section.layers.map(layer => ({
+      id: domSafeId('visual-layer', layer.id),
+      label: section.grouped
+        ? `${section.name} · ${layer.name}`
+        : layer.name
+    })));
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -377,7 +488,9 @@ export function VisualControlPanel({
     }
 
     const clipIds = Array.from(new Set(
-      layers.flatMap(layer => layer.clips.map(clip => clip.id))
+      layers.flatMap(layer =>
+        layer.clips.filter(clip => !clip.empty).map(clip => clip.id)
+      )
     ));
 
     void (async () => {
@@ -562,10 +675,18 @@ export function VisualControlPanel({
   }
 
   function renderLayer(layer: VisualLayer) {
+    const visibleClips = visibleLayerClips(layer.clips);
     return (
-      <article key={layer.id} className="visual-layer">
+      <article
+        key={layer.id}
+        id={domSafeId('visual-layer', layer.id)}
+        className="visual-layer"
+      >
         <header>
-          <strong>{layer.name}</strong>
+          <div className="visual-layer-heading">
+            <small>{t('visualControls.layer')}</small>
+            <strong>{layer.name}</strong>
+          </div>
           <button
             disabled={busy !== null}
             onClick={() => void clearLayer(layer.id)}
@@ -574,7 +695,20 @@ export function VisualControlPanel({
           </button>
         </header>
         <div className="visual-clip-grid">
-          {layer.clips.map(clip => {
+          {visibleClips.map(clip => {
+            if (clip.empty) {
+              return (
+                <div
+                  key={clip.id}
+                  className="visual-clip-slot-empty"
+                  aria-label={t('visualControls.emptySlot')}
+                >
+                  <span aria-hidden="true">+</span>
+                  <small>{t('visualControls.emptySlot')}</small>
+                </div>
+              );
+            }
+
             const thumbnailUrl = clipThumbnails[clip.id];
             return (
               <button
@@ -614,7 +748,7 @@ export function VisualControlPanel({
               </button>
             );
           })}
-          {!layer.clips.length && (
+          {!visibleClips.length && (
             <small className="visual-empty">{t('visualControls.noClips')}</small>
           )}
         </div>
@@ -622,8 +756,18 @@ export function VisualControlPanel({
     );
   }
 
+  const selectedOutputName =
+    outputs.find(output => output.id === selectedOutputId)?.name ||
+    outputs[0]?.name ||
+    t('visualControls.outputAuto');
+  const armedLayer = armedClip
+    ? layers.find(layer => layer.id === armedClip.layerId) || null
+    : null;
+  const armedGroupName =
+    armedLayer?.groupName || t('visualControls.ungrouped');
+
   return (
-    <section className="visual-control-panel">
+    <section className={`visual-control-panel${armedClip ? ' has-take-dock' : ''}`}>
       <div className="visual-control-head">
         <div>
           <span className="eyebrow">{t('visualControls.kicker')}</span>
@@ -787,20 +931,47 @@ export function VisualControlPanel({
               </button>
             </div>
           </div>
+          <nav
+            className="visual-library-nav"
+            aria-label={t('visualControls.quickNavigation')}
+          >
+            <small>{t('visualControls.quickNavigation')}</small>
+            <div>
+              {navigationTargets.map(target => (
+                <button
+                  key={target.id}
+                  type="button"
+                  onClick={() => document.getElementById(target.id)?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                  })}
+                >
+                  {target.label}
+                </button>
+              ))}
+            </div>
+          </nav>
           <div className={`visual-layer-list ${clipViewMode === 'compact' ? 'compact' : 'visual'}`}>
-          {layerSections.map(section => section.grouped ? (
-            <section key={section.id} className="visual-layer-group">
+          {layerSections.map(section => (
+            <section
+              key={section.id}
+              id={domSafeId('visual-group', section.id)}
+              className={`visual-layer-group${section.grouped ? '' : ' ungrouped'}`}
+            >
               <header className="visual-layer-group-head">
-                <strong>{section.name}</strong>
+                <div>
+                  <small>{section.grouped
+                    ? t('visualControls.group')
+                    : t('visualControls.ungrouped')}
+                  </small>
+                  <strong>{section.name}</strong>
+                </div>
+                <span>{section.layers.length} {t('visualControls.layers')}</span>
               </header>
               <div className="visual-layer-group-layers">
                 {section.layers.map(renderLayer)}
               </div>
             </section>
-          ) : (
-            <div key={section.id} className="visual-layer-group-layers ungrouped">
-              {section.layers.map(renderLayer)}
-            </div>
           ))}
           </div>
         </>
@@ -811,6 +982,43 @@ export function VisualControlPanel({
             {t('visualControls.loadComposition')}
           </button>
         </div>
+      )}
+
+      {armedClip && (
+        <aside className="visual-take-dock" aria-live="polite">
+          <div className="visual-take-dock-thumb" aria-hidden="true">
+            {clipThumbnails[armedClip.clipId] ? (
+              <img src={clipThumbnails[armedClip.clipId]} alt="" />
+            ) : (
+              <span>▶</span>
+            )}
+          </div>
+          <div className="visual-take-dock-copy">
+            <small>{t('visualControls.prepared')}</small>
+            <strong>{armedClip.clipName}</strong>
+            <span>
+              {armedGroupName} · {armedLayer?.name || armedClip.layerName} · {t('visualControls.outputShort')}: {selectedOutputName}
+            </span>
+          </div>
+          <div className="visual-take-dock-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy !== null}
+              onClick={() => clearVisualCue()}
+            >
+              {t('visualControls.cancelPrepared')}
+            </button>
+            <button
+              type="button"
+              className="deck-take"
+              disabled={busy !== null}
+              onClick={() => void takeArmedClip()}
+            >
+              {busy?.startsWith('clip:') ? '…' : t('visualControls.take')} →
+            </button>
+          </div>
+        </aside>
       )}
     </section>
   );
