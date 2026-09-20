@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CommandResult } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
@@ -173,6 +173,7 @@ export function BibleWorkspace({
   const [view, setView] = useState<'search' | 'favorites' | 'history'>('search');
   const [busy, setBusy] = useState<'search' | 'versions' | 'take' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const versionsLoadStarted = useRef(false);
 
   const providers = controller.nodeState?.providers || [];
   const capabilitySet = useMemo(
@@ -200,9 +201,10 @@ export function BibleWorkspace({
   }, [favoritesKey, historyKey]);
 
   useEffect(() => {
-    if (!canReadVersions || versions.length > 0 || busy) return;
+    if (!canReadVersions || versionsLoadStarted.current) return;
+    versionsLoadStarted.current = true;
     let cancelled = false;
-    setBusy('versions');
+    setBusy(current => current || 'versions');
     void controller.executeCommand({
       capability: 'bible.versions.read',
       payload: {},
@@ -220,7 +222,7 @@ export function BibleWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [actorId, busy, canReadVersions, controller, liveSessionId, versions.length]);
+  }, [actorId, canReadVersions, controller.executeCommand, liveSessionId]);
 
   const favoriteKeys = useMemo(
     () => new Set(favorites.map(item => savedKey(item))),
