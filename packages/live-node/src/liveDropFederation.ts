@@ -69,16 +69,24 @@ async function requestJson<T>(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetchImpl(`${peer.baseUrl}${path}`, {
-      ...init,
-      signal: controller.signal,
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${peer.token}`,
-        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-        ...(init.headers || {})
+    let response: Response;
+    try {
+      response = await fetchImpl(`${peer.baseUrl}${path}`, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${peer.token}`,
+          ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+          ...(init.headers || {})
+        }
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('peer_live_drop_timeout');
       }
-    });
+      throw new Error('peer_live_drop_unreachable');
+    }
     return responseJson<T>(response);
   } finally {
     clearTimeout(timeout);
@@ -118,7 +126,15 @@ async function uploadToPeer(
       duplex: 'half'
     } as RequestInit & { duplex: 'half' };
 
-    const response = await fetchImpl(`${peer.baseUrl}/live-drop`, init);
+    let response: Response;
+    try {
+      response = await fetchImpl(`${peer.baseUrl}/live-drop`, init);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('peer_live_drop_transfer_timeout');
+      }
+      throw new Error('peer_live_drop_transfer_failed');
+    }
     const uploaded = await responseJson<RemoteLiveDropUpload>(response);
     return uploaded.asset;
   } finally {
