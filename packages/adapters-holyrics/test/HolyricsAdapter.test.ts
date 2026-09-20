@@ -1,10 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import type { LiveCommand } from '@millionsnest/live-domain';
 import { HolyricsAdapter } from '../src/HolyricsAdapter';
-import type { HolyricsApi } from '../src/HolyricsHttpClient';
+import type { HolyricsApi, HolyricsSongDraft } from '../src/HolyricsHttpClient';
 
 class FakeApi implements HolyricsApi {
   calls: Array<{ action: string; input: Record<string, unknown> }> = [];
+
+  canCreateSongDraft(): boolean {
+    return true;
+  }
+
+  async createSongDraft(input: HolyricsSongDraft): Promise<{ opened: true }> {
+    this.calls.push({
+      action: 'popup-createsong',
+      input: input as unknown as Record<string, unknown>
+    });
+    return { opened: true };
+  }
 
   async request<T>(action: string, input: Record<string, unknown> = {}): Promise<T> {
     this.calls.push({ action, input });
@@ -96,6 +108,7 @@ describe('HolyricsAdapter', () => {
     expect(probe.capabilities).toContain('presentation.background.set');
     expect(probe.capabilities).toContain('bible.search');
     expect(probe.capabilities).toContain('bible.present');
+    expect(probe.capabilities).toContain('songs.create');
     expect(probe.capabilities).toContain('songs.present');
     expect(probe.capabilities).toContain('playlist.write');
     expect(probe.capabilities).toContain('playlist.sync');
@@ -179,6 +192,28 @@ describe('HolyricsAdapter', () => {
       call.action === 'AddLyricsToPlaylist' &&
       Array.isArray(call.input.ids) &&
       call.input.ids[0] === 'new-1'
+    )).toBe(true);
+  });
+
+  it('opens the official Holyrics create-song flow with MusicScale content', async () => {
+    const api = new FakeApi();
+    const adapter = new HolyricsAdapter({ id: 'holyrics-1', nodeId: 'node-1', api });
+    await adapter.probe();
+
+    const result = await adapter.execute(command('songs.create', {
+      title: 'Promessas',
+      artist: 'Sarah Beatriz',
+      lyrics: 'Deus de Abraão',
+      key: 'G#m',
+      bpm: 72
+    }));
+
+    expect(result.accepted).toBe(true);
+    expect(result.observedState?.requiresProviderSave).toBe(true);
+    expect(api.calls.some(call =>
+      call.action === 'popup-createsong' &&
+      call.input.title === 'Promessas' &&
+      call.input.lyrics === 'Deus de Abraão'
     )).toBe(true);
   });
 

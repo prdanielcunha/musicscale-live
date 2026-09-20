@@ -6,7 +6,7 @@ import { LiveControlPanel } from './LiveControlPanel';
 import { LocalRecoveryView } from './LocalRecoveryView';
 import { LiveNodeSetup } from './LiveNodeSetup';
 import { liveFeatureFlags } from './featureFlags';
-import { loadNextScale, loadSharedContext, type SharedContext, type SharedScale } from './musicScaleBridge';
+import { loadNextScale, loadSharedContext, subscribeNextScale, type SharedContext, type SharedScale } from './musicScaleBridge';
 import { ScalePreflight } from './ScalePreflight';
 import { SystemTopologyPanel } from './SystemTopologyPanel';
 import { SignalTopologyStudio } from './SignalTopologyStudio';
@@ -23,6 +23,7 @@ import { RequestSurface } from './RequestSurface';
 import { LiveRequestInbox } from './LiveRequestInbox';
 import { SceneStudio } from './SceneStudio';
 import { LiveSceneBar } from './LiveSceneBar';
+import { PlaylistSyncAutomation } from './PlaylistSyncAutomation';
 
 type Surface = 'live' | 'studio' | 'pastor' | 'conductor';
 type LiveSessionMode = 'service' | 'free';
@@ -79,6 +80,15 @@ export function App() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (!context?.organizationId) return;
+    return subscribeNextScale(
+      context.organizationId,
+      nextScale => setScale(nextScale),
+      () => undefined
+    );
+  }, [context?.organizationId]);
 
   const nodeStatus = useMemo(() => {
     if (liveNode.state === 'connected') return t('connected');
@@ -261,6 +271,14 @@ export function App() {
               {t('liveWorkspace.gotIt')}
             </button>
           </section>
+        )}
+
+        {liveNode.state === 'connected' && scale && (
+          <PlaylistSyncAutomation
+            controller={liveNode}
+            scale={scale}
+            actorId={user.uid}
+          />
         )}
 
         {surface === 'studio' && context && liveFeatureFlags.liveNodeTransport && (
