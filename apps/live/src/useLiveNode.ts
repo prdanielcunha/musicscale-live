@@ -56,6 +56,7 @@ import {
   type PeerNodePairingChallenge
 } from './liveNodeClient';
 import { transportBroker } from './transportBroker';
+import { createClientId } from './clientId';
 
 interface PendingPairing {
   baseUrl: string;
@@ -325,7 +326,7 @@ export function useLiveNode() {
     if (!credential) throw new Error('node_not_paired');
 
     const request: LiveRequest = {
-      id: input.id || crypto.randomUUID(),
+      id: input.id || createClientId(),
       organizationId: credential.binding.organizationId,
       venueId: credential.binding.venueId,
       liveSessionId: input.liveSessionId,
@@ -372,10 +373,10 @@ export function useLiveNode() {
   }): Promise<CommandResult[]> => {
     if (!credential) throw new Error('node_not_paired');
 
-    const id = crypto.randomUUID();
+    const id = createClientId();
     const command: LiveCommand = {
       id,
-      correlationId: crypto.randomUUID(),
+      correlationId: createClientId(),
       organizationId: credential.binding.organizationId,
       venueId: credential.binding.venueId,
       liveSystemId: credential.binding.liveSystemId,
@@ -387,7 +388,7 @@ export function useLiveNode() {
       targetProviderIds: input.targetProviderIds || [],
       outputTargets: input.outputTargets || ['main'],
       payload: input.payload || {},
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: createClientId(),
       createdAt: new Date().toISOString(),
       safetyLevel: input.safetyLevel || 'normal'
     };
@@ -416,13 +417,13 @@ export function useLiveNode() {
   }): Promise<SceneExecutionResult> => {
     if (!credential) throw new Error('node_not_paired');
 
-    const requestId = crypto.randomUUID();
+    const requestId = createClientId();
     const result = await executeNodeScene(
       credential.baseUrl,
       credential.token,
       {
         id: requestId,
-        correlationId: crypto.randomUUID(),
+        correlationId: createClientId(),
         organizationId: credential.binding.organizationId,
         venueId: credential.binding.venueId,
         liveSystemId: credential.binding.liveSystemId,
@@ -431,7 +432,7 @@ export function useLiveNode() {
         actorId: input.actorId,
         origin: input.origin || 'live-ui',
         scene: input.scene,
-        idempotencyKey: crypto.randomUUID()
+        idempotencyKey: createClientId()
       },
       input.confirmed === true
     );
