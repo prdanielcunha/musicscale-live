@@ -531,6 +531,12 @@ const resources = {
       refreshing: 'Verificando…',
       copyReport: 'Copiar relatório seguro',
       copied: 'Relatório copiado',
+      actions: {
+        openComputers: 'Ver computadores',
+        openRouting: 'Resolver rotas',
+        openSignal: 'Abrir mapa de sinal',
+        openPrepare: 'Preparar culto'
+      },
       issues: {
         noProviders: {
           title: 'Nenhum provider disponível',
@@ -1374,6 +1380,12 @@ const resources = {
       refreshing: 'Checking…',
       copyReport: 'Copy safe report',
       copied: 'Report copied',
+      actions: {
+        openComputers: 'View computers',
+        openRouting: 'Resolve routes',
+        openSignal: 'Open signal map',
+        openPrepare: 'Prepare service'
+      },
       issues: {
         noProviders: {
           title: 'No provider available',
@@ -2217,6 +2229,12 @@ const resources = {
       refreshing: 'Verificando…',
       copyReport: 'Copiar informe seguro',
       copied: 'Informe copiado',
+      actions: {
+        openComputers: 'Ver computadoras',
+        openRouting: 'Resolver rutas',
+        openSignal: 'Abrir mapa de señal',
+        openPrepare: 'Preparar culto'
+      },
       issues: {
         noProviders: {
           title: 'No hay provider disponible',
