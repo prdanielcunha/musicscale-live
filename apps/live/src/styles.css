@@ -1006,3 +1006,22 @@ code,kbd{font-variant-ligatures:none}
   .live-drop-policy-states{grid-template-columns:1fr}
   .live-drop-policy-states article{min-height:54px}
 }
+
+
+/* Actionable diagnostics — problems should lead somewhere useful */
+.diagnostic-issues article{align-items:center}
+.diagnostic-issues article>div{min-width:0;flex:1}
+.diagnostic-fix{
+  flex:none;min-height:34px;padding:7px 10px;border:1px solid rgba(124,92,255,.15);border-radius:9px;
+  background:rgba(124,92,255,.06);color:#b9b1ef;font:inherit;font-size:7px;font-weight:800;cursor:pointer;
+  transition:background .16s ease,border-color .16s ease,transform .16s ease;
+}
+.diagnostic-fix:hover{background:rgba(124,92,255,.12);border-color:rgba(124,92,255,.26)}
+.diagnostic-fix:active{transform:translateY(1px)}
+.diagnostic-issues article.critical .diagnostic-fix{
+  border-color:rgba(232,90,104,.18);background:rgba(232,90,104,.055);color:#e5a1a8;
+}
+@media(max-width:620px){
+  .diagnostic-issues article{display:grid;grid-template-columns:8px minmax(0,1fr);align-items:start}
+  .diagnostic-fix{grid-column:2;width:100%;min-height:42px;margin-top:2px}
+}
