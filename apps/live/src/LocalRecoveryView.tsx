@@ -7,6 +7,7 @@ import { VisualControlPanel } from './VisualControlPanel';
 import { LiveCueCoordinatorProvider } from './LiveCueCoordinator';
 import type { useLiveNode } from './useLiveNode';
 import { useLiveFocus } from './useLiveFocus';
+import { useOperatorViewport } from './useOperatorViewport';
 
 type Controller = ReturnType<typeof useLiveNode>;
 
@@ -20,6 +21,7 @@ export function LocalRecoveryView({
   const [freeSessionId] = useState(() => crypto.randomUUID());
   const connected = controller.state === 'connected' && Boolean(controller.credential);
   const liveFocus = useLiveFocus(connected);
+  const operatorViewport = useOperatorViewport(connected);
   const plan = controller.nodeState?.state.servicePlan || null;
   const providerLinks = controller.nodeState?.state.providerLinks || [];
   const actorId = controller.credential
@@ -33,7 +35,8 @@ export function LocalRecoveryView({
   return (
     <div className={[
       'local-recovery-shell',
-      liveFocus.fullscreen ? 'local-focus-mode' : ''
+      liveFocus.fullscreen ? 'local-focus-mode' : '',
+      ...operatorViewport.classes
     ].filter(Boolean).join(' ')}>
       <header className="local-recovery-topbar">
         <div>
@@ -80,6 +83,18 @@ export function LocalRecoveryView({
 
         {connected && (
           <>
+            {operatorViewport.showLandscapeHint && (
+              <section className="operator-rotate-hint" role="status">
+                <div className="operator-rotate-mark" aria-hidden="true">↻</div>
+                <div>
+                  <strong>{t('liveWorkspace.rotateTitle')}</strong>
+                  <span>{t('liveWorkspace.rotateHint')}</span>
+                </div>
+                <button type="button" onClick={operatorViewport.dismissLandscapeHint}>
+                  {t('liveWorkspace.gotIt')}
+                </button>
+              </section>
+            )}
             <section className="health-grid local-health-grid">
               <article>
                 <span className="status ok" />
@@ -165,6 +180,7 @@ export function LocalRecoveryView({
                 actorId={actorId}
                 liveSessionId={liveSessionId}
                 servicePlanEnabled={effectiveMode === 'service'}
+                touchPrimary={operatorViewport.touchCapable}
               />
               <VisualControlPanel
                 controller={controller}
