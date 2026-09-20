@@ -302,7 +302,7 @@ export function LiveRequestInbox({
               actorId,
               targetProviderIds: [provider.providerId],
               safetyLevel: 'normal'
-            });
+            }).catch(() => []);
 
             return normalizeRequestMediaResults(
               results,
@@ -671,7 +671,11 @@ export function LiveRequestInbox({
 
                 {errors[request.id] && (
                   <p className="request-action-error" role="alert">
-                    {t('requestInbox.actionError', { code: errors[request.id] })}
+                    {t('requestInbox.actionError', {
+                      message: t(`requestInbox.errors.${errors[request.id]}`, {
+                        defaultValue: errors[request.id]
+                      })
+                    })}
                   </p>
                 )}
               </div>
