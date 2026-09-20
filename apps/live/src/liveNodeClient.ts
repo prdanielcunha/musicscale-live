@@ -460,7 +460,7 @@ export async function listNodeLiveDrop(
 ): Promise<{
   assets: LiveDropAsset[];
   maxBytes: number;
-  retention: LiveDropRetentionPolicy;
+  retention?: LiveDropRetentionPolicy;
 }> {
   return requestJson(baseUrl, '/live-drop', {
     headers: { Authorization: `Bearer ${token}` }
