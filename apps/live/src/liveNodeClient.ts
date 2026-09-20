@@ -51,6 +51,12 @@ export interface PeerDiscoveryResponse {
   peers: DiscoveredLiveNode[];
 }
 
+export interface LiveDropRetentionPolicy {
+  quarantineTtlMs: number;
+  rejectedTtlMs: number;
+  readyTtlMs: number | null;
+}
+
 export interface LiveNodeStateResponse {
   nodeId: string;
   state: LiveNodeRuntimeState;
@@ -451,7 +457,11 @@ export async function fetchProviderOutputSnapshot(
 export async function listNodeLiveDrop(
   baseUrl: string,
   token: string
-): Promise<{ assets: LiveDropAsset[]; maxBytes: number }> {
+): Promise<{
+  assets: LiveDropAsset[];
+  maxBytes: number;
+  retention: LiveDropRetentionPolicy;
+}> {
   return requestJson(baseUrl, '/live-drop', {
     headers: { Authorization: `Bearer ${token}` }
   }, 5000);
