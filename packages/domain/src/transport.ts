@@ -13,7 +13,7 @@ export type LiveNodeConnectionState =
   | 'blocked';
 
 export interface LiveNodeHealth {
-  product: 'MillionsNest Live Node' | 'MusicScale Live Node';
+  product: 'MusicScale Live Node' | 'MillionsNest Live Node';
   version: string;
   nodeId: string;
   hostname: string;
