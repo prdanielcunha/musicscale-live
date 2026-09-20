@@ -449,7 +449,7 @@ export function useLiveNode() {
   const listLiveDrop = useCallback(async (): Promise<{
     assets: LiveDropAsset[];
     maxBytes: number;
-    retention: LiveDropRetentionPolicy;
+    retention?: LiveDropRetentionPolicy;
   }> => {
     if (!credential) throw new Error('node_not_paired');
     return listNodeLiveDrop(credential.baseUrl, credential.token);
