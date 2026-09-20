@@ -24,6 +24,12 @@ export function OfflineRunOfShow({
     () => new Map(providerLinks.map(link => [link.id, link])),
     [providerLinks]
   );
+  const organizationName = typeof plan.metadata?.organizationName === 'string'
+    ? plan.metadata.organizationName
+    : '';
+  const locationName = typeof plan.metadata?.locationName === 'string'
+    ? plan.metadata.locationName
+    : '';
 
   async function present(itemId: string, providerLinkId?: string) {
     if (!providerLinkId) return;
@@ -52,12 +58,8 @@ export function OfflineRunOfShow({
           <span className="eyebrow">{t('offlineRun.kicker')}</span>
           <h2>{plan.title}</h2>
           <div className="offline-run-context">
-            {plan.metadata?.organizationName && (
-              <strong>{String(plan.metadata.organizationName)}</strong>
-            )}
-            {plan.metadata?.locationName && (
-              <span>{String(plan.metadata.locationName)}</span>
-            )}
+            {organizationName && <strong>{organizationName}</strong>}
+            {locationName && <span>{locationName}</span>}
             <time dateTime={plan.scheduledAt}>
               {new Date(plan.scheduledAt).toLocaleString()}
             </time>
