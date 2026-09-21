@@ -846,7 +846,14 @@ const resources = {
       nextChapter: 'Próximo capítulo',
       previousVerse: 'Verso anterior',
       nextVerse: 'Próximo verso',
+      smartWindow: 'CONTEXTO INTELIGENTE',
+      smartWindowHint: 'Anterior, atual e próximos versos já preparados a partir do capítulo real.',
+      providerVerified: 'Confirmado pelo Holyrics',
+      providerReferenceVerified: 'Referência confirmada pelo Holyrics',
       loadingChapter: 'Carregando capítulo…',
+      chapterNotFound: '{{chapter}} não foi retornado pelo Holyrics.',
+      noPreviousVerseFromProvider: 'O Holyrics não retornou um verso anterior para esta passagem.',
+      noNextVerseFromProvider: 'O Holyrics não retornou um próximo verso para esta passagem.',
       verseReady: 'Verso disponível no provider · toque para preparar',
       onAirBadge: 'NO AR',
       selected: 'Selecionado',
@@ -875,6 +882,7 @@ const resources = {
       errors: {
         search: 'Não foi possível buscar a passagem: {{code}}',
         chapter: 'Não foi possível carregar o capítulo: {{code}}',
+        navigateVerse: 'Não foi possível navegar entre os versos: {{code}}',
         take: 'Não foi possível mostrar a passagem: {{code}}',
         returnSong: 'Não foi possível voltar para a música: {{code}}'
       }
@@ -1737,7 +1745,14 @@ const resources = {
       nextChapter: 'Next chapter',
       previousVerse: 'Previous verse',
       nextVerse: 'Next verse',
+      smartWindow: 'SMART CONTEXT',
+      smartWindowHint: 'Previous, current and next verses prepared from the real chapter.',
+      providerVerified: 'Verified by Holyrics',
+      providerReferenceVerified: 'Reference verified by Holyrics',
       loadingChapter: 'Loading chapter…',
+      chapterNotFound: '{{chapter}} was not returned by Holyrics.',
+      noPreviousVerseFromProvider: 'Holyrics did not return a previous verse for this passage.',
+      noNextVerseFromProvider: 'Holyrics did not return a next verse for this passage.',
       verseReady: 'Verse available in provider · tap to prepare',
       onAirBadge: 'ON AIR',
       selected: 'Selected',
@@ -1766,6 +1781,7 @@ const resources = {
       errors: {
         search: 'Could not search the passage: {{code}}',
         chapter: 'Could not load the chapter: {{code}}',
+        navigateVerse: 'Could not navigate between verses: {{code}}',
         take: 'Could not show the passage: {{code}}',
         returnSong: 'Could not return to the song: {{code}}'
       }
@@ -2628,7 +2644,14 @@ const resources = {
       nextChapter: 'Próximo capítulo',
       previousVerse: 'Versículo anterior',
       nextVerse: 'Próximo versículo',
+      smartWindow: 'CONTEXTO INTELIGENTE',
+      smartWindowHint: 'Versículos anterior, actual y siguientes preparados desde el capítulo real.',
+      providerVerified: 'Confirmado por Holyrics',
+      providerReferenceVerified: 'Referencia confirmada por Holyrics',
       loadingChapter: 'Cargando capítulo…',
+      chapterNotFound: 'Holyrics no devolvió {{chapter}}.',
+      noPreviousVerseFromProvider: 'Holyrics no devolvió un versículo anterior para este pasaje.',
+      noNextVerseFromProvider: 'Holyrics no devolvió un próximo versículo para este pasaje.',
       verseReady: 'Versículo disponible en el provider · toque para preparar',
       onAirBadge: 'AL AIRE',
       selected: 'Seleccionado',
@@ -2657,6 +2680,7 @@ const resources = {
       errors: {
         search: 'No fue posible buscar el pasaje: {{code}}',
         chapter: 'No fue posible cargar el capítulo: {{code}}',
+        navigateVerse: 'No fue posible navegar entre los versículos: {{code}}',
         take: 'No fue posible mostrar el pasaje: {{code}}',
         returnSong: 'No fue posible volver a la canción: {{code}}'
       }
