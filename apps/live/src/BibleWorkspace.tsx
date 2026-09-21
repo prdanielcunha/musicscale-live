@@ -367,14 +367,25 @@ export function BibleWorkspace({
     ? liveSlideNumber - 1
     : 0;
   const liveSlide = liveSlides[liveSlideIndex];
-  const liveReference = slideReference(liveSlide, livePresentation);
-  const liveParsed = parseReference(liveReference);
   const liveType = String(livePresentation?.type || livePresentation?.slide_type || '');
-  const isBibleLive = Boolean(
-    liveParsed ||
-    /bible|verse|bíblia|biblia/i.test(liveType)
-  );
-  const liveVerseText = isBibleLive ? slideText(liveSlide) : '';
+  const providerSaysBibleIsLive = /bible|verse|bíblia|biblia/i.test(liveType);
+  const liveVerseId = providerSaysBibleIsLive
+    ? String(livePresentation?.id || '')
+    : '';
+  const cachedLiveVerse = liveVerseId
+    ? Array.from(chapterCache.current.values())
+        .flatMap(snapshot => snapshot.verses)
+        .find(verse => verse.id === liveVerseId)
+    : undefined;
+  const liveReference =
+    slideReference(liveSlide, livePresentation) ||
+    cachedLiveVerse?.reference ||
+    '';
+  const liveParsed = parseReference(liveReference);
+  const isBibleLive = Boolean(liveParsed || liveVerseId || providerSaysBibleIsLive);
+  const liveVerseText = isBibleLive
+    ? slideText(liveSlide) || cachedLiveVerse?.text || ''
+    : '';
 
   const binding = controller.credential?.binding;
   const storageScope = binding
@@ -1078,10 +1089,15 @@ export function BibleWorkspace({
               const parsed = parseReference(verse.reference);
               const onAir = Boolean(
                 isBibleLive &&
-                liveParsed &&
-                parsed &&
-                parsed.verse === liveParsed.verse &&
-                sameChapter(parsed, liveParsed)
+                (
+                  (liveVerseId && verse.id && verse.id === liveVerseId) ||
+                  (
+                    liveParsed &&
+                    parsed &&
+                    parsed.verse === liveParsed.verse &&
+                    sameChapter(parsed, liveParsed)
+                  )
+                )
               );
               const focused = Boolean(
                 focusReference &&
@@ -1180,14 +1196,20 @@ export function BibleWorkspace({
             )}
             {effectiveVerses.map((verse, index) => {
               const key = verse.id || verse.reference;
+              const parsedVerse = parseReference(verse.reference);
               const onAir = Boolean(
                 isBibleLive &&
-                activeVerseReference &&
                 (
-                  verse.reference.toLocaleLowerCase() === activeVerseReference.toLocaleLowerCase() ||
+                  (liveVerseId && verse.id && verse.id === liveVerseId) ||
                   (
-                    parseReference(verse.reference)?.verse &&
-                    parseReference(verse.reference)?.verse === liveParsed?.verse
+                    activeVerseReference &&
+                    verse.reference.toLocaleLowerCase() === activeVerseReference.toLocaleLowerCase()
+                  ) ||
+                  (
+                    parsedVerse?.verse &&
+                    liveParsed &&
+                    parsedVerse.verse === liveParsed.verse &&
+                    sameChapter(parsedVerse, liveParsed)
                   )
                 )
               );
