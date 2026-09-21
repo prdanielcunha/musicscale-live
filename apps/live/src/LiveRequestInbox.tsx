@@ -356,15 +356,17 @@ export function LiveRequestInbox({
       if (failed) throw new Error(failed.errorCode || 'provider_error');
 
       const requestedPresentationId = String(request.payload.presentationId || '').trim();
-      if (requestedPresentationId) {
+      const requestedSongId = String(request.payload.songId || '').trim();
+      if (requestedPresentationId || requestedSongId) {
         const presentation = currentPresentationFromResults(
           results,
           targetProvider.providerId
         );
         const currentPresentationId = String(presentation?.id || '').trim();
+        const currentSongId = String(presentation?.song_id || '').trim();
         if (
-          !currentPresentationId ||
-          currentPresentationId !== requestedPresentationId
+          (requestedPresentationId && currentPresentationId !== requestedPresentationId) ||
+          (requestedSongId && currentSongId !== requestedSongId)
         ) {
           throw new Error('section_request_presentation_changed');
         }
