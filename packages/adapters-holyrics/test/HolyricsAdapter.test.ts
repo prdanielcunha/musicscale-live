@@ -63,7 +63,18 @@ class FakeApi implements HolyricsApi {
         { key: 'pt_acf', version: 'pt_acf', title: 'ACF', language: { id: 'pt', iso: 'pt', name: 'Portuguese' } }
       ] as T;
     }
-        if (action === 'GetCurrentBackground') {
+    if (action === 'IdentifyVerseReferences') {
+      return [{
+        reference: 'João 3:1-3',
+        ids: ['43003001', '43003002', '43003003'],
+        verses: [
+          { id: '43003001', book: 43, chapter: 3, verse: 1, reference: 'João 3:1' },
+          { id: '43003002', book: 43, chapter: 3, verse: 2, reference: 'João 3:2' },
+          { id: '43003003', book: 43, chapter: 3, verse: 3, reference: 'João 3:3' }
+        ]
+      }] as T;
+    }
+    if (action === 'GetCurrentBackground') {
       return { id: 'bg-1', type: 'my_image', name: 'Blue Waves' } as T;
     }
     if (action === 'GetBackgrounds') {
@@ -250,6 +261,29 @@ describe('HolyricsAdapter', () => {
       call.action === 'PlayVideo' &&
       call.input.file === 'backgrounds/intro.mp4'
     )).toBe(true);
+  });
+
+  it('asks Holyrics for the whole chapter and preserves provider verse IDs for navigation', async () => {
+    const api = new FakeApi();
+    const adapter = new HolyricsAdapter({ id: 'holyrics-1', nodeId: 'node-1', api });
+    await adapter.probe();
+
+    const result = await adapter.execute(command('bible.search', {
+      text: 'João 3',
+      languageId: 'pt'
+    }));
+
+    expect(result.accepted).toBe(true);
+    expect(api.calls.some(call =>
+      call.action === 'IdentifyVerseReferences' &&
+      call.input.value === 'João 3' &&
+      call.input.language_id === 'pt'
+    )).toBe(true);
+    expect(result.observedState?.matches).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ids: ['43003001', '43003002', '43003003']
+      })
+    ]));
   });
 
   it('reads Bible versions through the documented Holyrics version endpoint', async () => {
