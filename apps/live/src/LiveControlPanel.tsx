@@ -1461,6 +1461,14 @@ export function LiveControlPanel({
     currentSlideIndex >= section.startIndex && currentSlideIndex <= section.endIndex
   ) || null;
   const serviceSongs = servicePlan?.items.filter(item => item.type === 'song') || [];
+  const visibleAnnouncements = useMemo(() => {
+    const query = textQuery.trim().toLocaleLowerCase();
+    if (!query) return announcements;
+    return announcements.filter(item =>
+      item.name.toLocaleLowerCase().includes(query) ||
+      item.text?.toLocaleLowerCase().includes(query)
+    );
+  }, [announcements, textQuery]);
 
   useEffect(() => {
     if (currentSlideIndex < 0) return;
@@ -2298,6 +2306,243 @@ export function LiveControlPanel({
                 </button>
               ))}
             </div>
+          </article>
+        )}
+
+        {toolMode === 'text' && toolAvailability.text && (
+          <article className="operator-card live-tool-card live-text-card">
+            <div className="operator-card-head">
+              <div>
+                <span>{t('liveControls.textAndAnnouncements')}</span>
+                <small>{t('liveControls.textAndAnnouncementsHint')}</small>
+              </div>
+            </div>
+
+            {can('text.quick.present') && (
+              <section className="live-text-section quick">
+                <header>
+                  <div>
+                    <strong>{t('liveControls.quickText')}</strong>
+                    <small>{t('liveControls.quickTextHint')}</small>
+                  </div>
+                </header>
+                <textarea
+                  className="operator-textarea"
+                  value={quickText}
+                  onChange={event => setQuickText(event.target.value)}
+                  placeholder={t('liveControls.quickTextPlaceholder')}
+                  rows={3}
+                />
+                <div className="live-text-actions">
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={!quickText.trim() || busy !== null}
+                    onClick={prepareQuickText}
+                  >
+                    {t('liveControls.prepare')}
+                  </button>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={!quickText.trim() || busy !== null}
+                    onClick={() => {
+                      const cue = quickTextCue();
+                      if (cue) void takePreparedCue(cue);
+                    }}
+                  >
+                    {t('liveControls.takePrepared')}
+                  </button>
+                  {servicePlan && (
+                    <>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={!quickText.trim() || busy !== null}
+                        onClick={() => {
+                          const item = quickTextServiceItem();
+                          if (item) void addOperatorItemToService(item, 'next');
+                        }}
+                      >
+                        {t('liveControls.addNext')}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-action"
+                        disabled={!quickText.trim() || busy !== null}
+                        onClick={() => {
+                          const item = quickTextServiceItem();
+                          if (item) void addOperatorItemToService(item, 'end');
+                        }}
+                      >
+                        {t('liveControls.addEnd')}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {can('text.search') && (
+              <section className="live-text-section">
+                <header>
+                  <div>
+                    <strong>{t('liveControls.savedTexts')}</strong>
+                    <small>{t('liveControls.savedTextsHint')}</small>
+                  </div>
+                </header>
+                <div className="operator-inline">
+                  <input
+                    value={textQuery}
+                    onChange={event => setTextQuery(event.target.value)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter') void searchTexts();
+                    }}
+                    placeholder={t('liveControls.textPlaceholder')}
+                  />
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={!textQuery.trim() || busy !== null}
+                    onClick={() => void searchTexts()}
+                  >
+                    {t('liveControls.search')}
+                  </button>
+                </div>
+
+                <div className="live-text-results">
+                  {textResults.map(item => {
+                    const cue = savedTextCue(item);
+                    const prepared = preparedCue?.id === cue.id;
+                    return (
+                      <div
+                        key={cue.id}
+                        className={prepared ? 'live-text-result prepared' : 'live-text-result'}
+                      >
+                        <button
+                          type="button"
+                          className="live-text-result-main"
+                          disabled={!can('text.present') || busy !== null}
+                          onClick={() => activateTarget(
+                            cue.id,
+                            () => prepareSavedText(item),
+                            () => void takePreparedCue(cue)
+                          )}
+                        >
+                          <span>
+                            <strong>{item.title}</strong>
+                            <small>{item.text || t('liveControls.savedText')}</small>
+                          </span>
+                          <em>{prepared ? t('liveControls.prepared') : t('liveControls.prepare')}</em>
+                        </button>
+                        {servicePlan && (
+                          <div className="live-text-result-actions">
+                            <button
+                              type="button"
+                              disabled={busy !== null}
+                              onClick={() => void addOperatorItemToService(
+                                savedTextServiceItem(item),
+                                'next'
+                              )}
+                            >
+                              {t('liveControls.addNext')}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy !== null}
+                              onClick={() => void addOperatorItemToService(
+                                savedTextServiceItem(item),
+                                'end'
+                              )}
+                            >
+                              {t('liveControls.addEnd')}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {!textResults.length && textQuery.trim() && busy !== 'text-search' && (
+                    <div className="live-text-empty">{t('liveControls.noSavedTextsFound')}</div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {can('announcement.read') && (
+              <section className="live-text-section announcements">
+                <header>
+                  <div>
+                    <strong>{t('liveControls.announcements')}</strong>
+                    <small>{t('liveControls.announcementsHint')}</small>
+                  </div>
+                  <button
+                    type="button"
+                    className="ghost-action"
+                    disabled={busy !== null}
+                    onClick={() => void loadAnnouncements(true)}
+                  >
+                    {t('liveControls.refreshAnnouncements')}
+                  </button>
+                </header>
+
+                <div className="live-announcement-grid">
+                  {visibleAnnouncements.map(item => {
+                    const cue = announcementCue(item);
+                    const prepared = preparedCue?.id === cue.id;
+                    return (
+                      <div
+                        key={cue.id}
+                        className={prepared ? 'live-announcement-card prepared' : 'live-announcement-card'}
+                      >
+                        <button
+                          type="button"
+                          className="live-announcement-main"
+                          disabled={!can('announcement.present') || busy !== null}
+                          onClick={() => activateTarget(
+                            cue.id,
+                            () => prepareAnnouncement(item),
+                            () => void takePreparedCue(cue)
+                          )}
+                        >
+                          <strong>{item.name}</strong>
+                          <span>{item.text || t('liveControls.announcementReady')}</span>
+                          <em>{prepared ? t('liveControls.prepared') : t('liveControls.prepare')}</em>
+                        </button>
+                        {servicePlan && (
+                          <div className="live-text-result-actions">
+                            <button
+                              type="button"
+                              disabled={busy !== null}
+                              onClick={() => void addOperatorItemToService(
+                                announcementServiceItem(item),
+                                'next'
+                              )}
+                            >
+                              {t('liveControls.addNext')}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy !== null}
+                              onClick={() => void addOperatorItemToService(
+                                announcementServiceItem(item),
+                                'end'
+                              )}
+                            >
+                              {t('liveControls.addEnd')}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {!visibleAnnouncements.length && announcementsLoaded && (
+                  <div className="live-text-empty">{t('liveControls.noAnnouncements')}</div>
+                )}
+              </section>
+            )}
           </article>
         )}
 
