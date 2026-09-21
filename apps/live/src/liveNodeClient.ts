@@ -591,6 +591,7 @@ export async function openNodeLiveDrop(
     actorId: string;
     liveSessionId: string;
     providerId?: string;
+    serviceItemId?: string;
   }
 ): Promise<{
   asset: LiveDropAsset;
