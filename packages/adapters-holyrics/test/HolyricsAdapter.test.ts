@@ -40,6 +40,11 @@ class FakeApi implements HolyricsApi {
           'GetBibleVersionsV2',
           'GetBibleBooks',
           'ShowVerse',
+          'SearchText',
+          'ShowText',
+          'ShowQuickPresentation',
+          'GetAnnouncements',
+          'ShowAnnouncement',
           'SearchLyrics',
           'ShowLyrics',
           'AddLyricsToPlaylist',
@@ -68,6 +73,14 @@ class FakeApi implements HolyricsApi {
       return [
         { id: '43', name: 'João', abbrev: 'Jo', usfx_code: 'JHN' },
         { id: '44', name: 'Atos', abbrev: 'At', usfx_code: 'ACT' }
+      ] as T;
+    }
+    if (action === 'SearchText') {
+      return [{ id: 'text-1', title: 'Boas-vindas', text: 'Sejam bem-vindos' }] as T;
+    }
+    if (action === 'GetAnnouncements') {
+      return [
+        { id: 'ann-1', name: 'Contribuição', text: 'Informações de contribuição', archived: false }
       ] as T;
     }
     if (action === 'IdentifyVerseReferences') {
@@ -135,6 +148,11 @@ describe('HolyricsAdapter', () => {
     expect(probe.capabilities).toContain('bible.versions.read');
     expect(probe.capabilities).toContain('bible.books.read');
     expect(probe.capabilities).toContain('bible.present');
+    expect(probe.capabilities).toContain('text.search');
+    expect(probe.capabilities).toContain('text.present');
+    expect(probe.capabilities).toContain('text.quick.present');
+    expect(probe.capabilities).toContain('announcement.read');
+    expect(probe.capabilities).toContain('announcement.present');
     expect(probe.capabilities).toContain('songs.create');
     expect(probe.capabilities).toContain('songs.present');
     expect(probe.capabilities).toContain('playlist.write');
@@ -241,6 +259,68 @@ describe('HolyricsAdapter', () => {
       call.action === 'popup-createsong' &&
       call.input.title === 'Promessas' &&
       call.input.lyrics === 'Deus de Abraão'
+    )).toBe(true);
+  });
+
+  it('searches and presents saved text through documented Holyrics actions', async () => {
+    const api = new FakeApi();
+    const adapter = new HolyricsAdapter({ id: 'holyrics-1', nodeId: 'node-1', api });
+    await adapter.probe();
+
+    const search = await adapter.execute(command('text.search', { text: 'boas' }));
+    expect(search.accepted).toBe(true);
+    expect(api.calls.some(call =>
+      call.action === 'SearchText' &&
+      call.input.text === 'boas'
+    )).toBe(true);
+    expect(search.observedState?.results).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'text-1', title: 'Boas-vindas' })
+    ]));
+
+    const present = await adapter.execute(command('text.present', {
+      id: 'text-1',
+      initialIndex: 1
+    }));
+    expect(present.accepted).toBe(true);
+    expect(api.calls.some(call =>
+      call.action === 'ShowText' &&
+      call.input.id === 'text-1' &&
+      call.input.initial_index === 1
+    )).toBe(true);
+  });
+
+  it('shows quick text without inventing a saved provider item', async () => {
+    const api = new FakeApi();
+    const adapter = new HolyricsAdapter({ id: 'holyrics-1', nodeId: 'node-1', api });
+    await adapter.probe();
+
+    const result = await adapter.execute(command('text.quick.present', {
+      text: 'Culto começa em 5 minutos'
+    }));
+
+    expect(result.accepted).toBe(true);
+    expect(api.calls.some(call =>
+      call.action === 'ShowQuickPresentation' &&
+      call.input.text === 'Culto começa em 5 minutos'
+    )).toBe(true);
+  });
+
+  it('reads and presents announcements through documented Holyrics actions', async () => {
+    const api = new FakeApi();
+    const adapter = new HolyricsAdapter({ id: 'holyrics-1', nodeId: 'node-1', api });
+    await adapter.probe();
+
+    const read = await adapter.execute(command('announcement.read', {}));
+    expect(read.accepted).toBe(true);
+    expect(read.observedState?.announcements).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'ann-1', name: 'Contribuição' })
+    ]));
+
+    const present = await adapter.execute(command('announcement.present', { id: 'ann-1' }));
+    expect(present.accepted).toBe(true);
+    expect(api.calls.some(call =>
+      call.action === 'ShowAnnouncement' &&
+      call.input.id === 'ann-1'
     )).toBe(true);
   });
 
