@@ -13,7 +13,7 @@ import { createClientId } from './clientId';
 import { BibleWorkspace } from './BibleWorkspace';
 
 type Controller = ReturnType<typeof useLiveNode>;
-type ToolMode = 'song' | 'bible' | 'media' | 'stage';
+type ToolMode = 'song' | 'bible' | 'media' | 'text' | 'stage';
 
 interface SearchSongResult {
   id: string;
@@ -31,6 +31,21 @@ interface SongSection {
   endIndex: number;
 }
 
+interface SearchTextResult {
+  id: string;
+  providerId: string;
+  title: string;
+  text?: string;
+}
+
+interface AnnouncementResult {
+  id: string;
+  providerId: string;
+  name: string;
+  text?: string;
+  archived?: boolean;
+}
+
 interface SearchMediaResult {
   name: string;
   isDir?: boolean;
@@ -42,10 +57,16 @@ interface SearchMediaResult {
 
 interface PreparedProgramCue {
   id: string;
-  kind: 'song' | 'bible' | 'media';
+  kind: 'song' | 'bible' | 'media' | 'text' | 'announcement';
   title: string;
   subtitle?: string;
-  capability: 'songs.present' | 'bible.present' | 'media.open';
+  capability:
+    | 'songs.present'
+    | 'bible.present'
+    | 'media.open'
+    | 'text.present'
+    | 'text.quick.present'
+    | 'announcement.present';
   payload: Record<string, unknown>;
   targetProviderIds?: string[];
   serviceItemId?: string;
@@ -203,6 +224,69 @@ function mediaThumbnailUrl(value: string | undefined): string | undefined {
   return `data:${mime};base64,${normalized}`;
 }
 
+function getTextResults(results: CommandResult[]): SearchTextResult[] {
+  const normalized = results.flatMap(result => {
+    const value = result.observedState?.results;
+    if (!Array.isArray(value)) return [];
+    return value
+      .filter(item => item && typeof item === 'object')
+      .map(item => {
+        const text = item as Record<string, unknown>;
+        const slides = Array.isArray(text.slides)
+          ? text.slides.filter(value => value && typeof value === 'object')
+          : [];
+        const firstSlide = slides[0] as Record<string, unknown> | undefined;
+        const preview =
+          typeof firstSlide?.text === 'string'
+            ? firstSlide.text
+            : typeof firstSlide?.styled_text === 'string'
+              ? firstSlide.styled_text
+              : undefined;
+        return {
+          id: String(text.id || ''),
+          providerId: result.providerInstanceId,
+          title: String(text.title || text.name || ''),
+          text: preview
+        };
+      });
+  }).filter(item => item.id && item.providerId && item.title);
+
+  const seen = new Set<string>();
+  return normalized.filter(item => {
+    const key = `${item.providerId}:${item.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 24);
+}
+
+function getAnnouncementResults(results: CommandResult[]): AnnouncementResult[] {
+  const normalized = results.flatMap(result => {
+    const value = result.observedState?.announcements;
+    if (!Array.isArray(value)) return [];
+    return value
+      .filter(item => item && typeof item === 'object')
+      .map(item => {
+        const announcement = item as Record<string, unknown>;
+        return {
+          id: String(announcement.id || ''),
+          providerId: result.providerInstanceId,
+          name: String(announcement.name || ''),
+          text: typeof announcement.text === 'string' ? announcement.text : undefined,
+          archived: Boolean(announcement.archived)
+        };
+      });
+  }).filter(item => item.id && item.providerId && item.name && !item.archived);
+
+  const seen = new Set<string>();
+  return normalized.filter(item => {
+    const key = `${item.providerId}:${item.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 40);
+}
+
 function getMediaResults(results: CommandResult[]): SearchMediaResult[] {
   return results
     .flatMap(result => {
@@ -243,12 +327,17 @@ export function LiveControlPanel({
   const [songQuery, setSongQuery] = useState('');
   const [songResults, setSongResults] = useState<SearchSongResult[]>([]);
   const [universalQuery, setUniversalQuery] = useState('');
-  const [universalScope, setUniversalScope] = useState<'auto' | 'song' | 'bible' | 'media'>('auto');
+  const [universalScope, setUniversalScope] = useState<'auto' | 'song' | 'bible' | 'media' | 'text'>('auto');
   const [bibleCommand, setBibleCommand] = useState<{ text: string; nonce: number } | null>(null);
   const [followLive, setFollowLive] = useState(true);
   const [mediaKind, setMediaKind] = useState<'video' | 'image' | 'audio'>('video');
   const [mediaQuery, setMediaQuery] = useState('');
   const [mediaResults, setMediaResults] = useState<SearchMediaResult[]>([]);
+  const [textQuery, setTextQuery] = useState('');
+  const [textResults, setTextResults] = useState<SearchTextResult[]>([]);
+  const [quickText, setQuickText] = useState('');
+  const [announcements, setAnnouncements] = useState<AnnouncementResult[]>([]);
+  const [announcementsLoaded, setAnnouncementsLoaded] = useState(false);
   const [stageText, setStageText] = useState('');
   const [toolMode, setToolMode] = useState<ToolMode>('song');
   const [preparedCue, setPreparedCue] = useState<PreparedProgramCue | null>(null);
@@ -339,6 +428,12 @@ export function LiveControlPanel({
     song: capabilitySet.has('songs.search') || capabilitySet.has('songs.present'),
     bible: capabilitySet.has('bible.present'),
     media: capabilitySet.has('media.search') || capabilitySet.has('media.open'),
+    text:
+      capabilitySet.has('text.search') ||
+      capabilitySet.has('text.present') ||
+      capabilitySet.has('text.quick.present') ||
+      capabilitySet.has('announcement.read') ||
+      capabilitySet.has('announcement.present'),
     stage: capabilitySet.has('stage.message')
   }), [capabilitySet]);
 
@@ -353,10 +448,23 @@ export function LiveControlPanel({
 
   useEffect(() => {
     if (toolAvailability[toolMode]) return;
-    const fallback = (['song', 'bible', 'media', 'stage'] as ToolMode[])
+    const fallback = (['song', 'bible', 'media', 'text', 'stage'] as ToolMode[])
       .find(mode => toolAvailability[mode]);
     if (fallback) setToolMode(fallback);
   }, [toolAvailability, toolMode]);
+
+  useEffect(() => {
+    if (
+      toolMode === 'text' &&
+      can('announcement.read') &&
+      !announcementsLoaded &&
+      busy === null
+    ) {
+      void loadAnnouncements();
+    }
+    // Announcement loading is progressive and does not block the operator.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolMode, announcementsLoaded, capabilitySet, busy]);
 
   useEffect(() => {
     let stopped = false;
@@ -671,6 +779,59 @@ export function LiveControlPanel({
       };
     }
 
+    if (item.type === 'text') {
+      const payload = item.payload || {};
+      const source = String(payload.source || 'provider-text');
+      const providerId = String(payload.providerId || '').trim();
+
+      if (source === 'quick-text') {
+        const text = String(payload.text || '').trim();
+        if (!text || !can('text.quick.present')) return null;
+        return {
+          id: `service-item:${item.id}`,
+          kind: 'text',
+          title: item.title,
+          subtitle: t('liveControls.quickText'),
+          capability: 'text.quick.present',
+          payload: { text },
+          targetProviderIds: providerId ? [providerId] : undefined,
+          serviceItemId: item.id
+        };
+      }
+
+      const id = String(payload.id || '').trim();
+      if (!id || !can('text.present')) return null;
+      return {
+        id: `service-item:${item.id}`,
+        kind: 'text',
+        title: item.title,
+        subtitle: t('liveControls.savedText'),
+        capability: 'text.present',
+        payload: { id },
+        targetProviderIds: providerId ? [providerId] : undefined,
+        serviceItemId: item.id
+      };
+    }
+
+    if (item.type === 'announcement') {
+      if (!can('announcement.present')) return null;
+      const payload = item.payload || {};
+      const id = String(payload.id || '').trim();
+      const name = String(payload.name || item.title || '').trim();
+      const providerId = String(payload.providerId || '').trim();
+      if (!id && !name) return null;
+      return {
+        id: `service-item:${item.id}`,
+        kind: 'announcement',
+        title: item.title,
+        subtitle: t('liveControls.announcement'),
+        capability: 'announcement.present',
+        payload: id ? { id } : { name },
+        targetProviderIds: providerId ? [providerId] : undefined,
+        serviceItemId: item.id
+      };
+    }
+
     return null;
   }
 
@@ -819,6 +980,174 @@ export function LiveControlPanel({
         : 'liveControls.songAddedEnd',
       { title: song.title }
     ));
+  }
+
+  async function addOperatorItemToService(
+    item: ServiceItem,
+    placement: 'next' | 'end'
+  ) {
+    if (!servicePlan || busy !== null) return;
+    setBusy(`service-add:${item.id}`);
+    setMessage(null);
+    try {
+      const items = [...servicePlan.items];
+      const insertIndex = placement === 'next'
+        ? Math.max(0, serviceHorizon.activeIndex >= 0 ? serviceHorizon.activeIndex + 1 : 0)
+        : items.length;
+      items.splice(insertIndex, 0, item);
+
+      await controller.cacheServicePlan({
+        ...servicePlan,
+        items,
+        revision: servicePlan.revision + 1,
+        metadata: {
+          ...(servicePlan.metadata || {}),
+          lastLiveEditAt: new Date().toISOString()
+        }
+      }, providerLinks);
+
+      setMessage(t(
+        placement === 'next'
+          ? 'liveControls.contentAddedNext'
+          : 'liveControls.contentAddedEnd',
+        { title: item.title }
+      ));
+    } catch (error) {
+      setMessage(t('liveControls.contentAddFailed', {
+        code: error instanceof Error ? error.message : 'service_plan_update_failed'
+      }));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function searchTexts(explicitQuery?: string) {
+    const query = (explicitQuery ?? textQuery).trim();
+    if (!query || !can('text.search')) return;
+    setTextQuery(query);
+    const results = await run('text-search', 'text.search', { text: query });
+    setTextResults(getTextResults(results));
+  }
+
+  async function loadAnnouncements(force = false) {
+    if (!can('announcement.read') || busy !== null) return;
+    if (announcementsLoaded && !force) return;
+    const results = await run('announcement-read', 'announcement.read', {});
+    setAnnouncements(getAnnouncementResults(results));
+    if (results.some(result => result.accepted)) setAnnouncementsLoaded(true);
+  }
+
+  function quickTextProviderId(): string | undefined {
+    const candidates = providers.filter(provider =>
+      (provider.health === 'online' || provider.health === 'degraded') &&
+      provider.capabilities.includes('text.quick.present')
+    );
+    const routed = controller.nodeState?.routing?.presentation;
+    if (routed && candidates.some(provider => provider.providerId === routed)) {
+      return routed;
+    }
+    return candidates.length === 1 ? candidates[0]?.providerId : undefined;
+  }
+
+  function savedTextCue(item: SearchTextResult): PreparedProgramCue {
+    return {
+      id: `text:${item.providerId}:${item.id}`,
+      kind: 'text',
+      title: item.title,
+      subtitle: item.text || t('liveControls.savedText'),
+      capability: 'text.present',
+      payload: { id: item.id },
+      targetProviderIds: [item.providerId]
+    };
+  }
+
+  function prepareSavedText(item: SearchTextResult) {
+    if (!can('text.present')) return;
+    setPreparedCue(savedTextCue(item));
+  }
+
+  function quickTextCue(): PreparedProgramCue | null {
+    const text = quickText.trim();
+    if (!text || !can('text.quick.present')) return null;
+    const providerId = quickTextProviderId();
+    return {
+      id: `quick-text:${createClientId()}`,
+      kind: 'text',
+      title: text.length > 68 ? `${text.slice(0, 65)}…` : text,
+      subtitle: t('liveControls.quickText'),
+      capability: 'text.quick.present',
+      payload: { text },
+      targetProviderIds: providerId ? [providerId] : undefined
+    };
+  }
+
+  function prepareQuickText() {
+    const cue = quickTextCue();
+    if (cue) setPreparedCue(cue);
+  }
+
+  function announcementCue(item: AnnouncementResult): PreparedProgramCue {
+    return {
+      id: `announcement:${item.providerId}:${item.id}`,
+      kind: 'announcement',
+      title: item.name,
+      subtitle: item.text || t('liveControls.announcement'),
+      capability: 'announcement.present',
+      payload: { id: item.id },
+      targetProviderIds: [item.providerId]
+    };
+  }
+
+  function prepareAnnouncement(item: AnnouncementResult) {
+    if (!can('announcement.present')) return;
+    setPreparedCue(announcementCue(item));
+  }
+
+  function savedTextServiceItem(item: SearchTextResult): ServiceItem {
+    return {
+      id: `live-text:${createClientId()}`,
+      type: 'text',
+      title: item.title,
+      state: 'planned',
+      payload: {
+        source: 'provider-text',
+        id: item.id,
+        providerId: item.providerId,
+        text: item.text
+      }
+    };
+  }
+
+  function quickTextServiceItem(): ServiceItem | null {
+    const text = quickText.trim();
+    if (!text) return null;
+    return {
+      id: `live-text:${createClientId()}`,
+      type: 'text',
+      title: text.length > 56 ? `${text.slice(0, 53)}…` : text,
+      state: 'planned',
+      payload: {
+        source: 'quick-text',
+        text,
+        providerId: quickTextProviderId()
+      }
+    };
+  }
+
+  function announcementServiceItem(item: AnnouncementResult): ServiceItem {
+    return {
+      id: `live-announcement:${createClientId()}`,
+      type: 'announcement',
+      title: item.name,
+      state: 'planned',
+      payload: {
+        source: 'provider-announcement',
+        id: item.id,
+        providerId: item.providerId,
+        name: item.name,
+        text: item.text
+      }
+    };
   }
 
   function activateTarget(key: string, prepare: () => void, execute: () => void) {
@@ -1000,6 +1329,7 @@ export function LiveControlPanel({
       if (cue.kind === 'song') setToolMode('song');
       if (cue.kind === 'bible') setToolMode('bible');
       if (cue.kind === 'media') setToolMode('media');
+      if (cue.kind === 'text' || cue.kind === 'announcement') setToolMode('text');
       setFollowLive(true);
     }
   }
@@ -1020,7 +1350,7 @@ export function LiveControlPanel({
     const raw = universalQuery.trim();
     if (!raw || busy !== null) return;
 
-    const prefix = raw.match(/^(b(?:íblia|iblia)?|bible|song|música|musica|media|mídia|midia)\s*:\s*(.+)$/i);
+    const prefix = raw.match(/^(b(?:íblia|iblia)?|bible|song|música|musica|media|mídia|midia|text|texto|aviso|announcement)\s*:\s*(.+)$/i);
     const requested = prefix?.[1]?.toLocaleLowerCase();
     const query = (prefix?.[2] || raw).trim();
     const inferredScope =
@@ -1030,7 +1360,9 @@ export function LiveControlPanel({
           ? 'bible'
           : requested === 'media' || requested === 'mídia' || requested === 'midia'
             ? 'media'
-            : 'song';
+            : requested === 'text' || requested === 'texto' || requested === 'aviso' || requested === 'announcement'
+              ? 'text'
+              : 'song';
 
     if (inferredScope === 'bible') {
       setToolMode('bible');
@@ -1040,6 +1372,18 @@ export function LiveControlPanel({
     if (inferredScope === 'media') {
       setToolMode('media');
       await searchMedia(query);
+      return;
+    }
+    if (inferredScope === 'text') {
+      setToolMode('text');
+      setTextQuery(query);
+      if (requested === 'aviso' || requested === 'announcement') {
+        await loadAnnouncements(true);
+      } else if (can('text.search')) {
+        await searchTexts(query);
+      } else {
+        await loadAnnouncements();
+      }
       return;
     }
     setToolMode('song');
@@ -1127,6 +1471,14 @@ export function LiveControlPanel({
     currentSlideIndex >= section.startIndex && currentSlideIndex <= section.endIndex
   ) || null;
   const serviceSongs = servicePlan?.items.filter(item => item.type === 'song') || [];
+  const visibleAnnouncements = useMemo(() => {
+    const query = textQuery.trim().toLocaleLowerCase();
+    if (!query) return announcements;
+    return announcements.filter(item =>
+      item.name.toLocaleLowerCase().includes(query) ||
+      item.text?.toLocaleLowerCase().includes(query)
+    );
+  }, [announcements, textQuery]);
 
   useEffect(() => {
     if (currentSlideIndex < 0) return;
@@ -1234,7 +1586,7 @@ export function LiveControlPanel({
           </button>
         </div>
         <div className="live-universal-scopes" aria-label={t('liveControls.searchScope')}>
-          {(['auto','song','bible','media'] as const).map(scope => (
+          {(['auto','song','bible','media','text'] as const).map(scope => (
             <button
               key={scope}
               type="button"
@@ -1259,7 +1611,7 @@ export function LiveControlPanel({
 
       <div className="live-control-grid">
         <div className="live-tool-dock" role="tablist" aria-label={t('liveControls.tools')}>
-          {(['song','bible','media','stage'] as ToolMode[]).map(mode => (
+          {(['song','bible','media','text','stage'] as ToolMode[]).map(mode => (
             <button
               key={mode}
               role="tab"
@@ -1964,6 +2316,243 @@ export function LiveControlPanel({
                 </button>
               ))}
             </div>
+          </article>
+        )}
+
+        {toolMode === 'text' && toolAvailability.text && (
+          <article className="operator-card live-tool-card live-text-card">
+            <div className="operator-card-head">
+              <div>
+                <span>{t('liveControls.textAndAnnouncements')}</span>
+                <small>{t('liveControls.textAndAnnouncementsHint')}</small>
+              </div>
+            </div>
+
+            {can('text.quick.present') && (
+              <section className="live-text-section quick">
+                <header>
+                  <div>
+                    <strong>{t('liveControls.quickText')}</strong>
+                    <small>{t('liveControls.quickTextHint')}</small>
+                  </div>
+                </header>
+                <textarea
+                  className="operator-textarea"
+                  value={quickText}
+                  onChange={event => setQuickText(event.target.value)}
+                  placeholder={t('liveControls.quickTextPlaceholder')}
+                  rows={3}
+                />
+                <div className="live-text-actions">
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={!quickText.trim() || busy !== null}
+                    onClick={prepareQuickText}
+                  >
+                    {t('liveControls.prepare')}
+                  </button>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={!quickText.trim() || busy !== null}
+                    onClick={() => {
+                      const cue = quickTextCue();
+                      if (cue) void takePreparedCue(cue);
+                    }}
+                  >
+                    {t('liveControls.takePrepared')}
+                  </button>
+                  {servicePlan && (
+                    <>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={!quickText.trim() || busy !== null}
+                        onClick={() => {
+                          const item = quickTextServiceItem();
+                          if (item) void addOperatorItemToService(item, 'next');
+                        }}
+                      >
+                        {t('liveControls.addNext')}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-action"
+                        disabled={!quickText.trim() || busy !== null}
+                        onClick={() => {
+                          const item = quickTextServiceItem();
+                          if (item) void addOperatorItemToService(item, 'end');
+                        }}
+                      >
+                        {t('liveControls.addEnd')}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {can('text.search') && (
+              <section className="live-text-section">
+                <header>
+                  <div>
+                    <strong>{t('liveControls.savedTexts')}</strong>
+                    <small>{t('liveControls.savedTextsHint')}</small>
+                  </div>
+                </header>
+                <div className="operator-inline">
+                  <input
+                    value={textQuery}
+                    onChange={event => setTextQuery(event.target.value)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter') void searchTexts();
+                    }}
+                    placeholder={t('liveControls.textPlaceholder')}
+                  />
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={!textQuery.trim() || busy !== null}
+                    onClick={() => void searchTexts()}
+                  >
+                    {t('liveControls.search')}
+                  </button>
+                </div>
+
+                <div className="live-text-results">
+                  {textResults.map(item => {
+                    const cue = savedTextCue(item);
+                    const prepared = preparedCue?.id === cue.id;
+                    return (
+                      <div
+                        key={cue.id}
+                        className={prepared ? 'live-text-result prepared' : 'live-text-result'}
+                      >
+                        <button
+                          type="button"
+                          className="live-text-result-main"
+                          disabled={!can('text.present') || busy !== null}
+                          onClick={() => activateTarget(
+                            cue.id,
+                            () => prepareSavedText(item),
+                            () => void takePreparedCue(cue)
+                          )}
+                        >
+                          <span>
+                            <strong>{item.title}</strong>
+                            <small>{item.text || t('liveControls.savedText')}</small>
+                          </span>
+                          <em>{prepared ? t('liveControls.prepared') : t('liveControls.prepare')}</em>
+                        </button>
+                        {servicePlan && (
+                          <div className="live-text-result-actions">
+                            <button
+                              type="button"
+                              disabled={busy !== null}
+                              onClick={() => void addOperatorItemToService(
+                                savedTextServiceItem(item),
+                                'next'
+                              )}
+                            >
+                              {t('liveControls.addNext')}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy !== null}
+                              onClick={() => void addOperatorItemToService(
+                                savedTextServiceItem(item),
+                                'end'
+                              )}
+                            >
+                              {t('liveControls.addEnd')}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {!textResults.length && textQuery.trim() && busy !== 'text-search' && (
+                    <div className="live-text-empty">{t('liveControls.noSavedTextsFound')}</div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {can('announcement.read') && (
+              <section className="live-text-section announcements">
+                <header>
+                  <div>
+                    <strong>{t('liveControls.announcements')}</strong>
+                    <small>{t('liveControls.announcementsHint')}</small>
+                  </div>
+                  <button
+                    type="button"
+                    className="ghost-action"
+                    disabled={busy !== null}
+                    onClick={() => void loadAnnouncements(true)}
+                  >
+                    {t('liveControls.refreshAnnouncements')}
+                  </button>
+                </header>
+
+                <div className="live-announcement-grid">
+                  {visibleAnnouncements.map(item => {
+                    const cue = announcementCue(item);
+                    const prepared = preparedCue?.id === cue.id;
+                    return (
+                      <div
+                        key={cue.id}
+                        className={prepared ? 'live-announcement-card prepared' : 'live-announcement-card'}
+                      >
+                        <button
+                          type="button"
+                          className="live-announcement-main"
+                          disabled={!can('announcement.present') || busy !== null}
+                          onClick={() => activateTarget(
+                            cue.id,
+                            () => prepareAnnouncement(item),
+                            () => void takePreparedCue(cue)
+                          )}
+                        >
+                          <strong>{item.name}</strong>
+                          <span>{item.text || t('liveControls.announcementReady')}</span>
+                          <em>{prepared ? t('liveControls.prepared') : t('liveControls.prepare')}</em>
+                        </button>
+                        {servicePlan && (
+                          <div className="live-text-result-actions">
+                            <button
+                              type="button"
+                              disabled={busy !== null}
+                              onClick={() => void addOperatorItemToService(
+                                announcementServiceItem(item),
+                                'next'
+                              )}
+                            >
+                              {t('liveControls.addNext')}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy !== null}
+                              onClick={() => void addOperatorItemToService(
+                                announcementServiceItem(item),
+                                'end'
+                              )}
+                            >
+                              {t('liveControls.addEnd')}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {!visibleAnnouncements.length && announcementsLoaded && (
+                  <div className="live-text-empty">{t('liveControls.noAnnouncements')}</div>
+                )}
+              </section>
+            )}
           </article>
         )}
 
