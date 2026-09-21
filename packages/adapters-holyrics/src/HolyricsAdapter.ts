@@ -51,6 +51,11 @@ const ACTIONS_BY_CAPABILITY: Partial<Record<Capability, string[]>> = {
   'bible.search': ['IdentifyVerseReferences'],
   'bible.books.read': ['GetBibleBooks'],
   'bible.present': ['ShowVerse'],
+  'text.search': ['SearchText'],
+  'text.present': ['ShowText'],
+  'text.quick.present': ['ShowQuickPresentation'],
+  'announcement.read': ['GetAnnouncements'],
+  'announcement.present': ['ShowAnnouncement'],
   'songs.search': ['SearchLyrics'],
   'songs.present': ['ShowLyrics'],
   'playlist.write': ['AddLyricsToPlaylist'],
@@ -397,6 +402,89 @@ export class HolyricsAdapter implements ProviderAdapter {
           language_id: languageId
         });
         return { books, languageId };
+      }
+
+      case 'text.search': {
+        const text = String(payload.text || '').trim();
+        if (!text) throw new Error('text_search_text_required');
+        const results = await this.api.request<unknown[]>('SearchText', {
+          text,
+          fields: String(payload.fields || 'id,title,folder,slides')
+        });
+        return { results };
+      }
+
+      case 'text.present': {
+        const id = String(payload.id || '').trim();
+        if (!id) throw new Error('text_id_required');
+        await this.api.request('ShowText', {
+          id,
+          initial_index: Number.isInteger(payload.initialIndex)
+            ? payload.initialIndex
+            : 0
+        });
+        const currentPresentation = this.supported.has('presentation.slides.read')
+          ? await this.api.request<CurrentPresentation | null>('GetCurrentPresentation')
+          : null;
+        return { textId: id, currentPresentation };
+      }
+
+      case 'text.quick.present': {
+        const text = String(payload.text || '').trim();
+        const slides = Array.isArray(payload.slides) ? payload.slides : undefined;
+        if (!text && !slides?.length) throw new Error('quick_text_required');
+        await this.api.request('ShowQuickPresentation', {
+          ...(text ? { text } : {}),
+          ...(slides?.length ? { slides } : {}),
+          ...(payload.theme && typeof payload.theme === 'object'
+            ? { theme: payload.theme }
+            : {}),
+          ...(payload.customTheme && typeof payload.customTheme === 'object'
+            ? { custom_theme: payload.customTheme }
+            : {}),
+          ...(payload.automatic && typeof payload.automatic === 'object'
+            ? { automatic: payload.automatic }
+            : {}),
+          initial_index: Number.isInteger(payload.initialIndex)
+            ? payload.initialIndex
+            : 0
+        });
+        const currentPresentation = this.supported.has('presentation.slides.read')
+          ? await this.api.request<CurrentPresentation | null>('GetCurrentPresentation')
+          : null;
+        return { quickPresentation: true, currentPresentation };
+      }
+
+      case 'announcement.read': {
+        const announcements = await this.api.request<unknown[]>('GetAnnouncements');
+        return { announcements };
+      }
+
+      case 'announcement.present': {
+        const id = String(payload.id || '').trim();
+        const name = String(payload.name || '').trim();
+        const ids = Array.isArray(payload.ids)
+          ? payload.ids.map(String).filter(Boolean)
+          : [];
+        const names = Array.isArray(payload.names)
+          ? payload.names.map(String).filter(Boolean)
+          : [];
+        if (!id && !name && !ids.length && !names.length) {
+          throw new Error('announcement_reference_required');
+        }
+        await this.api.request('ShowAnnouncement', {
+          ...(id ? { id } : {}),
+          ...(name ? { name } : {}),
+          ...(ids.length ? { ids } : {}),
+          ...(names.length ? { names } : {}),
+          ...(payload.automatic && typeof payload.automatic === 'object'
+            ? { automatic: payload.automatic }
+            : {})
+        });
+        const currentPresentation = this.supported.has('presentation.slides.read')
+          ? await this.api.request<CurrentPresentation | null>('GetCurrentPresentation')
+          : null;
+        return { announcementPresented: true, currentPresentation };
       }
 
       case 'songs.search': {

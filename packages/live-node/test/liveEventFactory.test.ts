@@ -37,6 +37,9 @@ describe('live event factory', () => {
   it('maps presentation capabilities into semantic session events', () => {
     expect(semanticEventType('songs.present')).toBe('song.presented');
     expect(semanticEventType('bible.present')).toBe('bible.presented');
+    expect(semanticEventType('text.present')).toBe('text.presented');
+    expect(semanticEventType('text.quick.present')).toBe('text.presented');
+    expect(semanticEventType('announcement.present')).toBe('announcement.presented');
     expect(semanticEventType('visual.clip.trigger')).toBe('visual.clip.triggered');
   });
 
@@ -61,6 +64,41 @@ describe('live event factory', () => {
       }
     });
     expect((value.payload.subject as Record<string, unknown>).secret).toBeUndefined();
+  });
+
+  it('does not count read-only searches as off-plan service content', () => {
+    const value = eventFromCommand(
+      {
+        ...command('text.search'),
+        serviceItemId: undefined,
+        payload: { text: 'boas-vindas' }
+      },
+      [result(true)]
+    );
+
+    expect(value.type).toBe('command.completed');
+    expect(value.payload).toMatchObject({
+      planned: false,
+      adHoc: false
+    });
+  });
+
+  it('counts quick text shown outside the run of show as off-plan content', () => {
+    const value = eventFromCommand(
+      {
+        ...command('text.quick.present'),
+        serviceItemId: undefined,
+        payload: { text: 'Culto começa em 5 minutos' }
+      },
+      [result(true)]
+    );
+
+    expect(value.type).toBe('text.presented');
+    expect(value.payload).toMatchObject({
+      planned: false,
+      adHoc: true,
+      subject: { text: 'Culto começa em 5 minutos' }
+    });
   });
 
   it('turns complete provider failure into an error event', () => {

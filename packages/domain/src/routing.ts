@@ -15,6 +15,8 @@ export function routeGroupForCapability(
 ): ProviderRouteGroup {
   if (
     capability.startsWith('presentation.') ||
+    capability.startsWith('text.') ||
+    capability.startsWith('announcement.') ||
     capability === 'preview.snapshot'
   ) {
     return 'presentation';
