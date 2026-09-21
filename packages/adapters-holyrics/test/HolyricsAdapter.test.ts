@@ -38,6 +38,7 @@ class FakeApi implements HolyricsApi {
           'SetCurrentBackground',
           'IdentifyVerseReferences',
           'GetBibleVersionsV2',
+          'GetBibleBooks',
           'ShowVerse',
           'SearchLyrics',
           'ShowLyrics',
@@ -61,6 +62,12 @@ class FakeApi implements HolyricsApi {
       return [
         { key: 'pt_nvi', version: 'pt_nvi', title: 'NVI', language: { id: 'pt', iso: 'pt', name: 'Portuguese' } },
         { key: 'pt_acf', version: 'pt_acf', title: 'ACF', language: { id: 'pt', iso: 'pt', name: 'Portuguese' } }
+      ] as T;
+    }
+    if (action === 'GetBibleBooks') {
+      return [
+        { id: '43', name: 'João', abbrev: 'Jo', usfx_code: 'JHN' },
+        { id: '44', name: 'Atos', abbrev: 'At', usfx_code: 'ACT' }
       ] as T;
     }
     if (action === 'IdentifyVerseReferences') {
@@ -126,6 +133,7 @@ describe('HolyricsAdapter', () => {
     expect(probe.capabilities).toContain('presentation.background.set');
     expect(probe.capabilities).toContain('bible.search');
     expect(probe.capabilities).toContain('bible.versions.read');
+    expect(probe.capabilities).toContain('bible.books.read');
     expect(probe.capabilities).toContain('bible.present');
     expect(probe.capabilities).toContain('songs.create');
     expect(probe.capabilities).toContain('songs.present');
@@ -283,6 +291,23 @@ describe('HolyricsAdapter', () => {
       expect.objectContaining({
         ids: ['43003001', '43003002', '43003003']
       })
+    ]));
+  });
+
+  it('reads the provider book list for a concrete Bible language', async () => {
+    const api = new FakeApi();
+    const adapter = new HolyricsAdapter({ id: 'holyrics-1', nodeId: 'node-1', api });
+    await adapter.probe();
+
+    const result = await adapter.execute(command('bible.books.read', { languageId: 'pt' }));
+
+    expect(result.accepted).toBe(true);
+    expect(api.calls.some(call =>
+      call.action === 'GetBibleBooks' &&
+      call.input.language_id === 'pt'
+    )).toBe(true);
+    expect(result.observedState?.books).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: '43', name: 'João', abbrev: 'Jo' })
     ]));
   });
 
