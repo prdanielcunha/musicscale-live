@@ -9,6 +9,7 @@ import {
   type RequestMediaKind
 } from './requestMedia';
 import {
+  currentPresentationFromResults,
   sectionCandidatesFromResults,
   type PreparedSectionCandidate
 } from './requestSection';
@@ -305,7 +306,16 @@ export function LiveRequestInbox({
     clearError(request.id);
 
     try {
-      if (!sectionProvider) {
+      const requestedProviderId = String(request.payload.providerId || '').trim();
+      const requestedProvider = requestedProviderId
+        ? sectionProviders.find(provider => provider.providerId === requestedProviderId) || null
+        : null;
+      const targetProvider = requestedProvider || sectionProvider;
+
+      if (requestedProviderId && !requestedProvider) {
+        throw new Error('section_requested_provider_unavailable');
+      }
+      if (!targetProvider) {
         throw new Error(
           sectionProviders.length > 1
             ? 'section_route_required'
@@ -318,16 +328,31 @@ export function LiveRequestInbox({
         payload: {},
         liveSessionId,
         actorId,
-        targetProviderIds: [sectionProvider.providerId],
+        targetProviderIds: [targetProvider.providerId],
         safetyLevel: 'normal'
       });
       const failed = firstCommandFailure(results);
       if (failed) throw new Error(failed.errorCode || 'provider_error');
 
+      const requestedPresentationId = String(request.payload.presentationId || '').trim();
+      if (requestedPresentationId) {
+        const presentation = currentPresentationFromResults(
+          results,
+          targetProvider.providerId
+        );
+        const currentPresentationId = String(presentation?.id || '').trim();
+        if (
+          !currentPresentationId ||
+          currentPresentationId !== requestedPresentationId
+        ) {
+          throw new Error('section_request_presentation_changed');
+        }
+      }
+
       const candidates = sectionCandidatesFromResults(
         results,
-        sectionProvider.providerId,
-        sectionProvider.displayName || sectionProvider.providerKey || 'provider',
+        targetProvider.providerId,
+        targetProvider.displayName || targetProvider.providerKey || 'provider',
         section
       );
 
@@ -335,13 +360,30 @@ export function LiveRequestInbox({
         throw new Error('section_request_no_markers');
       }
 
+      const exact = request.payload.exact === true;
+      const requestedIndex = Number(request.payload.index);
+      const exactCandidate =
+        exact && Number.isInteger(requestedIndex) && requestedIndex >= 0
+          ? candidates.find(candidate => candidate.index === requestedIndex)
+          : undefined;
+      if (exact && !exactCandidate) {
+        throw new Error('section_request_exact_marker_missing');
+      }
+
+      const orderedCandidates = exactCandidate
+        ? [
+            exactCandidate,
+            ...candidates.filter(candidate => candidate.id !== exactCandidate.id)
+          ]
+        : candidates;
+
       setPreparedSections(current => ({
         ...current,
-        [request.id]: candidates
+        [request.id]: orderedCandidates
       }));
       setSelectedSection(current => ({
         ...current,
-        [request.id]: candidates[0]!.id
+        [request.id]: orderedCandidates[0]!.id
       }));
     } catch (error) {
       setRequestError(
@@ -657,8 +699,18 @@ export function LiveRequestInbox({
           const selectedMediaId = selectedMedia[request.id];
           const canPrepareBible =
             request.kind === 'bible' && capabilitySet.has('bible.present');
+          const requestedSectionProviderId =
+            request.kind === 'section'
+              ? String(request.payload.providerId || '').trim()
+              : '';
+          const requestedSectionProvider = requestedSectionProviderId
+            ? sectionProviders.find(provider =>
+                provider.providerId === requestedSectionProviderId
+              ) || null
+            : null;
           const canPrepareSection =
-            request.kind === 'section' && Boolean(sectionProvider);
+            request.kind === 'section' &&
+            Boolean(requestedSectionProvider || sectionProvider);
           const canPrepareMedia =
             request.kind === 'media' &&
             (
@@ -686,9 +738,18 @@ export function LiveRequestInbox({
               <div className="live-request-copy">
                 <div className="live-request-label-row">
                   <small>{t(`requestsSurface.kinds.${request.kind}`)}</small>
-                  <span className={`request-status-chip status-${request.status}`}>
-                    {t(`requestsSurface.status.${request.status}`)}
-                  </span>
+                  <div className="request-label-badges">
+                    {request.payload.sourceSurface && (
+                      <em className="request-source-chip">
+                        {t(`requestInbox.sources.${String(request.payload.sourceSurface)}`, {
+                          defaultValue: String(request.payload.sourceSurface)
+                        })}
+                      </em>
+                    )}
+                    <span className={`request-status-chip status-${request.status}`}>
+                      {t(`requestsSurface.status.${request.status}`)}
+                    </span>
+                  </div>
                 </div>
                 <strong>{String(label || '')}</strong>
                 <span>
