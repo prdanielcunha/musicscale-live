@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { LiveSessionEvent } from '@millionsnest/live-domain';
+import type {
+  LiveSessionEvent,
+  LiveSessionEventSummary
+} from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
 
 type Controller = ReturnType<typeof useLiveNode>;
@@ -84,6 +87,7 @@ export function LiveSessionPulse({
   const { t } = useTranslation();
   const [events, setEvents] = useState<LiveSessionEvent[]>([]);
   const [total, setTotal] = useState(0);
+  const [eventSummary, setEventSummary] = useState<LiveSessionEventSummary | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -98,6 +102,7 @@ export function LiveSessionPulse({
         if (cancelled) return;
         setEvents(page.events);
         setTotal(page.total);
+        setEventSummary(page.summary);
         setError(false);
       } catch {
         if (!cancelled) setError(true);
@@ -115,31 +120,17 @@ export function LiveSessionPulse({
   }, [controller.listEvents, expanded, liveSessionId]);
 
   const summary = useMemo(() => {
-    const successful = events.filter(event => event.level !== 'error');
-    const plannedItems = new Set(
-      successful
-        .map(event => event.serviceItemId)
-        .filter((value): value is string => Boolean(value))
-    );
-    const adHoc = successful.filter(event =>
-      Boolean(
-        event.payload &&
-        typeof event.payload === 'object' &&
-        (event.payload as Record<string, unknown>).adHoc === true
-      )
-    ).length;
-    const attention = events.filter(event =>
-      event.level === 'warning' || event.level === 'error'
-    ).length;
     const plannedTotal = controller.nodeState?.state.servicePlan?.items.length || 0;
-
     return {
-      plannedTouched: plannedItems.size,
+      plannedTouched: eventSummary?.plannedServiceItems || 0,
       plannedTotal,
-      adHoc,
-      attention
+      adHoc: eventSummary?.adHocActions || 0,
+      attention: (eventSummary?.warnings || 0) + (eventSummary?.errors || 0)
     };
-  }, [controller.nodeState?.state.servicePlan?.items.length, events]);
+  }, [
+    controller.nodeState?.state.servicePlan?.items.length,
+    eventSummary
+  ]);
 
   const visibleEvents = expanded ? events : events.slice(0, 6);
 
