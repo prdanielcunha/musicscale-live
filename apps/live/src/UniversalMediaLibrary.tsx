@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { CommandResult, LiveDropAsset } from '@millionsnest/live-domain';
+import type {
+  CommandResult,
+  LiveDropAsset,
+  ServiceItem
+} from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
+import { createClientId } from './clientId';
 
 type Controller = ReturnType<typeof useLiveNode>;
 type LibraryKind = 'video' | 'image' | 'audio';
@@ -106,6 +111,10 @@ export function UniversalMediaLibrary({
   const [armedItemId, setArmedItemId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const confirmationTimer = useRef<number | null>(null);
+
+  const servicePlan = controller.nodeState?.state.servicePlan || null;
+  const providerLinks = controller.nodeState?.state.providerLinks || [];
+  const activeServiceItemId = controller.nodeState?.state.activeServiceItemId || null;
 
   useEffect(() => {
     setLiveDropAssets(controller.nodeState?.liveDrop || []);
@@ -301,6 +310,74 @@ export function UniversalMediaLibrary({
     }
   }
 
+  async function addToService(item: LibraryItem, placement: 'next' | 'end') {
+    if (!servicePlan || busyItemId) return;
+    setBusyItemId(item.id);
+    setMessage(null);
+
+    try {
+      const payload: Record<string, unknown> = item.source === 'provider'
+        ? {
+            source: 'provider',
+            kind: item.kind,
+            file: item.name,
+            providerId: item.providerId,
+            providerName: item.providerName,
+            durationMs: item.durationMs,
+            width: item.width,
+            height: item.height
+          }
+        : {
+            source: 'live-drop',
+            kind: item.kind,
+            assetId: item.asset.id,
+            fileName: item.asset.fileName,
+            sha256: item.asset.sha256,
+            providerId: routedMediaProvider?.providerId
+          };
+
+      const runtimeItem: ServiceItem = {
+        id: `live-media:${createClientId()}`,
+        type: item.kind,
+        title: item.name,
+        state: 'planned',
+        payload
+      };
+
+      const items = [...servicePlan.items];
+      const activeIndex = activeServiceItemId
+        ? items.findIndex(candidate => candidate.id === activeServiceItemId)
+        : items.findIndex(candidate => candidate.state === 'live');
+      const insertIndex = placement === 'next'
+        ? Math.max(0, activeIndex >= 0 ? activeIndex + 1 : 0)
+        : items.length;
+      items.splice(insertIndex, 0, runtimeItem);
+
+      await controller.cacheServicePlan({
+        ...servicePlan,
+        items,
+        revision: servicePlan.revision + 1,
+        metadata: {
+          ...(servicePlan.metadata || {}),
+          lastLiveEditAt: new Date().toISOString()
+        }
+      }, providerLinks);
+
+      setMessage(t(
+        placement === 'next'
+          ? 'universalLibrary.addedNext'
+          : 'universalLibrary.addedEnd',
+        { name: item.name }
+      ));
+    } catch (error) {
+      setMessage(t('universalLibrary.addFailed', {
+        code: error instanceof Error ? error.message : 'service_plan_update_failed'
+      }));
+    } finally {
+      setBusyItemId(null);
+    }
+  }
+
   function metadata(item: LibraryItem): string {
     if (item.source === 'live-drop') {
       return `${formatBytes(item.asset.sizeBytes)} · ${t('universalLibrary.localCache')}`;
@@ -398,19 +475,41 @@ export function UniversalMediaLibrary({
                   <span>{providerName}</span>
                   <small>{metadata(item)}</small>
                 </div>
-                <button
-                  type="button"
-                  className={isArmed ? 'primary danger-confirm' : 'secondary'}
-                  disabled={busyItemId === item.id || cannotOpenLiveDrop}
-                  title={cannotOpenLiveDrop ? t('universalLibrary.routeRequired') : undefined}
-                  onClick={() => arm(item)}
-                >
-                  {busyItemId === item.id
-                    ? '…'
-                    : isArmed
-                      ? t('universalLibrary.confirm')
-                      : t('universalLibrary.open')}
-                </button>
+                <div className="universal-library-card-actions">
+                  <button
+                    type="button"
+                    className={isArmed ? 'primary danger-confirm' : 'secondary'}
+                    disabled={busyItemId === item.id || cannotOpenLiveDrop}
+                    title={cannotOpenLiveDrop ? t('universalLibrary.routeRequired') : undefined}
+                    onClick={() => arm(item)}
+                  >
+                    {busyItemId === item.id
+                      ? '…'
+                      : isArmed
+                        ? t('universalLibrary.confirm')
+                        : t('universalLibrary.open')}
+                  </button>
+                  {servicePlan && (
+                    <>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={busyItemId === item.id}
+                        onClick={() => void addToService(item, 'next')}
+                      >
+                        {t('universalLibrary.addNext')}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost"
+                        disabled={busyItemId === item.id}
+                        onClick={() => void addToService(item, 'end')}
+                      >
+                        {t('universalLibrary.addEnd')}
+                      </button>
+                    </>
+                  )}
+                </div>
               </article>
             );
           })}
