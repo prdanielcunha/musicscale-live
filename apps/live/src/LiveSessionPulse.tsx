@@ -39,6 +39,10 @@ function eventLabelKey(event: LiveSessionEvent): string {
       return 'bible';
     case 'media.presented':
       return 'media';
+    case 'text.presented':
+      return 'text';
+    case 'announcement.presented':
+      return 'announcement';
     case 'presentation.navigated':
       return 'navigation';
     case 'presentation.cleared':
