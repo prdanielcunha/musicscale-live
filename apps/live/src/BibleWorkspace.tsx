@@ -1105,6 +1105,32 @@ export function BibleWorkspace({
     }
   }
 
+  function openReferencePicker() {
+    if (!pickerOpen) {
+      const current =
+        chapterContext ||
+        (isBibleLive ? liveParsed : null) ||
+        parseReference(selected?.reference || '');
+      const currentBook = bookForContext(current);
+      setPickerBookId(currentBook?.id || books[0]?.id || '');
+      setPickerChapter(String(current?.chapter || 1));
+    }
+    setPickerOpen(current => !current);
+  }
+
+  async function loadPickerChapter() {
+    if (busy !== null) return;
+    const book = books.find(item => item.id === pickerBookId);
+    const chapter = Number.parseInt(pickerChapter, 10);
+    if (!book || !Number.isFinite(chapter) || chapter <= 0) return;
+
+    const snapshot = await loadChapter(contextForBook(book, chapter));
+    if (!snapshot) return;
+    setQuery(`${snapshot.context.bookLabel} ${snapshot.context.chapter}`);
+    const first = snapshot.verses[0];
+    if (first) setSelected(verseAsMatch(first));
+  }
+
   const collection = view === 'favorites' ? favorites : history;
   const effectiveChapter = chapterContext || liveParsed;
   const selectedParsed = parseReference(selected?.reference || '');
@@ -1117,6 +1143,17 @@ export function BibleWorkspace({
   const effectiveVerses = cachedCurrentChapter?.verses.length
     ? cachedCurrentChapter.verses
     : chapterVerses;
+
+  const pickerBook = books.find(item => item.id === pickerBookId);
+  const pickerChapterNumber = Number.parseInt(pickerChapter, 10);
+  const pickerContext =
+    pickerBook && Number.isFinite(pickerChapterNumber) && pickerChapterNumber > 0
+      ? contextForBook(pickerBook, pickerChapterNumber)
+      : null;
+  const pickerVerses =
+    pickerContext && sameChapter(pickerContext, effectiveChapter)
+      ? effectiveVerses
+      : [];
 
   const navigationSnapshot = focusReference
     ? chapterCache.current.get(chapterSignature(focusReference))
@@ -1225,6 +1262,13 @@ export function BibleWorkspace({
     return () => window.cancelAnimationFrame(frame);
   }, [chapterCacheEpoch, isBibleLive, liveReference, selected?.reference]);
 
+  useEffect(() => {
+    if (!books.length || !chapterContext) return;
+    void prefetchAdjacentChapters(chapterContext);
+    // Book discovery is progressive enhancement for cross-book navigation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [books.length]);
+
   return (
     <article className="operator-card live-tool-card bible-workspace bible-reader-workspace">
       <div className="bible-workspace-head">
@@ -1302,6 +1346,129 @@ export function BibleWorkspace({
         </div>
         <small>{t('bibleWorkspace.searchExamples')}</small>
       </div>
+
+      {canReadBooks && (
+        <section className={pickerOpen ? 'bible-reference-picker open' : 'bible-reference-picker'}>
+          <button
+            type="button"
+            className="bible-reference-picker-toggle"
+            onClick={openReferencePicker}
+            disabled={booksLoading && !books.length}
+            aria-expanded={pickerOpen}
+          >
+            <span>
+              <strong>{t('bibleWorkspace.picker.title')}</strong>
+              <small>{t('bibleWorkspace.picker.subtitle')}</small>
+            </span>
+            <em>{pickerOpen ? t('bibleWorkspace.picker.close') : t('bibleWorkspace.picker.open')}</em>
+          </button>
+
+          {pickerOpen && (
+            <div className="bible-reference-picker-body">
+              <div className="bible-reference-picker-fields">
+                <label>
+                  <span>{t('bibleWorkspace.picker.book')}</span>
+                  <select
+                    value={pickerBookId}
+                    onChange={event => {
+                      setPickerBookId(event.target.value);
+                      setPickerChapter('1');
+                    }}
+                    disabled={booksLoading || busy !== null}
+                  >
+                    {books.map(book => (
+                      <option key={book.id} value={book.id}>
+                        {book.name}{book.abbrev && book.abbrev !== book.name ? ` · ${book.abbrev}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>{t('bibleWorkspace.picker.chapter')}</span>
+                  <input
+                    type="number"
+                    min="1"
+                    inputMode="numeric"
+                    value={pickerChapter}
+                    onChange={event => setPickerChapter(event.target.value)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter') void loadPickerChapter();
+                    }}
+                    disabled={busy !== null}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="primary bible-reference-picker-load"
+                  disabled={
+                    busy !== null ||
+                    !pickerBook ||
+                    !Number.isFinite(pickerChapterNumber) ||
+                    pickerChapterNumber <= 0
+                  }
+                  onClick={() => void loadPickerChapter()}
+                >
+                  {busy === 'chapter'
+                    ? t('bibleWorkspace.loadingChapter')
+                    : t('bibleWorkspace.picker.loadChapter')}
+                </button>
+              </div>
+
+              {booksLoading && !books.length && (
+                <div className="bible-picker-status">{t('bibleWorkspace.picker.loadingBooks')}</div>
+              )}
+
+              {pickerVerses.length > 0 && (
+                <div className="bible-picker-verses" aria-label={t('bibleWorkspace.picker.verses')}>
+                  {pickerVerses.map(verse => {
+                    const parsed = parseReference(verse.reference);
+                    const key = verseIdentity(verse);
+                    const selectedKey = selected ? savedKey(selected) : '';
+                    const prepared = selectedKey === savedKey(verseAsMatch(verse));
+                    const onAir = Boolean(
+                      isBibleLive &&
+                      (
+                        (liveVerseId && verse.id === liveVerseId) ||
+                        (
+                          parsed &&
+                          liveParsed &&
+                          parsed.verse === liveParsed.verse &&
+                          sameChapter(parsed, liveParsed)
+                        )
+                      )
+                    );
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        className={[
+                          'bible-picker-verse',
+                          prepared ? 'prepared' : '',
+                          onAir ? 'on-air' : ''
+                        ].filter(Boolean).join(' ')}
+                        onClick={() => activateVerse(verse)}
+                        disabled={busy === 'take' || busy === 'return'}
+                        title={verse.reference}
+                      >
+                        <strong>{parsed?.verse || verse.verse || '—'}</strong>
+                        <small>{onAir
+                          ? t('bibleWorkspace.onAirBadge')
+                          : prepared
+                            ? t('bibleWorkspace.ready')
+                            : t('bibleWorkspace.preview')}</small>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {pickerBook && pickerVerses.length === 0 && busy !== 'chapter' && (
+                <small className="bible-picker-hint">{t('bibleWorkspace.picker.hint')}</small>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       {verseWindow.length > 0 && (
         <section className="bible-smart-window" aria-label={t('bibleWorkspace.smartWindow')}>
