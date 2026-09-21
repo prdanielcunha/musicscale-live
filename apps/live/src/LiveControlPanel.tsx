@@ -50,6 +50,7 @@ interface PreparedProgramCue {
   targetProviderIds?: string[];
   serviceItemId?: string;
   previewDataUrl?: string;
+  liveDropAssetId?: string;
 }
 
 interface BackgroundOption {
@@ -582,25 +583,112 @@ export function LiveControlPanel({
     }
   }
 
-  function prepareServiceSong(item: ServiceItem) {
-    if (item.type !== 'song' || !item.providerLinkId) return;
-    const link = providerLinks.find(candidate => candidate.id === item.providerLinkId);
-    if (!link) return;
+  function buildServiceItemCue(item: ServiceItem): PreparedProgramCue | null {
+    if (item.type === 'song') {
+      if (!item.providerLinkId || !can('songs.present')) return null;
+      const link = providerLinks.find(candidate => candidate.id === item.providerLinkId);
+      if (!link) return null;
+      return {
+        id: `service-item:${item.id}`,
+        kind: 'song',
+        title: item.title,
+        subtitle: t('liveControls.fromRunOfShow'),
+        capability: 'songs.present',
+        payload: { id: link.externalId },
+        targetProviderIds: [link.providerInstanceId],
+        serviceItemId: item.id
+      };
+    }
 
-    setPreparedCue({
-      id: `service-item:${item.id}`,
-      kind: 'song',
-      title: item.title,
-      subtitle: t('liveControls.fromRunOfShow'),
-      capability: 'songs.present',
-      payload: { id: link.externalId },
-      targetProviderIds: [link.providerInstanceId],
-      serviceItemId: item.id
-    });
+    if (item.type === 'bible') {
+      if (!can('bible.present')) return null;
+      const payload = item.payload || {};
+      const ids = Array.isArray(payload.ids)
+        ? payload.ids.map(String).filter(Boolean)
+        : [];
+      const reference = String(
+        payload.references ||
+        payload.reference ||
+        ''
+      ).trim();
+      if (!ids.length && !reference) return null;
+      return {
+        id: `service-item:${item.id}`,
+        kind: 'bible',
+        title: item.title,
+        subtitle: reference || t('liveControls.fromRunOfShow'),
+        capability: 'bible.present',
+        payload: {
+          ...(ids.length ? { ids } : { references: reference }),
+          ...(payload.version ? { version: String(payload.version) } : {})
+        },
+        targetProviderIds: payload.providerId
+          ? [String(payload.providerId)]
+          : undefined,
+        serviceItemId: item.id
+      };
+    }
+
+    if (item.type === 'video' || item.type === 'image' || item.type === 'audio') {
+      if (!can('media.open')) return null;
+      const payload = item.payload || {};
+      const source = String(payload.source || 'provider');
+      const providerId = String(payload.providerId || '').trim();
+
+      if (source === 'live-drop') {
+        const assetId = String(payload.assetId || '').trim();
+        if (!assetId) return null;
+        return {
+          id: `service-item:${item.id}`,
+          kind: 'media',
+          title: item.title,
+          subtitle: t('liveControls.serviceMediaLiveDrop'),
+          capability: 'media.open',
+          payload: {
+            kind: item.type,
+            liveDropAssetId: assetId
+          },
+          targetProviderIds: providerId ? [providerId] : undefined,
+          serviceItemId: item.id,
+          liveDropAssetId: assetId
+        };
+      }
+
+      const file = String(payload.file || '').trim();
+      if (!file) return null;
+      return {
+        id: `service-item:${item.id}`,
+        kind: 'media',
+        title: item.title,
+        subtitle: String(payload.providerName || t('liveControls.fromRunOfShow')),
+        capability: 'media.open',
+        payload: {
+          kind: item.type,
+          file
+        },
+        targetProviderIds: providerId ? [providerId] : undefined,
+        serviceItemId: item.id
+      };
+    }
+
+    return null;
   }
 
-  function prepareServiceItem() {
-    if (serviceHorizon.next) prepareServiceSong(serviceHorizon.next);
+  function prepareServiceItemCue(item: ServiceItem) {
+    const cue = buildServiceItemCue(item);
+    if (!cue) {
+      setMessage(t('liveControls.serviceItemUnavailable', { type: item.type }));
+      return;
+    }
+    setPreparedCue(cue);
+  }
+
+  function prepareServiceSong(item: ServiceItem) {
+    prepareServiceItemCue(item);
+  }
+
+  function prepareNextServiceItem() {
+    if (serviceHorizon.next) prepareServiceItemCue(serviceHorizon.next);
   }
 
   async function playServiceSong(item: ServiceItem) {
@@ -786,6 +874,55 @@ export function LiveControlPanel({
 
     const armedVisual = cueCoordinator?.armedVisualCue || null;
     const credential = controller.credential;
+
+    if (preparedCue.liveDropAssetId) {
+      setBusy('prepared-take');
+      setMessage(null);
+      try {
+        const response = await controller.openLiveDrop(
+          preparedCue.liveDropAssetId,
+          {
+            actorId,
+            liveSessionId,
+            providerId: preparedCue.targetProviderIds?.[0],
+            serviceItemId: preparedCue.serviceItemId
+          }
+        );
+        const mediaAccepted = response.results.some(result => result.accepted);
+        if (!mediaAccepted) {
+          const failed = response.results.find(result => !result.accepted);
+          setMessage(commandFailure(failed?.errorCode || 'media_open_failed'));
+          return;
+        }
+
+        let linkedVisualAccepted = true;
+        if (armedVisual) {
+          const visualResults = await controller.executeCommand({
+            capability: 'visual.clip.trigger',
+            payload: { clipId: armedVisual.clipId },
+            liveSessionId,
+            serviceItemId: preparedCue.serviceItemId,
+            actorId,
+            targetProviderIds: [armedVisual.providerId],
+            safetyLevel: 'normal'
+          });
+          linkedVisualAccepted = visualResults.some(result => result.accepted);
+          if (linkedVisualAccepted) cueCoordinator?.clearVisualCue();
+        }
+
+        setPreparedCue(null);
+        setToolMode('media');
+        setFollowLive(true);
+        if (!linkedVisualAccepted) {
+          setMessage(t('liveControls.linkedTakePartial'));
+        }
+      } catch (error) {
+        setMessage(commandFailure(error instanceof Error ? error.message : 'unknown'));
+      } finally {
+        setBusy(null);
+      }
+      return;
+    }
 
     if (armedVisual && credential) {
       setBusy('prepared-take');
@@ -1533,11 +1670,10 @@ export function LiveControlPanel({
               className="service-horizon-take"
               disabled={
                 !serviceHorizon.next ||
-                serviceHorizon.next.type !== 'song' ||
-                !serviceHorizon.next.providerLinkId ||
+                !buildServiceItemCue(serviceHorizon.next) ||
                 busy !== null
               }
-              onClick={prepareServiceItem}
+              onClick={prepareNextServiceItem}
             >
               {t('liveControls.prepareItem')} →
             </button>
