@@ -4,6 +4,9 @@ import { routeGroupForCapability } from '../src/routing';
 describe('provider-neutral capability routing', () => {
   it('routes presentation and preview through one presentation provider', () => {
     expect(routeGroupForCapability('presentation.navigation')).toBe('presentation');
+    expect(routeGroupForCapability('text.present')).toBe('presentation');
+    expect(routeGroupForCapability('text.quick.present')).toBe('presentation');
+    expect(routeGroupForCapability('announcement.present')).toBe('presentation');
     expect(routeGroupForCapability('preview.snapshot')).toBe('presentation');
   });
 
