@@ -1104,6 +1104,7 @@ const resources = {
         media_open_failed: 'o provider recusou a abertura da mídia'
       },
       accept: 'Aceitar',
+      acceptPrepare: 'Aceitar e preparar',
       reject: 'Recusar',
       complete: 'Concluir',
       playlistUpdate: 'PLAYLIST ATUALIZADA',
@@ -2117,6 +2118,7 @@ const resources = {
         media_open_failed: 'the provider rejected opening this media'
       },
       accept: 'Accept',
+      acceptPrepare: 'Accept and prepare',
       reject: 'Reject',
       complete: 'Complete',
       playlistUpdate: 'PLAYLIST UPDATED',
@@ -3130,6 +3132,7 @@ const resources = {
         media_open_failed: 'el provider rechazó la apertura de la media'
       },
       accept: 'Aceptar',
+      acceptPrepare: 'Aceptar y preparar',
       reject: 'Rechazar',
       complete: 'Completar',
       playlistUpdate: 'PLAYLIST ACTUALIZADA',
