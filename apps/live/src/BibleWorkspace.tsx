@@ -330,6 +330,7 @@ export function BibleWorkspace({
   const chapterCache = useRef(new Map<string, ChapterSnapshot>());
   const chapterRequests = useRef(new Map<string, Promise<ChapterSnapshot>>());
   const verseListRef = useRef<HTMLDivElement | null>(null);
+  const smartRailRef = useRef<HTMLDivElement | null>(null);
   const tapTarget = useRef<{ key: string; at: number } | null>(null);
 
   const providers = controller.nodeState?.providers || [];
@@ -993,6 +994,11 @@ export function BibleWorkspace({
         block: 'center',
         inline: 'nearest'
       });
+      smartRailRef.current?.querySelector<HTMLElement>('.focused')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [chapterCacheEpoch, isBibleLive, liveReference, selected?.reference]);
@@ -1084,7 +1090,7 @@ export function BibleWorkspace({
             </div>
             <span>{t('bibleWorkspace.providerVerified')}</span>
           </div>
-          <div className="bible-smart-verse-rail">
+          <div ref={smartRailRef} className="bible-smart-verse-rail">
             {verseWindow.map(verse => {
               const parsed = parseReference(verse.reference);
               const onAir = Boolean(
