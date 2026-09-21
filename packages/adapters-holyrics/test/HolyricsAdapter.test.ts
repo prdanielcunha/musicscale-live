@@ -76,7 +76,12 @@ class FakeApi implements HolyricsApi {
       ] as T;
     }
     if (action === 'SearchText') {
-      return [{ id: 'text-1', title: 'Boas-vindas', text: 'Sejam bem-vindos' }] as T;
+      return [{
+        id: 'text-1',
+        title: 'Boas-vindas',
+        folder: 'Culto',
+        slides: [{ text: 'Sejam bem-vindos' }]
+      }] as T;
     }
     if (action === 'GetAnnouncements') {
       return [
