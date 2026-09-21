@@ -157,7 +157,7 @@ function buildSongSections(slides: Array<Record<string, unknown>>): SongSection[
 function looksLikeBibleReference(value: string): boolean {
   const text = value.trim();
   if (!text) return false;
-  return /^(?:[1-3]\s*)?[\p{L}.ªº]+(?:\s+[\p{L}.ªº]+)*\s+\d+(?:\s*[:.]\s*\d+(?:\s*[-–]\s*\d+)?)?$/iu.test(text);
+  return /^(?:[1-3]\s*)?[\p{L}.ªº]+(?:\s+[\p{L}.ªº]+)*\s+\d+(?:(?:\s*[:.]\s*|\s+)\d+(?:\s*[-–]\s*\d+)?)?$/iu.test(text);
 }
 
 function getPresentationFromResults(results: CommandResult[]): Record<string, unknown> | null {
