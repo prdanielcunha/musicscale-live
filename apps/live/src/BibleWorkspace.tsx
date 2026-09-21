@@ -412,6 +412,14 @@ export function BibleWorkspace({
     };
   }, [actorId, canReadVersions, controller.executeCommand, liveSessionId]);
 
+  useEffect(() => {
+    if (!chapterContext || !canSearch) return;
+    // Version/language changes invalidate only the navigation cache. Rebuild from
+    // Holyrics so book labels and verse IDs always match the provider context.
+    void loadChapter(chapterContext, { background: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
+
   const favoriteKeys = useMemo(
     () => new Set(favorites.map(item => savedKey(item))),
     [favorites]
@@ -423,10 +431,11 @@ export function BibleWorkspace({
   const bibleLanguageId = selectedVersion?.languageId;
 
   function chapterSignature(reference: ParsedReference): string {
-    const bookPart = reference.book
-      ? `book-${reference.book}`
-      : reference.bookLabel.toLocaleLowerCase();
-    return `${bookPart}:${reference.chapter}:${bibleLanguageId || 'provider-default'}`;
+    return [
+      reference.bookLabel.toLocaleLowerCase(),
+      reference.chapter,
+      bibleLanguageId || 'provider-default'
+    ].join(':');
   }
 
   async function requestChapter(reference: ParsedReference): Promise<ChapterSnapshot> {
