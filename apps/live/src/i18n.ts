@@ -384,6 +384,11 @@ const resources = {
       confirmOpen: '“{{name}}” pode entrar no provider imediatamente. Clique novamente para confirmar.',
       opened: '“{{name}}” foi aberto em {{provider}}.',
       openFailed: 'Não foi possível abrir a mídia: {{code}}',
+      addNext: 'Colocar no roteiro como próxima',
+      addEnd: 'Adicionar ao final do roteiro',
+      addedNext: '“{{name}}” foi colocada como próxima no roteiro sem interromper o que está no ar.',
+      addedEnd: '“{{name}}” foi adicionada ao final do roteiro.',
+      addFailed: 'Não foi possível atualizar o roteiro: {{code}}',
       emptyTitle: 'Nenhum item nesta visualização',
       emptyHint: 'Pesquise os providers ou envie arquivos pelo Live Drop para montar a biblioteca deste culto.',
       noProviderSearch: 'Nenhum provider conectado oferece busca de mídia; os arquivos aprovados do Live Drop continuarão aparecendo aqui.'
@@ -732,6 +737,20 @@ const resources = {
       endOfService: 'Fim do roteiro',
       advanceItem: 'Ir para próximo item',
       prepareItem: 'Preparar próximo',
+      fullRunOfShow: 'ROTEIRO COMPLETO',
+      runOfShowHint: '1 toque prepara · toque novamente para colocar no ar',
+      serviceMediaLiveDrop: 'Live Drop · arquivo local preparado',
+      serviceItemUnavailable: 'Este item do roteiro ainda precisa de uma integração compatível para ser executado: {{type}}.',
+      serviceItemNeedsSetup: 'Precisa configurar',
+      serviceItemTypes: {
+        song: 'Música', bible: 'Bíblia', video: 'Vídeo', image: 'Imagem', audio: 'Áudio',
+        text: 'Texto', announcement: 'Aviso', presentation: 'Apresentação',
+        action: 'Ação', macro: 'Macro', scene: 'Cena', custom: 'Personalizado'
+      },
+      serviceStates: {
+        planned: 'Planejado', prepared: 'Preparado', live: 'No ar', completed: 'Concluído',
+        skipped: 'Pulado', warning: 'Atenção', error: 'Erro'
+      },
       screenModes: { normal: 'Normal', wallpaper: 'Fundo', blank: 'Vazio', black: 'Preto' },
       previous: 'Anterior',
       next: 'Próximo',
@@ -1335,6 +1354,11 @@ const resources = {
       confirmOpen: '“{{name}}” may go to the provider immediately. Click again to confirm.',
       opened: '“{{name}}” was opened on {{provider}}.',
       openFailed: 'Could not open media: {{code}}',
+      addNext: 'Make next in run of show',
+      addEnd: 'Add to end of run of show',
+      addedNext: '“{{name}}” is now next in the run of show without interrupting what is on air.',
+      addedEnd: '“{{name}}” was added to the end of the run of show.',
+      addFailed: 'Could not update the run of show: {{code}}',
       emptyTitle: 'No items in this view',
       emptyHint: 'Search providers or send files through Live Drop to build this service library.',
       noProviderSearch: 'No connected provider offers media search; approved Live Drop files will still appear here.'
@@ -1683,6 +1707,20 @@ const resources = {
       endOfService: 'End of run of show',
       advanceItem: 'Take next item',
       prepareItem: 'Prepare next',
+      fullRunOfShow: 'FULL RUN OF SHOW',
+      runOfShowHint: 'One tap prepares · tap again to put it on air',
+      serviceMediaLiveDrop: 'Live Drop · local file prepared',
+      serviceItemUnavailable: 'This run-of-show item still needs a compatible integration before it can execute: {{type}}.',
+      serviceItemNeedsSetup: 'Needs setup',
+      serviceItemTypes: {
+        song: 'Song', bible: 'Bible', video: 'Video', image: 'Image', audio: 'Audio',
+        text: 'Text', announcement: 'Announcement', presentation: 'Presentation',
+        action: 'Action', macro: 'Macro', scene: 'Scene', custom: 'Custom'
+      },
+      serviceStates: {
+        planned: 'Planned', prepared: 'Prepared', live: 'On air', completed: 'Completed',
+        skipped: 'Skipped', warning: 'Attention', error: 'Error'
+      },
       screenModes: { normal: 'Normal', wallpaper: 'Wallpaper', blank: 'Blank', black: 'Black' },
       previous: 'Previous',
       next: 'Next',
@@ -2286,6 +2324,11 @@ const resources = {
       confirmOpen: '“{{name}}” puede entrar en el provider inmediatamente. Haga clic de nuevo para confirmar.',
       opened: '“{{name}}” fue abierto en {{provider}}.',
       openFailed: 'No fue posible abrir la media: {{code}}',
+      addNext: 'Poner como siguiente en el guion',
+      addEnd: 'Agregar al final del guion',
+      addedNext: '“{{name}}” quedó como siguiente en el guion sin interrumpir lo que está al aire.',
+      addedEnd: '“{{name}}” fue agregada al final del guion.',
+      addFailed: 'No fue posible actualizar el guion: {{code}}',
       emptyTitle: 'No hay elementos en esta vista',
       emptyHint: 'Busque en los providers o envíe archivos por Live Drop para montar la biblioteca de este culto.',
       noProviderSearch: 'Ningún provider conectado ofrece búsqueda de media; los archivos aprobados de Live Drop seguirán apareciendo aquí.'
@@ -2634,6 +2677,20 @@ const resources = {
       endOfService: 'Fin del guión',
       advanceItem: 'Ir al siguiente ítem',
       prepareItem: 'Preparar siguiente',
+      fullRunOfShow: 'GUIÓN COMPLETO',
+      runOfShowHint: '1 toque prepara · toque otra vez para poner al aire',
+      serviceMediaLiveDrop: 'Live Drop · archivo local preparado',
+      serviceItemUnavailable: 'Este ítem del guion todavía necesita una integración compatible para ejecutarse: {{type}}.',
+      serviceItemNeedsSetup: 'Requiere configuración',
+      serviceItemTypes: {
+        song: 'Canción', bible: 'Biblia', video: 'Video', image: 'Imagen', audio: 'Audio',
+        text: 'Texto', announcement: 'Aviso', presentation: 'Presentación',
+        action: 'Acción', macro: 'Macro', scene: 'Escena', custom: 'Personalizado'
+      },
+      serviceStates: {
+        planned: 'Planificado', prepared: 'Preparado', live: 'Al aire', completed: 'Completado',
+        skipped: 'Omitido', warning: 'Atención', error: 'Error'
+      },
       screenModes: { normal: 'Normal', wallpaper: 'Fondo', blank: 'Vacío', black: 'Negro' },
       previous: 'Anterior',
       next: 'Siguiente',
