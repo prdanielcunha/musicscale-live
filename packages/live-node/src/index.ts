@@ -2022,7 +2022,9 @@ async function start(): Promise<void> {
       const actorId = String(candidate.actorId || '').trim();
       const liveSessionId = String(candidate.liveSessionId || '').trim();
       const targetProviderId = String(candidate.providerId || '').trim();
+      const serviceItemId = String(candidate.serviceItemId || '').trim();
       if (!actorId || !liveSessionId) throw new Error('invalid_live_drop_open');
+      if (serviceItemId.length > 200) throw new Error('invalid_live_drop_service_item');
 
       const resolved = await liveDropStore.resolveReadyPath(assetId, scope);
       if (!['image', 'video', 'audio'].includes(resolved.asset.mediaType)) {
@@ -2079,7 +2081,8 @@ async function start(): Promise<void> {
           remoteProviderId,
           federatedProviderId: selectedProviderId,
           actorId,
-          liveSessionId
+          liveSessionId,
+          serviceItemId: serviceItemId || undefined
         });
         const accepted = federated.results.some(result => result.accepted);
         const failure = federated.results.find(result => !result.accepted);
@@ -2103,6 +2106,7 @@ async function start(): Promise<void> {
         venueId: scope.venueId,
         liveSystemId: scope.liveSystemId,
         liveSessionId,
+        serviceItemId: serviceItemId || undefined,
         actorId,
         origin: 'live-ui',
         capability: 'media.open',
@@ -2214,11 +2218,21 @@ async function start(): Promise<void> {
         });
       }
 
+      const samePlan = currentRuntime.servicePlan?.id === plan.id;
+      const preservedActiveItemId =
+        samePlan &&
+        currentRuntime.activeServiceItemId &&
+        plan.items.some(item => item.id === currentRuntime.activeServiceItemId)
+          ? currentRuntime.activeServiceItemId
+          : plan.items[0]?.id || null;
       const state = await runtimeState.patch({
         servicePlan: plan,
         providerLinks,
-        activeLiveSessionId: `service-plan:${plan.id}`,
-        activeServiceItemId: plan.items[0]?.id || null
+        activeLiveSessionId:
+          samePlan && currentRuntime.activeLiveSessionId
+            ? currentRuntime.activeLiveSessionId
+            : `service-plan:${plan.id}`,
+        activeServiceItemId: preservedActiveItemId
       });
       return send(res, 200, {
         nodeId,

@@ -50,6 +50,7 @@ interface PreparedProgramCue {
   targetProviderIds?: string[];
   serviceItemId?: string;
   previewDataUrl?: string;
+  liveDropAssetId?: string;
 }
 
 interface BackgroundOption {
@@ -582,25 +583,112 @@ export function LiveControlPanel({
     }
   }
 
-  function prepareServiceSong(item: ServiceItem) {
-    if (item.type !== 'song' || !item.providerLinkId) return;
-    const link = providerLinks.find(candidate => candidate.id === item.providerLinkId);
-    if (!link) return;
+  function buildServiceItemCue(item: ServiceItem): PreparedProgramCue | null {
+    if (item.type === 'song') {
+      if (!item.providerLinkId || !can('songs.present')) return null;
+      const link = providerLinks.find(candidate => candidate.id === item.providerLinkId);
+      if (!link) return null;
+      return {
+        id: `service-item:${item.id}`,
+        kind: 'song',
+        title: item.title,
+        subtitle: t('liveControls.fromRunOfShow'),
+        capability: 'songs.present',
+        payload: { id: link.externalId },
+        targetProviderIds: [link.providerInstanceId],
+        serviceItemId: item.id
+      };
+    }
 
-    setPreparedCue({
-      id: `service-item:${item.id}`,
-      kind: 'song',
-      title: item.title,
-      subtitle: t('liveControls.fromRunOfShow'),
-      capability: 'songs.present',
-      payload: { id: link.externalId },
-      targetProviderIds: [link.providerInstanceId],
-      serviceItemId: item.id
-    });
+    if (item.type === 'bible') {
+      if (!can('bible.present')) return null;
+      const payload = item.payload || {};
+      const ids = Array.isArray(payload.ids)
+        ? payload.ids.map(String).filter(Boolean)
+        : [];
+      const reference = String(
+        payload.references ||
+        payload.reference ||
+        ''
+      ).trim();
+      if (!ids.length && !reference) return null;
+      return {
+        id: `service-item:${item.id}`,
+        kind: 'bible',
+        title: item.title,
+        subtitle: reference || t('liveControls.fromRunOfShow'),
+        capability: 'bible.present',
+        payload: {
+          ...(ids.length ? { ids } : { references: reference }),
+          ...(payload.version ? { version: String(payload.version) } : {})
+        },
+        targetProviderIds: payload.providerId
+          ? [String(payload.providerId)]
+          : undefined,
+        serviceItemId: item.id
+      };
+    }
+
+    if (item.type === 'video' || item.type === 'image' || item.type === 'audio') {
+      if (!can('media.open')) return null;
+      const payload = item.payload || {};
+      const source = String(payload.source || 'provider');
+      const providerId = String(payload.providerId || '').trim();
+
+      if (source === 'live-drop') {
+        const assetId = String(payload.assetId || '').trim();
+        if (!assetId) return null;
+        return {
+          id: `service-item:${item.id}`,
+          kind: 'media',
+          title: item.title,
+          subtitle: t('liveControls.serviceMediaLiveDrop'),
+          capability: 'media.open',
+          payload: {
+            kind: item.type,
+            liveDropAssetId: assetId
+          },
+          targetProviderIds: providerId ? [providerId] : undefined,
+          serviceItemId: item.id,
+          liveDropAssetId: assetId
+        };
+      }
+
+      const file = String(payload.file || '').trim();
+      if (!file) return null;
+      return {
+        id: `service-item:${item.id}`,
+        kind: 'media',
+        title: item.title,
+        subtitle: String(payload.providerName || t('liveControls.fromRunOfShow')),
+        capability: 'media.open',
+        payload: {
+          kind: item.type,
+          file
+        },
+        targetProviderIds: providerId ? [providerId] : undefined,
+        serviceItemId: item.id
+      };
+    }
+
+    return null;
   }
 
-  function prepareServiceItem() {
-    if (serviceHorizon.next) prepareServiceSong(serviceHorizon.next);
+  function prepareServiceItemCue(item: ServiceItem) {
+    const cue = buildServiceItemCue(item);
+    if (!cue) {
+      setMessage(t('liveControls.serviceItemUnavailable', { type: item.type }));
+      return;
+    }
+    setPreparedCue(cue);
+  }
+
+  function prepareServiceSong(item: ServiceItem) {
+    prepareServiceItemCue(item);
+  }
+
+  function prepareNextServiceItem() {
+    if (serviceHorizon.next) prepareServiceItemCue(serviceHorizon.next);
   }
 
   async function playServiceSong(item: ServiceItem) {
@@ -781,11 +869,61 @@ export function LiveControlPanel({
     });
   }
 
-  async function takePreparedCue() {
-    if (!preparedCue) return;
+  async function takePreparedCue(cueOverride?: PreparedProgramCue) {
+    const cue = cueOverride || preparedCue;
+    if (!cue) return;
 
     const armedVisual = cueCoordinator?.armedVisualCue || null;
     const credential = controller.credential;
+
+    if (cue.liveDropAssetId) {
+      setBusy('prepared-take');
+      setMessage(null);
+      try {
+        const response = await controller.openLiveDrop(
+          cue.liveDropAssetId,
+          {
+            actorId,
+            liveSessionId,
+            providerId: cue.targetProviderIds?.[0],
+            serviceItemId: cue.serviceItemId
+          }
+        );
+        const mediaAccepted = response.results.some(result => result.accepted);
+        if (!mediaAccepted) {
+          const failed = response.results.find(result => !result.accepted);
+          setMessage(commandFailure(failed?.errorCode || 'media_open_failed'));
+          return;
+        }
+
+        let linkedVisualAccepted = true;
+        if (armedVisual) {
+          const visualResults = await controller.executeCommand({
+            capability: 'visual.clip.trigger',
+            payload: { clipId: armedVisual.clipId },
+            liveSessionId,
+            serviceItemId: cue.serviceItemId,
+            actorId,
+            targetProviderIds: [armedVisual.providerId],
+            safetyLevel: 'normal'
+          });
+          linkedVisualAccepted = visualResults.some(result => result.accepted);
+          if (linkedVisualAccepted) cueCoordinator?.clearVisualCue();
+        }
+
+        if (!cueOverride || preparedCue?.id === cue.id) setPreparedCue(null);
+        setToolMode('media');
+        setFollowLive(true);
+        if (!linkedVisualAccepted) {
+          setMessage(t('liveControls.linkedTakePartial'));
+        }
+      } catch (error) {
+        setMessage(commandFailure(error instanceof Error ? error.message : 'unknown'));
+      } finally {
+        setBusy(null);
+      }
+      return;
+    }
 
     if (armedVisual && credential) {
       setBusy('prepared-take');
@@ -793,21 +931,21 @@ export function LiveControlPanel({
       try {
         const result = await controller.executeScene({
           liveSessionId,
-          serviceItemId: preparedCue.serviceItemId,
+          serviceItemId: cue.serviceItemId,
           actorId,
           scene: {
             id: createClientId(),
             organizationId: credential.binding.organizationId,
             venueId: credential.binding.venueId,
             liveSystemId: credential.binding.liveSystemId,
-            name: `Prepared Take · ${preparedCue.title}`,
+            name: `Prepared Take · ${cue.title}`,
             actions: [
               {
                 id: 'program-take',
-                capability: preparedCue.capability,
-                targetProviderIds: preparedCue.targetProviderIds || [],
+                capability: cue.capability,
+                targetProviderIds: cue.targetProviderIds || [],
                 outputTargets: ['main'],
-                payload: preparedCue.payload,
+                payload: cue.payload,
                 safetyLevel: 'normal'
               },
               {
@@ -829,7 +967,9 @@ export function LiveControlPanel({
           .find(action => action.actionId === 'visual-take')
           ?.results.some(item => item.accepted);
 
-        if (programAccepted) setPreparedCue(null);
+        if (programAccepted && (!cueOverride || preparedCue?.id === cue.id)) {
+          setPreparedCue(null);
+        }
         if (visualAccepted) cueCoordinator?.clearVisualCue();
         if (result.status !== 'completed') {
           setMessage(t('liveControls.linkedTakePartial'));
@@ -844,14 +984,23 @@ export function LiveControlPanel({
 
     const results = await run(
       'prepared-take',
-      preparedCue.capability,
-      preparedCue.payload,
+      cue.capability,
+      cue.payload,
       'normal',
-      preparedCue.serviceItemId,
-      preparedCue.targetProviderIds
+      cue.serviceItemId,
+      cue.targetProviderIds
     );
-    if (results.some(result => result.accepted)) {
+    if (
+      results.some(result => result.accepted) &&
+      (!cueOverride || preparedCue?.id === cue.id)
+    ) {
       setPreparedCue(null);
+    }
+    if (results.some(result => result.accepted)) {
+      if (cue.kind === 'song') setToolMode('song');
+      if (cue.kind === 'bible') setToolMode('bible');
+      if (cue.kind === 'media') setToolMode('media');
+      setFollowLive(true);
     }
   }
 
@@ -1533,16 +1682,78 @@ export function LiveControlPanel({
               className="service-horizon-take"
               disabled={
                 !serviceHorizon.next ||
-                serviceHorizon.next.type !== 'song' ||
-                !serviceHorizon.next.providerLinkId ||
+                !buildServiceItemCue(serviceHorizon.next) ||
                 busy !== null
               }
-              onClick={prepareServiceItem}
+              onClick={prepareNextServiceItem}
             >
               {t('liveControls.prepareItem')} →
             </button>
           </div>
         )}
+
+        {servicePlan?.items.length ? (
+          <section className="service-plan-timeline" aria-label={t('liveControls.fullRunOfShow')}>
+            <header>
+              <div>
+                <small>{t('liveControls.fullRunOfShow')}</small>
+                <strong>{servicePlan.title}</strong>
+              </div>
+              <span>{t('liveControls.runOfShowHint')}</span>
+            </header>
+            <div className="service-plan-timeline-rail">
+              {servicePlan.items.map((item, index) => {
+                const cue = buildServiceItemCue(item);
+                const isCurrent =
+                  item.id === serviceHorizon.current?.id ||
+                  item.state === 'live';
+                const isPrepared = preparedCue?.serviceItemId === item.id;
+                const unavailable = !cue;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={[
+                      'service-plan-timeline-item',
+                      isCurrent ? 'current' : '',
+                      isPrepared ? 'prepared' : '',
+                      item.state === 'completed' ? 'completed' : '',
+                      item.state === 'skipped' ? 'skipped' : '',
+                      unavailable ? 'unavailable' : ''
+                    ].filter(Boolean).join(' ')}
+                    disabled={busy !== null || unavailable}
+                    onClick={() => cue && activateTarget(
+                      `service-plan:${item.id}`,
+                      () => prepareServiceItemCue(item),
+                      () => void takePreparedCue(cue)
+                    )}
+                  >
+                    <small>{String(index + 1).padStart(2, '0')}</small>
+                    <span>
+                      <strong>{item.title}</strong>
+                      <em>
+                        {t(`liveControls.serviceItemTypes.${item.type}`, {
+                          defaultValue: item.type
+                        })}
+                      </em>
+                    </span>
+                    <b>
+                      {isCurrent
+                        ? t('liveControls.onAir')
+                        : isPrepared
+                          ? t('liveControls.prepared')
+                          : unavailable
+                            ? t('liveControls.serviceItemNeedsSetup')
+                            : t(`liveControls.serviceStates.${item.state}`, {
+                                defaultValue: item.state
+                              })}
+                    </b>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
         {toolMode === 'song' && toolAvailability.song && (
         <article className="operator-card live-tool-card song-library-card">
