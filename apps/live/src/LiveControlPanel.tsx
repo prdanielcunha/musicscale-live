@@ -869,23 +869,24 @@ export function LiveControlPanel({
     });
   }
 
-  async function takePreparedCue() {
-    if (!preparedCue) return;
+  async function takePreparedCue(cueOverride?: PreparedProgramCue) {
+    const cue = cueOverride || preparedCue;
+    if (!cue) return;
 
     const armedVisual = cueCoordinator?.armedVisualCue || null;
     const credential = controller.credential;
 
-    if (preparedCue.liveDropAssetId) {
+    if (cue.liveDropAssetId) {
       setBusy('prepared-take');
       setMessage(null);
       try {
         const response = await controller.openLiveDrop(
-          preparedCue.liveDropAssetId,
+          cue.liveDropAssetId,
           {
             actorId,
             liveSessionId,
-            providerId: preparedCue.targetProviderIds?.[0],
-            serviceItemId: preparedCue.serviceItemId
+            providerId: cue.targetProviderIds?.[0],
+            serviceItemId: cue.serviceItemId
           }
         );
         const mediaAccepted = response.results.some(result => result.accepted);
@@ -901,7 +902,7 @@ export function LiveControlPanel({
             capability: 'visual.clip.trigger',
             payload: { clipId: armedVisual.clipId },
             liveSessionId,
-            serviceItemId: preparedCue.serviceItemId,
+            serviceItemId: cue.serviceItemId,
             actorId,
             targetProviderIds: [armedVisual.providerId],
             safetyLevel: 'normal'
@@ -910,7 +911,7 @@ export function LiveControlPanel({
           if (linkedVisualAccepted) cueCoordinator?.clearVisualCue();
         }
 
-        setPreparedCue(null);
+        if (!cueOverride || preparedCue?.id === cue.id) setPreparedCue(null);
         setToolMode('media');
         setFollowLive(true);
         if (!linkedVisualAccepted) {
@@ -930,21 +931,21 @@ export function LiveControlPanel({
       try {
         const result = await controller.executeScene({
           liveSessionId,
-          serviceItemId: preparedCue.serviceItemId,
+          serviceItemId: cue.serviceItemId,
           actorId,
           scene: {
             id: createClientId(),
             organizationId: credential.binding.organizationId,
             venueId: credential.binding.venueId,
             liveSystemId: credential.binding.liveSystemId,
-            name: `Prepared Take · ${preparedCue.title}`,
+            name: `Prepared Take · ${cue.title}`,
             actions: [
               {
                 id: 'program-take',
-                capability: preparedCue.capability,
-                targetProviderIds: preparedCue.targetProviderIds || [],
+                capability: cue.capability,
+                targetProviderIds: cue.targetProviderIds || [],
                 outputTargets: ['main'],
-                payload: preparedCue.payload,
+                payload: cue.payload,
                 safetyLevel: 'normal'
               },
               {
@@ -966,7 +967,9 @@ export function LiveControlPanel({
           .find(action => action.actionId === 'visual-take')
           ?.results.some(item => item.accepted);
 
-        if (programAccepted) setPreparedCue(null);
+        if (programAccepted && (!cueOverride || preparedCue?.id === cue.id)) {
+          setPreparedCue(null);
+        }
         if (visualAccepted) cueCoordinator?.clearVisualCue();
         if (result.status !== 'completed') {
           setMessage(t('liveControls.linkedTakePartial'));
@@ -981,14 +984,23 @@ export function LiveControlPanel({
 
     const results = await run(
       'prepared-take',
-      preparedCue.capability,
-      preparedCue.payload,
+      cue.capability,
+      cue.payload,
       'normal',
-      preparedCue.serviceItemId,
-      preparedCue.targetProviderIds
+      cue.serviceItemId,
+      cue.targetProviderIds
     );
-    if (results.some(result => result.accepted)) {
+    if (
+      results.some(result => result.accepted) &&
+      (!cueOverride || preparedCue?.id === cue.id)
+    ) {
       setPreparedCue(null);
+    }
+    if (results.some(result => result.accepted)) {
+      if (cue.kind === 'song') setToolMode('song');
+      if (cue.kind === 'bible') setToolMode('bible');
+      if (cue.kind === 'media') setToolMode('media');
+      setFollowLive(true);
     }
   }
 
