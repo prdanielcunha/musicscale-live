@@ -35,8 +35,14 @@ interface SavedBibleReference extends BibleReferenceMatch {
 
 interface ParsedReference {
   bookLabel: string;
+  book?: number;
   chapter: number;
   verse?: number;
+}
+
+interface ChapterSnapshot {
+  context: ParsedReference;
+  verses: BibleVerseReference[];
 }
 
 interface PreviousSong {
@@ -209,6 +215,33 @@ function verseAsMatch(verse: BibleVerseReference): BibleReferenceMatch {
   };
 }
 
+function sameChapter(a: ParsedReference | null | undefined, b: ParsedReference | null | undefined): boolean {
+  if (!a || !b) return false;
+  if (a.book && b.book) return a.book === b.book && a.chapter === b.chapter;
+  return (
+    a.bookLabel.toLocaleLowerCase() === b.bookLabel.toLocaleLowerCase() &&
+    a.chapter === b.chapter
+  );
+}
+
+function verseIdentity(verse: BibleVerseReference): string {
+  return verse.id || verse.reference.toLocaleLowerCase();
+}
+
+function canonicalContext(
+  requested: ParsedReference,
+  verses: BibleVerseReference[]
+): ParsedReference {
+  const first = verses[0];
+  const parsed = first ? parseReference(first.reference) : null;
+  return {
+    bookLabel: parsed?.bookLabel || requested.bookLabel,
+    book: first?.book || requested.book,
+    chapter: first?.chapter || parsed?.chapter || requested.chapter,
+    verse: requested.verse
+  };
+}
+
 function readStoredReferences(key: string): SavedBibleReference[] {
   try {
     const raw = localStorage.getItem(key);
@@ -292,8 +325,13 @@ export function BibleWorkspace({
   const [multiSelect, setMultiSelect] = useState(false);
   const [multiKeys, setMultiKeys] = useState<Set<string>>(() => new Set());
   const [previousSong, setPreviousSong] = useState<PreviousSong | null>(null);
+  const [chapterCacheEpoch, setChapterCacheEpoch] = useState(0);
   const versionsLoadStarted = useRef(false);
-  const loadedChapterSignature = useRef('');
+  const chapterCache = useRef(new Map<string, ChapterSnapshot>());
+  const chapterRequests = useRef(new Map<string, Promise<ChapterSnapshot>>());
+  const verseListRef = useRef<HTMLDivElement | null>(null);
+  const smartRailRef = useRef<HTMLDivElement | null>(null);
+  const previousLiveVerseId = useRef('');
   const tapTarget = useRef<{ key: string; at: number } | null>(null);
 
   const providers = controller.nodeState?.providers || [];
@@ -331,14 +369,25 @@ export function BibleWorkspace({
     ? liveSlideNumber - 1
     : 0;
   const liveSlide = liveSlides[liveSlideIndex];
-  const liveReference = slideReference(liveSlide, livePresentation);
-  const liveParsed = parseReference(liveReference);
   const liveType = String(livePresentation?.type || livePresentation?.slide_type || '');
-  const isBibleLive = Boolean(
-    liveParsed ||
-    /bible|verse|bíblia|biblia/i.test(liveType)
-  );
-  const liveVerseText = isBibleLive ? slideText(liveSlide) : '';
+  const providerSaysBibleIsLive = /bible|verse|bíblia|biblia/i.test(liveType);
+  const liveVerseId = providerSaysBibleIsLive
+    ? String(livePresentation?.id || '')
+    : '';
+  const cachedLiveVerse = liveVerseId
+    ? Array.from(chapterCache.current.values())
+        .flatMap(snapshot => snapshot.verses)
+        .find(verse => verse.id === liveVerseId)
+    : undefined;
+  const liveReference =
+    slideReference(liveSlide, livePresentation) ||
+    cachedLiveVerse?.reference ||
+    '';
+  const liveParsed = parseReference(liveReference);
+  const isBibleLive = Boolean(liveParsed || liveVerseId || providerSaysBibleIsLive);
+  const liveVerseText = isBibleLive
+    ? slideText(liveSlide) || cachedLiveVerse?.text || ''
+    : '';
 
   const binding = controller.credential?.binding;
   const storageScope = binding
@@ -376,10 +425,120 @@ export function BibleWorkspace({
     };
   }, [actorId, canReadVersions, controller.executeCommand, liveSessionId]);
 
+  useEffect(() => {
+    if (!chapterContext || !canSearch) return;
+    // Version/language changes invalidate only the navigation cache. Rebuild from
+    // Holyrics so book labels and verse IDs always match the provider context.
+    void loadChapter(chapterContext, { background: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
+
   const favoriteKeys = useMemo(
     () => new Set(favorites.map(item => savedKey(item))),
     [favorites]
   );
+  const selectedVersion = useMemo(
+    () => versions.find(item => item.key === version || item.version === version),
+    [version, versions]
+  );
+  const bibleLanguageId = selectedVersion?.languageId;
+
+  function chapterSignature(reference: ParsedReference): string {
+    return [
+      reference.bookLabel.toLocaleLowerCase(),
+      reference.chapter,
+      bibleLanguageId || 'provider-default'
+    ].join(':');
+  }
+
+  async function requestChapter(reference: ParsedReference): Promise<ChapterSnapshot> {
+    const signature = chapterSignature(reference);
+    const cached = chapterCache.current.get(signature);
+    if (cached) return cached;
+
+    const pending = chapterRequests.current.get(signature);
+    if (pending) return pending;
+
+    const request = (async () => {
+      const response = await controller.executeCommand({
+        capability: 'bible.search',
+        payload: {
+          text: `${reference.bookLabel} ${reference.chapter}`,
+          languageId: bibleLanguageId
+        },
+        liveSessionId,
+        actorId,
+        safetyLevel: 'normal'
+      });
+      const failed = response.find(result => !result.accepted);
+      if (failed) {
+        throw new Error(failed.errorCode || 'provider_error');
+      }
+
+      const matches = getBibleMatches(response);
+      let verses = flattenVerses(matches);
+
+      // Holyrics does not expose arbitrary Bible text through this command.
+      // Only enrich with text that was actually observed in the current provider presentation.
+      if (
+        isBibleLive &&
+        liveParsed &&
+        sameChapter(liveParsed, reference) &&
+        liveSlides.length
+      ) {
+        const observed = liveSlides.map((slide, index) => {
+          const ref = slideReference(slide, livePresentation) ||
+            `${reference.bookLabel} ${reference.chapter}:${index + 1}`;
+          return {
+            id: '',
+            reference: ref,
+            text: slideText(slide)
+          } satisfies BibleVerseReference;
+        });
+        const byReference = new Map(
+          observed.map(item => [item.reference.toLocaleLowerCase(), item])
+        );
+        verses = verses.map(verse => ({
+          ...verse,
+          text: verse.text || byReference.get(verse.reference.toLocaleLowerCase())?.text
+        }));
+        if (!verses.length) verses = observed;
+      }
+
+      const snapshot: ChapterSnapshot = {
+        context: canonicalContext(reference, verses),
+        verses
+      };
+      chapterCache.current.set(signature, snapshot);
+      const canonicalSignature = chapterSignature(snapshot.context);
+      chapterCache.current.set(canonicalSignature, snapshot);
+      setChapterCacheEpoch(current => current + 1);
+      return snapshot;
+    })().finally(() => {
+      chapterRequests.current.delete(signature);
+    });
+
+    chapterRequests.current.set(signature, request);
+    return request;
+  }
+
+  async function prefetchAdjacentChapters(context: ParsedReference) {
+    if (!canSearch) return;
+    const jobs: Promise<ChapterSnapshot>[] = [];
+    if (context.chapter > 1) {
+      jobs.push(requestChapter({
+        ...context,
+        chapter: context.chapter - 1,
+        verse: undefined
+      }));
+    }
+    jobs.push(requestChapter({
+      ...context,
+      chapter: context.chapter + 1,
+      verse: undefined
+    }));
+    await Promise.allSettled(jobs);
+  }
 
   function saveHistory(match: BibleReferenceMatch) {
     const entry: SavedBibleReference = {
@@ -426,7 +585,10 @@ export function BibleWorkspace({
 
       const response = await controller.executeCommand({
         capability: 'bible.search',
-        payload: { text },
+        payload: {
+          text,
+          languageId: bibleLanguageId
+        },
         liveSessionId,
         actorId,
         safetyLevel: 'normal'
@@ -463,78 +625,46 @@ export function BibleWorkspace({
     if (parsed) void loadChapter(parsed);
   }
 
-  async function loadChapter(reference: ParsedReference) {
-    if (!canSearch || busy) {
+  async function loadChapter(
+    reference: ParsedReference,
+    options: { background?: boolean } = {}
+  ): Promise<ChapterSnapshot | null> {
+    if (!canSearch) {
       setChapterContext(reference);
-      return;
-    }
-    const signature = `${reference.bookLabel.toLocaleLowerCase()}:${reference.chapter}:${version}`;
-    if (loadedChapterSignature.current === signature && chapterVerses.length) {
-      setChapterContext(reference);
-      return;
+      return null;
     }
 
-    setBusy('chapter');
-    setMessage(null);
+    const ownsBusyState = !options.background && busy === null;
+    if (ownsBusyState) {
+      setBusy('chapter');
+      setMessage(null);
+    }
+
     try {
-      const response = await controller.executeCommand({
-        capability: 'bible.search',
-        payload: { text: `${reference.bookLabel} ${reference.chapter}` },
-        liveSessionId,
-        actorId,
-        safetyLevel: 'normal'
-      });
-      const failed = response.find(result => !result.accepted);
-      if (failed) {
-        setMessage(t('bibleWorkspace.errors.chapter', {
-          code: failed.errorCode || 'provider_error'
-        }));
-        setChapterContext(reference);
-        return;
-      }
-      const matches = getBibleMatches(response);
-      let verses = flattenVerses(matches);
-
-      // Some provider versions return the chapter as presentation-like rows,
-      // while others only identify references. Enrich from observed slides
-      // whenever the live presentation belongs to the same chapter.
-      if (
-        isBibleLive &&
-        liveParsed &&
-        liveParsed.bookLabel.toLocaleLowerCase() === reference.bookLabel.toLocaleLowerCase() &&
-        liveParsed.chapter === reference.chapter &&
-        liveSlides.length
-      ) {
-        const observed = liveSlides.map((slide, index) => {
-          const ref = slideReference(slide, livePresentation) ||
-            `${reference.bookLabel} ${reference.chapter}:${index + 1}`;
-          return {
-            id: '',
-            reference: ref,
-            text: slideText(slide)
-          } satisfies BibleVerseReference;
-        });
-        const byReference = new Map(
-          observed.map(item => [item.reference.toLocaleLowerCase(), item])
-        );
-        verses = verses.map(verse => ({
-          ...verse,
-          text: verse.text || byReference.get(verse.reference.toLocaleLowerCase())?.text
-        }));
-        if (!verses.length) verses = observed;
+      const snapshot = await requestChapter(reference);
+      if (!snapshot.verses.length) {
+        if (!options.background) {
+          setMessage(t('bibleWorkspace.chapterNotFound', {
+            chapter: `${reference.bookLabel} ${reference.chapter}`
+          }));
+        }
+        return null;
       }
 
-      setChapterContext(reference);
-      setChapterVerses(verses);
+      setChapterContext(snapshot.context);
+      setChapterVerses(snapshot.verses);
       setMultiKeys(new Set());
-      loadedChapterSignature.current = signature;
+      void prefetchAdjacentChapters(snapshot.context);
+      return snapshot;
     } catch (error) {
-      setChapterContext(reference);
-      setMessage(t('bibleWorkspace.errors.chapter', {
-        code: error instanceof Error ? error.message : 'unknown'
-      }));
+      if (!options.background) {
+        setMessage(t('bibleWorkspace.errors.chapter', {
+          code: error instanceof Error ? error.message : 'unknown'
+        }));
+      }
+      return null;
     } finally {
-      setBusy(null);
+      if (ownsBusyState) setBusy(null);
     }
   }
 
@@ -545,7 +675,7 @@ export function BibleWorkspace({
       current &&
       current.bookLabel.toLocaleLowerCase() === liveParsed.bookLabel.toLocaleLowerCase() &&
       current.chapter === liveParsed.chapter;
-    if (!sameChapter) void loadChapter(liveParsed);
+    if (!sameChapter) void loadChapter(liveParsed, { background: true });
     // liveReference changes only when the observed Bible frame changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveReference]);
@@ -581,9 +711,6 @@ export function BibleWorkspace({
         });
       }
 
-      const selectedVersion = versions.find(item =>
-        item.key === version || item.version === version
-      );
       const payload: Record<string, unknown> = match.ids.length
         ? { ids: match.ids }
         : { references: match.reference };
@@ -612,7 +739,11 @@ export function BibleWorkspace({
       const parsed = parseReference(match.reference);
       if (parsed) {
         setChapterContext(parsed);
-        if (!chapterVerses.length) void loadChapter(parsed);
+        if (!sameChapter(parsed, chapterContext)) {
+          void loadChapter(parsed, { background: true });
+        } else {
+          void prefetchAdjacentChapters(parsed);
+        }
       }
     } catch (error) {
       setMessage(t('bibleWorkspace.errors.take', {
@@ -708,51 +839,195 @@ export function BibleWorkspace({
     setSelected(verseAsMatch(verse));
   }
 
-  async function moveVerse(delta: -1 | 1) {
-    const reference = liveParsed || parseReference(selected?.reference || '');
-    if (!reference) return;
-
-    const currentVerse = liveParsed?.verse || reference.verse;
-    const currentIndex = chapterVerses.findIndex(verse => {
+  async function adjacentVerse(
+    reference: ParsedReference,
+    delta: -1 | 1
+  ): Promise<BibleVerseReference | null> {
+    const currentSnapshot = await requestChapter(reference);
+    const currentVerse = reference.verse;
+    const currentIndex = currentSnapshot.verses.findIndex(verse => {
       const parsed = parseReference(verse.reference);
       return Boolean(
         parsed &&
-        parsed.bookLabel.toLocaleLowerCase() === reference.bookLabel.toLocaleLowerCase() &&
-        parsed.chapter === reference.chapter &&
+        sameChapter(parsed, currentSnapshot.context) &&
         parsed.verse === currentVerse
       );
     });
-    const candidate = currentIndex >= 0 ? chapterVerses[currentIndex + delta] : undefined;
-    if (candidate) {
-      await putOnAir(verseAsMatch(candidate));
-      return;
+
+    if (currentIndex >= 0) {
+      const sameChapterCandidate = currentSnapshot.verses[currentIndex + delta];
+      if (sameChapterCandidate) return sameChapterCandidate;
     }
 
-    if (currentVerse && currentVerse + delta > 0) {
-      await putOnAir({
-        reference: `${reference.bookLabel} ${reference.chapter}:${currentVerse + delta}`,
-        ids: [],
-        verses: []
-      });
+    const adjacentChapterNumber = currentSnapshot.context.chapter + delta;
+    if (adjacentChapterNumber <= 0) return null;
+
+    const adjacentSnapshot = await requestChapter({
+      ...currentSnapshot.context,
+      chapter: adjacentChapterNumber,
+      verse: undefined
+    });
+    if (!adjacentSnapshot.verses.length) return null;
+    return delta > 0
+      ? adjacentSnapshot.verses[0] || null
+      : adjacentSnapshot.verses[adjacentSnapshot.verses.length - 1] || null;
+  }
+
+  async function moveVerse(delta: -1 | 1) {
+    const selectedReference = parseReference(selected?.reference || '');
+    const reference = isBibleLive && liveParsed ? liveParsed : selectedReference;
+    if (!reference?.verse || busy !== null) return;
+
+    try {
+      const candidate = await adjacentVerse(reference, delta);
+      if (!candidate) {
+        setMessage(t(delta > 0
+          ? 'bibleWorkspace.noNextVerseFromProvider'
+          : 'bibleWorkspace.noPreviousVerseFromProvider'));
+        return;
+      }
+      await putOnAir(verseAsMatch(candidate));
+    } catch (error) {
+      setMessage(t('bibleWorkspace.errors.navigateVerse', {
+        code: error instanceof Error ? error.message : 'unknown'
+      }));
     }
   }
 
   async function moveChapter(delta: -1 | 1) {
-    if (!chapterContext) return;
+    if (!chapterContext || busy !== null) return;
     const nextChapter = chapterContext.chapter + delta;
     if (nextChapter <= 0) return;
     const next = {
-      bookLabel: chapterContext.bookLabel,
-      chapter: nextChapter
+      ...chapterContext,
+      chapter: nextChapter,
+      verse: undefined
     };
-    setQuery(`${next.bookLabel} ${next.chapter}`);
-    loadedChapterSignature.current = '';
-    await loadChapter(next);
+    const snapshot = await loadChapter(next);
+    if (snapshot) {
+      setQuery(`${snapshot.context.bookLabel} ${snapshot.context.chapter}`);
+    }
   }
 
   const collection = view === 'favorites' ? favorites : history;
   const effectiveChapter = chapterContext || liveParsed;
+  const selectedParsed = parseReference(selected?.reference || '');
+  const focusReference = selectedParsed || (isBibleLive ? liveParsed : null);
   const activeVerseReference = liveReference || selected?.reference || '';
+
+  const cachedCurrentChapter = effectiveChapter
+    ? chapterCache.current.get(chapterSignature(effectiveChapter))
+    : undefined;
+  const effectiveVerses = cachedCurrentChapter?.verses.length
+    ? cachedCurrentChapter.verses
+    : chapterVerses;
+
+  const navigationSnapshot = focusReference
+    ? chapterCache.current.get(chapterSignature(focusReference))
+    : undefined;
+  const navigationVerses = navigationSnapshot?.verses.length
+    ? navigationSnapshot.verses
+    : sameChapter(focusReference, effectiveChapter)
+      ? effectiveVerses
+      : [];
+
+  const navigationIndex = focusReference?.verse
+    ? navigationVerses.findIndex(verse => {
+        const parsed = parseReference(verse.reference);
+        return parsed?.verse === focusReference.verse && sameChapter(parsed, focusReference);
+      })
+    : -1;
+
+  const navigationContext =
+    navigationSnapshot?.context ||
+    (sameChapter(focusReference, effectiveChapter) ? effectiveChapter : focusReference);
+
+  function cachedAdjacentSnapshot(delta: -1 | 1): ChapterSnapshot | undefined {
+    if (!navigationContext) return undefined;
+    const chapter = navigationContext.chapter + delta;
+    if (chapter <= 0) return undefined;
+    return chapterCache.current.get(chapterSignature({
+      ...navigationContext,
+      chapter,
+      verse: undefined
+    }));
+  }
+
+  const previousChapterSnapshot = cachedAdjacentSnapshot(-1);
+  const nextChapterSnapshot = cachedAdjacentSnapshot(1);
+  const previousVerseCandidate = navigationIndex > 0
+    ? navigationVerses[navigationIndex - 1]
+    : previousChapterSnapshot?.verses[previousChapterSnapshot.verses.length - 1];
+  const nextVerseCandidate = navigationIndex >= 0 && navigationIndex < navigationVerses.length - 1
+    ? navigationVerses[navigationIndex + 1]
+    : nextChapterSnapshot?.verses[0];
+
+  const verseWindow = useMemo(() => {
+    if (!focusReference || navigationIndex < 0) return [] as BibleVerseReference[];
+    const radius = 3;
+    const before = navigationVerses.slice(Math.max(0, navigationIndex - radius), navigationIndex);
+    const after = navigationVerses.slice(navigationIndex + 1, navigationIndex + radius + 1);
+
+    if (before.length < radius && previousChapterSnapshot?.verses.length) {
+      before.unshift(...previousChapterSnapshot.verses.slice(-(radius - before.length)));
+    }
+    if (after.length < radius && nextChapterSnapshot?.verses.length) {
+      after.push(...nextChapterSnapshot.verses.slice(0, radius - after.length));
+    }
+
+    return [
+      ...before,
+      navigationVerses[navigationIndex]!,
+      ...after
+    ];
+  }, [
+    chapterCacheEpoch,
+    focusReference?.bookLabel,
+    focusReference?.chapter,
+    focusReference?.verse,
+    navigationIndex,
+    navigationVerses
+  ]);
+
+  useEffect(() => {
+    if (!isBibleLive) {
+      previousLiveVerseId.current = '';
+      return;
+    }
+    if (!liveVerseId || !cachedLiveVerse) return;
+
+    const previousId = previousLiveVerseId.current;
+    previousLiveVerseId.current = liveVerseId;
+    setSelected(current => {
+      const currentId = current?.ids.length === 1 ? current.ids[0] : '';
+      const shouldFollowLive =
+        !current ||
+        currentId === liveVerseId ||
+        (previousId && currentId === previousId);
+      return shouldFollowLive ? verseAsMatch(cachedLiveVerse) : current;
+    });
+  }, [cachedLiveVerse?.id, isBibleLive, liveVerseId]);
+
+  useEffect(() => {
+    const reference = selected?.reference || (isBibleLive ? liveReference : '');
+    if (!reference) return;
+    const frame = window.requestAnimationFrame(() => {
+      const node = verseListRef.current?.querySelector<HTMLElement>(
+        `[data-verse-reference="${CSS.escape(reference)}"]`
+      );
+      node?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'nearest'
+      });
+      smartRailRef.current?.querySelector<HTMLElement>('.focused')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [chapterCacheEpoch, isBibleLive, liveReference, selected?.reference]);
 
   return (
     <article className="operator-card live-tool-card bible-workspace bible-reader-workspace">
@@ -769,7 +1044,9 @@ export function BibleWorkspace({
             value={version}
             onChange={event => {
               setVersion(event.target.value);
-              loadedChapterSignature.current = '';
+              chapterCache.current.clear();
+              chapterRequests.current.clear();
+              setChapterCacheEpoch(current => current + 1);
             }}
             disabled={!canPresent || versionsLoading || busy === 'take'}
           >
@@ -830,6 +1107,67 @@ export function BibleWorkspace({
         <small>{t('bibleWorkspace.searchExamples')}</small>
       </div>
 
+      {verseWindow.length > 0 && (
+        <section className="bible-smart-window" aria-label={t('bibleWorkspace.smartWindow')}>
+          <div className="bible-smart-window-head">
+            <div>
+              <small>{t('bibleWorkspace.smartWindow')}</small>
+              <strong>{t('bibleWorkspace.smartWindowHint')}</strong>
+            </div>
+            <span>{t('bibleWorkspace.providerVerified')}</span>
+          </div>
+          <div ref={smartRailRef} className="bible-smart-verse-rail">
+            {verseWindow.map(verse => {
+              const parsed = parseReference(verse.reference);
+              const onAir = Boolean(
+                isBibleLive &&
+                (
+                  (liveVerseId && verse.id && verse.id === liveVerseId) ||
+                  (
+                    liveParsed &&
+                    parsed &&
+                    parsed.verse === liveParsed.verse &&
+                    sameChapter(parsed, liveParsed)
+                  )
+                )
+              );
+              const focused = Boolean(
+                focusReference &&
+                parsed &&
+                parsed.verse === focusReference.verse &&
+                sameChapter(parsed, focusReference)
+              );
+              return (
+                <button
+                  key={verseIdentity(verse)}
+                  type="button"
+                  className={[
+                    'bible-smart-verse',
+                    onAir ? 'on-air' : '',
+                    focused ? 'focused' : ''
+                  ].filter(Boolean).join(' ')}
+                  onClick={() => activateVerse(verse)}
+                  disabled={busy === 'take' || busy === 'return'}
+                >
+                  <small>{verse.reference}</small>
+                  <strong>{parsed?.verse ?? verse.verse ?? '—'}</strong>
+                  <span>
+                    {verse.text || t('bibleWorkspace.providerReferenceVerified')}
+                  </span>
+                  <em>
+                    {onAir
+                      ? t('bibleWorkspace.onAirBadge')
+                      : focused
+                        ? t('bibleWorkspace.ready')
+                        : t('bibleWorkspace.preview')}
+                  </em>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {effectiveChapter && (
         <section className="bible-chapter-reader">
           <header className="bible-chapter-nav">
@@ -856,10 +1194,11 @@ export function BibleWorkspace({
           <div className="bible-reader-actions">
             <button
               type="button"
-              disabled={busy !== null}
+              disabled={busy !== null || !previousVerseCandidate}
               onClick={() => void moveVerse(-1)}
             >
-              ← {t('bibleWorkspace.previousVerse')}
+              <span>← {t('bibleWorkspace.previousVerse')}</span>
+              {previousVerseCandidate && <small>{previousVerseCandidate.reference}</small>}
             </button>
             <button
               type="button"
@@ -875,27 +1214,34 @@ export function BibleWorkspace({
             </button>
             <button
               type="button"
-              disabled={busy !== null}
+              disabled={busy !== null || !nextVerseCandidate}
               onClick={() => void moveVerse(1)}
             >
-              {t('bibleWorkspace.nextVerse')} →
+              <span>{t('bibleWorkspace.nextVerse')} →</span>
+              {nextVerseCandidate && <small>{nextVerseCandidate.reference}</small>}
             </button>
           </div>
 
-          <div className="bible-verse-reader" aria-live="polite">
+          <div ref={verseListRef} className="bible-verse-reader" aria-live="polite">
             {busy === 'chapter' && (
               <div className="bible-chapter-loading">{t('bibleWorkspace.loadingChapter')}</div>
             )}
-            {chapterVerses.map((verse, index) => {
+            {effectiveVerses.map((verse, index) => {
               const key = verse.id || verse.reference;
+              const parsedVerse = parseReference(verse.reference);
               const onAir = Boolean(
                 isBibleLive &&
-                activeVerseReference &&
                 (
-                  verse.reference.toLocaleLowerCase() === activeVerseReference.toLocaleLowerCase() ||
+                  (liveVerseId && verse.id && verse.id === liveVerseId) ||
                   (
-                    parseReference(verse.reference)?.verse &&
-                    parseReference(verse.reference)?.verse === liveParsed?.verse
+                    activeVerseReference &&
+                    verse.reference.toLocaleLowerCase() === activeVerseReference.toLocaleLowerCase()
+                  ) ||
+                  (
+                    parsedVerse?.verse &&
+                    liveParsed &&
+                    parsedVerse.verse === liveParsed.verse &&
+                    sameChapter(parsedVerse, liveParsed)
                   )
                 )
               );
@@ -904,6 +1250,7 @@ export function BibleWorkspace({
                 <button
                   key={key || index}
                   type="button"
+                  data-verse-reference={verse.reference}
                   className={[
                     'bible-verse-row',
                     onAir ? 'on-air' : '',
@@ -917,7 +1264,7 @@ export function BibleWorkspace({
                   </span>
                   <span className="bible-verse-copy">
                     <small>{verse.reference}</small>
-                    <strong>{verse.text || t('bibleWorkspace.verseReady')}</strong>
+                    <strong>{verse.text || t('bibleWorkspace.providerReferenceVerified')}</strong>
                   </span>
                   <em>
                     {onAir
@@ -929,7 +1276,7 @@ export function BibleWorkspace({
                 </button>
               );
             })}
-            {!chapterVerses.length && busy !== 'chapter' && (
+            {!effectiveVerses.length && busy !== 'chapter' && (
               <div className="bible-chapter-empty">
                 <strong>{t('bibleWorkspace.chapterReferencesUnavailable')}</strong>
                 <span>{t('bibleWorkspace.chapterReferencesFallback')}</span>
