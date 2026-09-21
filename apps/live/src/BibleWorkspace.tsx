@@ -28,6 +28,13 @@ interface BibleVersion {
   languageIso?: string;
 }
 
+interface BibleBook {
+  id: string;
+  name: string;
+  abbrev: string;
+  usfxCode?: string;
+}
+
 interface SavedBibleReference extends BibleReferenceMatch {
   version?: string;
   savedAt: string;
@@ -154,6 +161,34 @@ function getBibleVersions(results: CommandResult[]): BibleVersion[] {
   const seen = new Set<string>();
   return versions.filter(item => {
     const key = `${item.key}:${item.version}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getBibleBooks(results: CommandResult[]): BibleBook[] {
+  const values = results.flatMap(result => {
+    const raw = result.observedState?.books;
+    return Array.isArray(raw) ? raw : [];
+  });
+
+  const books = values
+    .filter(value => value && typeof value === 'object')
+    .map(value => {
+      const item = value as Record<string, unknown>;
+      return {
+        id: String(item.id || ''),
+        name: String(item.name || item.abbrev || ''),
+        abbrev: String(item.abbrev || item.name || ''),
+        usfxCode: item.usfx_code ? String(item.usfx_code) : undefined
+      };
+    })
+    .filter(item => item.id && item.name);
+
+  const seen = new Set<string>();
+  return books.filter(book => {
+    const key = book.id || book.name.toLocaleLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -314,6 +349,11 @@ export function BibleWorkspace({
   const [selected, setSelected] = useState<BibleReferenceMatch | null>(null);
   const [versions, setVersions] = useState<BibleVersion[]>([]);
   const [version, setVersion] = useState('');
+  const [books, setBooks] = useState<BibleBook[]>([]);
+  const [booksLoading, setBooksLoading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerBookId, setPickerBookId] = useState('');
+  const [pickerChapter, setPickerChapter] = useState('1');
   const [favorites, setFavorites] = useState<SavedBibleReference[]>([]);
   const [history, setHistory] = useState<SavedBibleReference[]>([]);
   const [view, setView] = useState<'search' | 'favorites' | 'history'>('search');
@@ -346,6 +386,7 @@ export function BibleWorkspace({
   const canSearch = capabilitySet.has('bible.search');
   const canPresent = capabilitySet.has('bible.present');
   const canReadVersions = capabilitySet.has('bible.versions.read');
+  const canReadBooks = capabilitySet.has('bible.books.read');
 
   const livePresentationEntry = useMemo(() => {
     for (const provider of providers) {
@@ -441,7 +482,45 @@ export function BibleWorkspace({
     () => versions.find(item => item.key === version || item.version === version),
     [version, versions]
   );
-  const bibleLanguageId = selectedVersion?.languageId;
+  const bibleLanguageId =
+    selectedVersion?.languageId ||
+    versions.find(item => item.languageId)?.languageId;
+
+  useEffect(() => {
+    if (!canReadBooks || !bibleLanguageId) {
+      setBooks([]);
+      return;
+    }
+
+    let cancelled = false;
+    setBooksLoading(true);
+    void controller.executeCommand({
+      capability: 'bible.books.read',
+      payload: { languageId: bibleLanguageId },
+      liveSessionId,
+      actorId,
+      safetyLevel: 'normal'
+    }).then(response => {
+      if (cancelled) return;
+      const nextBooks = getBibleBooks(response);
+      setBooks(nextBooks);
+      setPickerBookId(current => current || nextBooks[0]?.id || '');
+    }).catch(() => {
+      if (!cancelled) setBooks([]);
+    }).finally(() => {
+      if (!cancelled) setBooksLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    actorId,
+    bibleLanguageId,
+    canReadBooks,
+    controller.executeCommand,
+    liveSessionId
+  ]);
 
   function chapterSignature(reference: ParsedReference): string {
     return [
@@ -522,6 +601,77 @@ export function BibleWorkspace({
     return request;
   }
 
+  function bookForContext(context: ParsedReference | null | undefined): BibleBook | undefined {
+    if (!context) return undefined;
+    if (context.book) {
+      const byId = books.find(book => Number(book.id) === context.book);
+      if (byId) return byId;
+    }
+    const label = context.bookLabel.toLocaleLowerCase();
+    return books.find(book =>
+      book.name.toLocaleLowerCase() === label ||
+      book.abbrev.toLocaleLowerCase() === label
+    );
+  }
+
+  function contextForBook(book: BibleBook, chapter: number): ParsedReference {
+    return {
+      bookLabel: book.name || book.abbrev,
+      book: Number(book.id) || undefined,
+      chapter
+    };
+  }
+
+  async function lastChapterForBook(book: BibleBook): Promise<ChapterSnapshot | null> {
+    // Discover the provider's actual final chapter instead of maintaining a
+    // hard-coded Bible chapter-count table in MusicScale Live.
+    let low = 1;
+    let high = 2;
+    let lowSnapshot = await requestChapter(contextForBook(book, low));
+    if (!lowSnapshot.verses.length) return null;
+
+    while (high <= 512) {
+      const snapshot = await requestChapter(contextForBook(book, high));
+      if (!snapshot.verses.length) break;
+      low = high;
+      lowSnapshot = snapshot;
+      high *= 2;
+    }
+
+    let best = lowSnapshot;
+    let left = low + 1;
+    let right = Math.min(high - 1, 511);
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+      const snapshot = await requestChapter(contextForBook(book, mid));
+      if (snapshot.verses.length) {
+        best = snapshot;
+        left = mid + 1;
+      } else {
+        right = mid - 1;
+      }
+    }
+    return best;
+  }
+
+  async function chapterAcrossBookBoundary(
+    context: ParsedReference,
+    delta: -1 | 1
+  ): Promise<ChapterSnapshot | null> {
+    if (!books.length) return null;
+    const currentBook = bookForContext(context);
+    if (!currentBook) return null;
+    const index = books.findIndex(book => book.id === currentBook.id);
+    if (index < 0) return null;
+    const adjacentBook = books[index + delta];
+    if (!adjacentBook) return null;
+    if (delta > 0) {
+      const snapshot = await requestChapter(contextForBook(adjacentBook, 1));
+      return snapshot.verses.length ? snapshot : null;
+    }
+    return lastChapterForBook(adjacentBook);
+  }
+
   async function prefetchAdjacentChapters(context: ParsedReference) {
     if (!canSearch) return;
     const jobs: Promise<ChapterSnapshot>[] = [];
@@ -537,7 +687,20 @@ export function BibleWorkspace({
       chapter: context.chapter + 1,
       verse: undefined
     }));
-    await Promise.allSettled(jobs);
+    const settled = await Promise.allSettled(jobs);
+
+    // At the end of a book, prepare the first real chapter of the next book
+    // from the provider's own book list. Never fabricate a cross-book reference.
+    const nextResult = settled[settled.length - 1];
+    if (
+      nextResult?.status === 'fulfilled' &&
+      !nextResult.value.verses.length
+    ) {
+      const nextBook = await chapterAcrossBookBoundary(context, 1);
+      if (nextBook?.verses.length) {
+        chapterCache.current.set(chapterSignature(nextBook.context), nextBook);
+      }
+    }
   }
 
   function saveHistory(match: BibleReferenceMatch) {
@@ -860,17 +1023,24 @@ export function BibleWorkspace({
     }
 
     const adjacentChapterNumber = currentSnapshot.context.chapter + delta;
-    if (adjacentChapterNumber <= 0) return null;
+    if (adjacentChapterNumber > 0) {
+      const adjacentSnapshot = await requestChapter({
+        ...currentSnapshot.context,
+        chapter: adjacentChapterNumber,
+        verse: undefined
+      });
+      if (adjacentSnapshot.verses.length) {
+        return delta > 0
+          ? adjacentSnapshot.verses[0] || null
+          : adjacentSnapshot.verses[adjacentSnapshot.verses.length - 1] || null;
+      }
+    }
 
-    const adjacentSnapshot = await requestChapter({
-      ...currentSnapshot.context,
-      chapter: adjacentChapterNumber,
-      verse: undefined
-    });
-    if (!adjacentSnapshot.verses.length) return null;
+    const acrossBook = await chapterAcrossBookBoundary(currentSnapshot.context, delta);
+    if (!acrossBook?.verses.length) return null;
     return delta > 0
-      ? adjacentSnapshot.verses[0] || null
-      : adjacentSnapshot.verses[adjacentSnapshot.verses.length - 1] || null;
+      ? acrossBook.verses[0] || null
+      : acrossBook.verses[acrossBook.verses.length - 1] || null;
   }
 
   async function moveVerse(delta: -1 | 1) {
@@ -897,16 +1067,67 @@ export function BibleWorkspace({
   async function moveChapter(delta: -1 | 1) {
     if (!chapterContext || busy !== null) return;
     const nextChapter = chapterContext.chapter + delta;
-    if (nextChapter <= 0) return;
-    const next = {
-      ...chapterContext,
-      chapter: nextChapter,
-      verse: undefined
-    };
-    const snapshot = await loadChapter(next);
-    if (snapshot) {
-      setQuery(`${snapshot.context.bookLabel} ${snapshot.context.chapter}`);
+
+    if (nextChapter > 0) {
+      const next = {
+        ...chapterContext,
+        chapter: nextChapter,
+        verse: undefined
+      };
+      const snapshot = await loadChapter(next);
+      if (snapshot) {
+        setQuery(`${snapshot.context.bookLabel} ${snapshot.context.chapter}`);
+        return;
+      }
     }
+
+    setBusy('chapter');
+    setMessage(null);
+    try {
+      const snapshot = await chapterAcrossBookBoundary(chapterContext, delta);
+      if (!snapshot?.verses.length) {
+        setMessage(t(delta > 0
+          ? 'bibleWorkspace.noNextChapterFromProvider'
+          : 'bibleWorkspace.noPreviousChapterFromProvider'));
+        return;
+      }
+      setChapterContext(snapshot.context);
+      setChapterVerses(snapshot.verses);
+      setMultiKeys(new Set());
+      setQuery(`${snapshot.context.bookLabel} ${snapshot.context.chapter}`);
+      setMessage(null);
+      void prefetchAdjacentChapters(snapshot.context);
+    } catch (error) {
+      setMessage(t('bibleWorkspace.errors.chapter', {
+        code: error instanceof Error ? error.message : 'unknown'
+      }));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function openReferencePicker() {
+    if (!pickerOpen) {
+      const current =
+        chapterContext ||
+        (isBibleLive ? liveParsed : null) ||
+        parseReference(selected?.reference || '');
+      const currentBook = bookForContext(current);
+      setPickerBookId(currentBook?.id || books[0]?.id || '');
+      setPickerChapter(String(current?.chapter || 1));
+    }
+    setPickerOpen(current => !current);
+  }
+
+  async function loadPickerChapter() {
+    if (busy !== null) return;
+    const book = books.find(item => item.id === pickerBookId);
+    const chapter = Number.parseInt(pickerChapter, 10);
+    if (!book || !Number.isFinite(chapter) || chapter <= 0) return;
+
+    const snapshot = await loadChapter(contextForBook(book, chapter));
+    if (!snapshot) return;
+    setQuery(`${snapshot.context.bookLabel} ${snapshot.context.chapter}`);
   }
 
   const collection = view === 'favorites' ? favorites : history;
@@ -921,6 +1142,17 @@ export function BibleWorkspace({
   const effectiveVerses = cachedCurrentChapter?.verses.length
     ? cachedCurrentChapter.verses
     : chapterVerses;
+
+  const pickerBook = books.find(item => item.id === pickerBookId);
+  const pickerChapterNumber = Number.parseInt(pickerChapter, 10);
+  const pickerContext =
+    pickerBook && Number.isFinite(pickerChapterNumber) && pickerChapterNumber > 0
+      ? contextForBook(pickerBook, pickerChapterNumber)
+      : null;
+  const pickerVerses =
+    pickerContext && sameChapter(pickerContext, effectiveChapter)
+      ? effectiveVerses
+      : [];
 
   const navigationSnapshot = focusReference
     ? chapterCache.current.get(chapterSignature(focusReference))
@@ -953,8 +1185,34 @@ export function BibleWorkspace({
     }));
   }
 
-  const previousChapterSnapshot = cachedAdjacentSnapshot(-1);
-  const nextChapterSnapshot = cachedAdjacentSnapshot(1);
+  function cachedBookBoundarySnapshot(delta: -1 | 1): ChapterSnapshot | undefined {
+    if (!navigationContext || !books.length) return undefined;
+    const currentBook = bookForContext(navigationContext);
+    if (!currentBook) return undefined;
+    const currentIndex = books.findIndex(book => book.id === currentBook.id);
+    const adjacentBook = books[currentIndex + delta];
+    if (!adjacentBook) return undefined;
+
+    const snapshots = Array.from(chapterCache.current.values()).filter(snapshot => {
+      const snapshotBook = bookForContext(snapshot.context);
+      return snapshotBook?.id === adjacentBook.id && snapshot.verses.length > 0;
+    });
+    if (!snapshots.length) return undefined;
+    return snapshots.sort((a, b) =>
+      delta > 0
+        ? a.context.chapter - b.context.chapter
+        : b.context.chapter - a.context.chapter
+    )[0];
+  }
+
+  const sameBookPrevious = cachedAdjacentSnapshot(-1);
+  const sameBookNext = cachedAdjacentSnapshot(1);
+  const previousChapterSnapshot = sameBookPrevious?.verses.length
+    ? sameBookPrevious
+    : cachedBookBoundarySnapshot(-1);
+  const nextChapterSnapshot = sameBookNext?.verses.length
+    ? sameBookNext
+    : cachedBookBoundarySnapshot(1);
   const previousVerseCandidate = navigationIndex > 0
     ? navigationVerses[navigationIndex - 1]
     : previousChapterSnapshot?.verses[previousChapterSnapshot.verses.length - 1];
@@ -1028,6 +1286,13 @@ export function BibleWorkspace({
     });
     return () => window.cancelAnimationFrame(frame);
   }, [chapterCacheEpoch, isBibleLive, liveReference, selected?.reference]);
+
+  useEffect(() => {
+    if (!books.length || !chapterContext) return;
+    void prefetchAdjacentChapters(chapterContext);
+    // Book discovery is progressive enhancement for cross-book navigation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [books.length]);
 
   return (
     <article className="operator-card live-tool-card bible-workspace bible-reader-workspace">
@@ -1106,6 +1371,129 @@ export function BibleWorkspace({
         </div>
         <small>{t('bibleWorkspace.searchExamples')}</small>
       </div>
+
+      {canReadBooks && (
+        <section className={pickerOpen ? 'bible-reference-picker open' : 'bible-reference-picker'}>
+          <button
+            type="button"
+            className="bible-reference-picker-toggle"
+            onClick={openReferencePicker}
+            disabled={booksLoading && !books.length}
+            aria-expanded={pickerOpen}
+          >
+            <span>
+              <strong>{t('bibleWorkspace.picker.title')}</strong>
+              <small>{t('bibleWorkspace.picker.subtitle')}</small>
+            </span>
+            <em>{pickerOpen ? t('bibleWorkspace.picker.close') : t('bibleWorkspace.picker.open')}</em>
+          </button>
+
+          {pickerOpen && (
+            <div className="bible-reference-picker-body">
+              <div className="bible-reference-picker-fields">
+                <label>
+                  <span>{t('bibleWorkspace.picker.book')}</span>
+                  <select
+                    value={pickerBookId}
+                    onChange={event => {
+                      setPickerBookId(event.target.value);
+                      setPickerChapter('1');
+                    }}
+                    disabled={booksLoading || busy !== null}
+                  >
+                    {books.map(book => (
+                      <option key={book.id} value={book.id}>
+                        {book.name}{book.abbrev && book.abbrev !== book.name ? ` · ${book.abbrev}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>{t('bibleWorkspace.picker.chapter')}</span>
+                  <input
+                    type="number"
+                    min="1"
+                    inputMode="numeric"
+                    value={pickerChapter}
+                    onChange={event => setPickerChapter(event.target.value)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter') void loadPickerChapter();
+                    }}
+                    disabled={busy !== null}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="primary bible-reference-picker-load"
+                  disabled={
+                    busy !== null ||
+                    !pickerBook ||
+                    !Number.isFinite(pickerChapterNumber) ||
+                    pickerChapterNumber <= 0
+                  }
+                  onClick={() => void loadPickerChapter()}
+                >
+                  {busy === 'chapter'
+                    ? t('bibleWorkspace.loadingChapter')
+                    : t('bibleWorkspace.picker.loadChapter')}
+                </button>
+              </div>
+
+              {booksLoading && !books.length && (
+                <div className="bible-picker-status">{t('bibleWorkspace.picker.loadingBooks')}</div>
+              )}
+
+              {pickerVerses.length > 0 && (
+                <div className="bible-picker-verses" aria-label={t('bibleWorkspace.picker.verses')}>
+                  {pickerVerses.map(verse => {
+                    const parsed = parseReference(verse.reference);
+                    const key = verseIdentity(verse);
+                    const selectedKey = selected ? savedKey(selected) : '';
+                    const prepared = selectedKey === savedKey(verseAsMatch(verse));
+                    const onAir = Boolean(
+                      isBibleLive &&
+                      (
+                        (liveVerseId && verse.id === liveVerseId) ||
+                        (
+                          parsed &&
+                          liveParsed &&
+                          parsed.verse === liveParsed.verse &&
+                          sameChapter(parsed, liveParsed)
+                        )
+                      )
+                    );
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        className={[
+                          'bible-picker-verse',
+                          prepared ? 'prepared' : '',
+                          onAir ? 'on-air' : ''
+                        ].filter(Boolean).join(' ')}
+                        onClick={() => activateVerse(verse)}
+                        disabled={busy === 'take' || busy === 'return'}
+                        title={verse.reference}
+                      >
+                        <strong>{parsed?.verse || verse.verse || '—'}</strong>
+                        <small>{onAir
+                          ? t('bibleWorkspace.onAirBadge')
+                          : prepared
+                            ? t('bibleWorkspace.ready')
+                            : t('bibleWorkspace.preview')}</small>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {pickerBook && pickerVerses.length === 0 && busy !== 'chapter' && (
+                <small className="bible-picker-hint">{t('bibleWorkspace.picker.hint')}</small>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       {verseWindow.length > 0 && (
         <section className="bible-smart-window" aria-label={t('bibleWorkspace.smartWindow')}>

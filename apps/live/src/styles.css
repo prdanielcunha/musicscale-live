@@ -1126,6 +1126,58 @@ code,kbd{font-variant-ligatures:none}
 .bible-search-command .bible-search-row{margin:0}
 .bible-search-command>small{display:block;margin:6px 2px 0;color:#606574;font-size:7px}
 
+.bible-reference-picker{
+  overflow:hidden;border:1px solid rgba(255,255,255,.05);border-radius:14px;background:#0b0c11;
+}
+.bible-reference-picker.open{
+  border-color:rgba(124,92,255,.12);background:linear-gradient(145deg,rgba(124,92,255,.035),#0b0c11 48%);
+}
+.bible-reference-picker-toggle{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:52px;padding:10px 12px;
+  border:0;background:transparent;color:#cfd1da;text-align:left;
+}
+.bible-reference-picker-toggle>span{min-width:0}
+.bible-reference-picker-toggle strong{display:block;font-size:9px}
+.bible-reference-picker-toggle small{display:block;margin-top:4px;color:#686d7c;font-size:7px;line-height:1.35}
+.bible-reference-picker-toggle em{
+  flex:none;font-style:normal;color:#9c93dc;font-size:7px;white-space:nowrap;
+}
+.bible-reference-picker-body{
+  padding:10px;border-top:1px solid rgba(255,255,255,.045);
+}
+.bible-reference-picker-fields{
+  display:grid;grid-template-columns:minmax(170px,1.5fr) minmax(100px,.55fr) auto;gap:8px;align-items:end;
+}
+.bible-reference-picker-fields label{display:grid;gap:5px}
+.bible-reference-picker-fields label>span{color:#757a89;font-size:6px;letter-spacing:.07em;text-transform:uppercase}
+.bible-reference-picker-fields select,.bible-reference-picker-fields input{
+  width:100%;min-height:44px;padding:0 10px;border:1px solid rgba(255,255,255,.06);border-radius:10px;
+  background:#101118;color:#d8dae2;font-size:9px;outline:none;
+}
+.bible-reference-picker-fields select:focus,.bible-reference-picker-fields input:focus{
+  border-color:rgba(124,92,255,.3);box-shadow:0 0 0 2px rgba(124,92,255,.06);
+}
+.bible-reference-picker-load{min-height:44px;padding-inline:13px;white-space:nowrap}
+.bible-picker-status,.bible-picker-hint{
+  display:block;margin-top:9px;color:#6f7483;font-size:7px;line-height:1.45;
+}
+.bible-picker-verses{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:6px;margin-top:10px;
+}
+.bible-picker-verse{
+  display:flex;min-height:58px;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  border:1px solid rgba(255,255,255,.045);border-radius:10px;background:#101118;color:#bdc0ca;
+}
+.bible-picker-verse strong{font-size:14px;font-variant-numeric:tabular-nums}
+.bible-picker-verse small{color:#686d7c;font-size:5px;text-transform:uppercase;letter-spacing:.06em}
+.bible-picker-verse.prepared{
+  border-color:rgba(124,92,255,.26);background:rgba(124,92,255,.08);color:#d8d2ff;
+}
+.bible-picker-verse.on-air{
+  border-color:rgba(232,90,104,.26);background:rgba(232,90,104,.075);color:#f0c9ce;
+}
+.bible-picker-verse.on-air small{color:#da8a95}
+
 .bible-smart-window{
   overflow:hidden;padding:10px;border:1px solid rgba(124,92,255,.12);border-radius:16px;
   background:linear-gradient(145deg,rgba(124,92,255,.055),rgba(10,11,16,.96) 42%,rgba(10,11,16,.98));
@@ -1257,6 +1309,10 @@ code,kbd{font-variant-ligatures:none}
   .bible-live-strip{grid-template-columns:1fr}
   .bible-live-strip>p{padding-left:17px}
   .bible-return-song{width:100%;white-space:normal}
+  .bible-reference-picker-fields{grid-template-columns:1fr 96px}
+  .bible-reference-picker-load{grid-column:1/-1;min-height:46px}
+  .bible-picker-verses{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .bible-picker-verse{min-height:60px}
   .bible-smart-window{padding:8px}
   .bible-smart-window-head{align-items:flex-start;flex-direction:column;gap:6px}
   .bible-smart-verse{flex-basis:116px;min-height:108px}
@@ -1274,6 +1330,11 @@ code,kbd{font-variant-ligatures:none}
   .live-universal-input{grid-template-columns:22px minmax(0,1fr) auto}
   .live-universal-input button{padding-inline:10px}
   .song-search-actions{grid-template-columns:1fr}
+  .bible-reference-picker-toggle{align-items:flex-start;flex-direction:column}
+  .bible-reference-picker-toggle em{align-self:flex-end}
+  .bible-reference-picker-fields{grid-template-columns:1fr}
+  .bible-reference-picker-load{grid-column:auto}
+  .bible-picker-verses{grid-template-columns:repeat(4,minmax(0,1fr))}
   .bible-chapter-nav{grid-template-columns:1fr 1fr}
   .bible-chapter-nav>div{grid-column:1/-1;grid-row:1}
   .bible-chapter-nav button:first-child{grid-column:1;grid-row:2}

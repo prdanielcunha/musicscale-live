@@ -9,6 +9,7 @@ export const CAPABILITIES = [
   'presentation.background.set',
   'bible.search',
   'bible.versions.read',
+  'bible.books.read',
   'bible.present',
   'songs.search',
   'songs.create',
