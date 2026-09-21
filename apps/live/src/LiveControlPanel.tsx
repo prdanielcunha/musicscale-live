@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Capability, CommandResult } from '@millionsnest/live-domain';
+import type {
+  Capability,
+  CommandResult,
+  ProviderLink,
+  ServiceItem
+} from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
 import { useLiveCueCoordinator } from './LiveCueCoordinator';
 import { useLiveOperatorShortcuts } from './useLiveOperatorShortcuts';
@@ -12,10 +17,18 @@ type ToolMode = 'song' | 'bible' | 'media' | 'stage';
 
 interface SearchSongResult {
   id: string;
+  providerId: string;
   title: string;
   artist?: string;
   key?: string;
   bpm?: number;
+}
+
+interface SongSection {
+  id: string;
+  label: string;
+  startIndex: number;
+  endIndex: number;
 }
 
 interface SearchMediaResult {
@@ -79,23 +92,72 @@ function getBackgroundOptions(results: CommandResult[]): BackgroundOption[] {
 }
 
 function getSongResults(results: CommandResult[]): SearchSongResult[] {
-  const raw = results
-    .flatMap(result => {
-      const value = result.observedState?.results;
-      return Array.isArray(value) ? value : [];
-    })
-    .filter(value => value && typeof value === 'object') as Array<Record<string, unknown>>;
+  const normalized = results.flatMap(result => {
+    const value = result.observedState?.results;
+    if (!Array.isArray(value)) return [];
+    return value
+      .filter(item => item && typeof item === 'object')
+      .map(item => {
+        const song = item as Record<string, unknown>;
+        return {
+          id: String(song.id || ''),
+          providerId: result.providerInstanceId,
+          title: String(song.title || ''),
+          artist: song.artist ? String(song.artist) : undefined,
+          key: song.key ? String(song.key) : undefined,
+          bpm: typeof song.bpm === 'number' ? song.bpm : undefined
+        };
+      });
+  }).filter(value => value.id && value.providerId && value.title);
 
+  const seen = new Set<string>();
+  return normalized.filter(song => {
+    const key = `${song.providerId}:${song.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 18);
+}
+
+function normalizeSectionLabel(slide: Record<string, unknown>, index: number): string {
+  const raw = [
+    slide.slide_description,
+    slide.description,
+    slide.slide_type,
+    slide.type
+  ].find(value => typeof value === 'string' && value.trim()) as string | undefined;
+
+  if (!raw) return `Slide ${index + 1}`;
   return raw
-    .map(value => ({
-      id: String(value.id || ''),
-      title: String(value.title || ''),
-      artist: value.artist ? String(value.artist) : undefined,
-      key: value.key ? String(value.key) : undefined,
-      bpm: typeof value.bpm === 'number' ? value.bpm : undefined
-    }))
-    .filter(value => value.id && value.title)
-    .slice(0, 12);
+    .replace(/^\s*[\[(]+|[\])]+\s*$/g, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildSongSections(slides: Array<Record<string, unknown>>): SongSection[] {
+  const sections: SongSection[] = [];
+  slides.forEach((slide, index) => {
+    const label = normalizeSectionLabel(slide, index);
+    const previous = sections[sections.length - 1];
+    if (previous && previous.label.toLocaleLowerCase() === label.toLocaleLowerCase()) {
+      previous.endIndex = index;
+      return;
+    }
+    sections.push({
+      id: `section:${index}:${label.toLocaleLowerCase()}`,
+      label,
+      startIndex: index,
+      endIndex: index
+    });
+  });
+  return sections;
+}
+
+function looksLikeBibleReference(value: string): boolean {
+  const text = value.trim();
+  if (!text) return false;
+  return /^(?:[1-3]\s*)?[\p{L}.ªº]+(?:\s+[\p{L}.ªº]+)*\s+\d+(?:\s*[:.]\s*\d+(?:\s*[-–]\s*\d+)?)?$/iu.test(text);
 }
 
 function getPresentationFromResults(results: CommandResult[]): Record<string, unknown> | null {
@@ -179,6 +241,10 @@ export function LiveControlPanel({
   const cueCoordinator = useLiveCueCoordinator();
   const [songQuery, setSongQuery] = useState('');
   const [songResults, setSongResults] = useState<SearchSongResult[]>([]);
+  const [universalQuery, setUniversalQuery] = useState('');
+  const [universalScope, setUniversalScope] = useState<'auto' | 'song' | 'bible' | 'media'>('auto');
+  const [bibleCommand, setBibleCommand] = useState<{ text: string; nonce: number } | null>(null);
+  const [followLive, setFollowLive] = useState(true);
   const [mediaKind, setMediaKind] = useState<'video' | 'image' | 'audio'>('video');
   const [mediaQuery, setMediaQuery] = useState('');
   const [mediaResults, setMediaResults] = useState<SearchMediaResult[]>([]);
@@ -196,7 +262,9 @@ export function LiveControlPanel({
   const clearTimer = useRef<number | null>(null);
   const previewRequestSignature = useRef<string>('');
   const slideRailRef = useRef<HTMLDivElement | null>(null);
+  const sectionRailRef = useRef<HTMLDivElement | null>(null);
   const previousFrameSignature = useRef('');
+  const tapTarget = useRef<{ key: string; at: number } | null>(null);
 
   const providers = controller.nodeState?.providers || [];
   const servicePlan = servicePlanEnabled
@@ -288,6 +356,27 @@ export function LiveControlPanel({
       .find(mode => toolAvailability[mode]);
     if (fallback) setToolMode(fallback);
   }, [toolAvailability, toolMode]);
+
+  useEffect(() => {
+    let stopped = false;
+    let polling = false;
+    const refresh = async () => {
+      if (stopped || polling || document.visibilityState === 'hidden') return;
+      polling = true;
+      try {
+        await controller.refreshState();
+      } catch {
+        // The regular connection heartbeat owns degraded/offline UX.
+      } finally {
+        polling = false;
+      }
+    };
+    const timer = window.setInterval(() => void refresh(), 900);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [controller.refreshState]);
 
   useEffect(() => {
     if (!canPreviewSnapshot || !currentPresentation) return;
@@ -489,12 +578,12 @@ export function LiveControlPanel({
     if (presentation) setPreviewPresentation(presentation);
     if (results.some(result => result.accepted)) {
       setSelectedSlideIndex(null);
+      setFollowLive(true);
     }
   }
 
-  function prepareServiceItem() {
-    const item = serviceHorizon.next;
-    if (!item || item.type !== 'song' || !item.providerLinkId) return;
+  function prepareServiceSong(item: ServiceItem) {
+    if (item.type !== 'song' || !item.providerLinkId) return;
     const link = providerLinks.find(candidate => candidate.id === item.providerLinkId);
     if (!link) return;
 
@@ -510,9 +599,33 @@ export function LiveControlPanel({
     });
   }
 
-  async function searchSongs() {
-    const query = songQuery.trim();
+  function prepareServiceItem() {
+    if (serviceHorizon.next) prepareServiceSong(serviceHorizon.next);
+  }
+
+  async function playServiceSong(item: ServiceItem) {
+    if (item.type !== 'song' || !item.providerLinkId || busy !== null) return;
+    const link = providerLinks.find(candidate => candidate.id === item.providerLinkId);
+    if (!link) return;
+    const results = await run(
+      `service-song-now:${item.id}`,
+      'songs.present',
+      { id: link.externalId },
+      'normal',
+      item.id,
+      [link.providerInstanceId]
+    );
+    if (results.some(result => result.accepted)) {
+      setPreparedCue(null);
+      setToolMode('song');
+      setFollowLive(true);
+    }
+  }
+
+  async function searchSongs(explicitQuery?: string) {
+    const query = (explicitQuery ?? songQuery).trim();
     if (!query || !can('songs.search')) return;
+    setSongQuery(query);
     const results = await run('song-search', 'songs.search', { text: query });
     setSongResults(getSongResults(results));
   }
@@ -520,22 +633,125 @@ export function LiveControlPanel({
   function prepareSong(song: SearchSongResult) {
     if (!can('songs.present')) return;
     setPreparedCue({
-      id: `song:${song.id}`,
+      id: `song:${song.providerId}:${song.id}`,
       kind: 'song',
       title: song.title,
       subtitle: [song.artist, song.key, song.bpm ? `${song.bpm} BPM` : '']
         .filter(Boolean)
         .join(' · '),
       capability: 'songs.present',
-      payload: { id: song.id }
+      payload: { id: song.id },
+      targetProviderIds: [song.providerId]
     });
   }
 
-  async function searchMedia() {
+  async function playSongNow(song: SearchSongResult) {
+    if (!can('songs.present') || busy !== null) return;
+    const results = await run(
+      `song-now:${song.providerId}:${song.id}`,
+      'songs.present',
+      { id: song.id },
+      'normal',
+      undefined,
+      [song.providerId]
+    );
+    if (results.some(result => result.accepted)) {
+      setPreparedCue(null);
+      setFollowLive(true);
+    }
+  }
+
+  async function addSongToService(song: SearchSongResult, placement: 'next' | 'end') {
+    if (!servicePlan || !controller.credential || busy !== null) return;
+
+    const linkId = `live-link:${song.providerId}:${song.id}`;
+    const existingLink = providerLinks.find(link =>
+      link.providerInstanceId === song.providerId &&
+      link.externalId === song.id
+    );
+    const link: ProviderLink = existingLink || {
+      id: linkId,
+      organizationId: controller.credential.binding.organizationId,
+      venueId: controller.credential.binding.venueId,
+      providerInstanceId: song.providerId,
+      entityType: 'song',
+      externalId: song.id,
+      fingerprint: [song.title, song.artist || ''].join('|').toLocaleLowerCase(),
+      lastVerifiedAt: new Date().toISOString(),
+      metadata: { source: 'live-operator' }
+    };
+
+    if (can('playlist.write')) {
+      const providerIndex = placement === 'next'
+        ? Math.max(0, serviceHorizon.activeIndex + 1)
+        : -1;
+      const playlistResults = await run(
+        `playlist-add:${song.providerId}:${song.id}`,
+        'playlist.write',
+        { id: song.id, index: providerIndex },
+        'normal',
+        undefined,
+        [song.providerId]
+      );
+      if (playlistResults.some(result => !result.accepted)) return;
+    }
+
+    const runtimeItem: ServiceItem = {
+      id: `live-song:${createClientId()}`,
+      type: 'song',
+      title: song.title,
+      providerLinkId: link.id,
+      state: 'planned',
+      payload: {
+        liveAdded: true,
+        artist: song.artist,
+        key: song.key,
+        bpm: song.bpm
+      }
+    };
+    const items = [...servicePlan.items];
+    const insertIndex = placement === 'next'
+      ? Math.max(0, serviceHorizon.activeIndex + 1)
+      : items.length;
+    items.splice(insertIndex, 0, runtimeItem);
+
+    const links = existingLink ? providerLinks : [...providerLinks, link];
+    await controller.cacheServicePlan({
+      ...servicePlan,
+      items,
+      revision: servicePlan.revision + 1,
+      metadata: {
+        ...(servicePlan.metadata || {}),
+        lastLiveEditAt: new Date().toISOString()
+      }
+    }, links);
+    setMessage(t(
+      placement === 'next'
+        ? 'liveControls.songAddedNext'
+        : 'liveControls.songAddedEnd',
+      { title: song.title }
+    ));
+  }
+
+  function activateTarget(key: string, prepare: () => void, execute: () => void) {
+    const now = performance.now();
+    const previous = tapTarget.current;
+    if (previous?.key === key && now - previous.at <= 380) {
+      tapTarget.current = null;
+      execute();
+      return;
+    }
+    tapTarget.current = { key, at: now };
+    prepare();
+  }
+
+  async function searchMedia(explicitQuery?: string) {
     if (!can('media.search')) return;
+    const query = (explicitQuery ?? mediaQuery).trim();
+    setMediaQuery(query);
     const results = await run('media-search', 'media.search', {
       kind: mediaKind,
-      filter: mediaQuery.trim(),
+      filter: query,
       includeMetadata: true,
       includeThumbnail: mediaKind !== 'audio'
     });
@@ -651,6 +867,36 @@ export function LiveControlPanel({
     await navigatePresentation('next');
   }
 
+  async function runUniversalSearch() {
+    const raw = universalQuery.trim();
+    if (!raw || busy !== null) return;
+
+    const prefix = raw.match(/^(b(?:íblia|iblia)?|bible|song|música|musica|media|mídia|midia)\s*:\s*(.+)$/i);
+    const requested = prefix?.[1]?.toLocaleLowerCase();
+    const query = (prefix?.[2] || raw).trim();
+    const inferredScope =
+      universalScope !== 'auto'
+        ? universalScope
+        : requested?.startsWith('b') || looksLikeBibleReference(query)
+          ? 'bible'
+          : requested === 'media' || requested === 'mídia' || requested === 'midia'
+            ? 'media'
+            : 'song';
+
+    if (inferredScope === 'bible') {
+      setToolMode('bible');
+      setBibleCommand({ text: query, nonce: Date.now() });
+      return;
+    }
+    if (inferredScope === 'media') {
+      setToolMode('media');
+      await searchMedia(query);
+      return;
+    }
+    setToolMode('song');
+    await searchSongs(query);
+  }
+
   async function showStageMessage() {
     const text = stageText.trim();
     if (!text || !can('stage.message')) return;
@@ -681,6 +927,10 @@ export function LiveControlPanel({
     void run('clear', 'presentation.clear', {}, 'guarded', undefined, undefined, true);
   }
 
+  const currentPresentationProviderId = providers.find(provider => {
+    const candidate = provider.observed?.currentPresentation;
+    return candidate && typeof candidate === 'object';
+  })?.id || null;
   const effectivePresentation =
     samePresentationFrame(previewPresentation, currentPresentation)
       ? previewPresentation
@@ -716,6 +966,18 @@ export function LiveControlPanel({
     providers.find(provider => provider.observed?.screenMode)?.observed?.screenMode || 'normal'
   );
   const presentationFrameSignature = `${String(effectivePresentation?.id || '')}:${currentSlideIndex}`;
+  const isSongPresentation = Boolean(
+    effectivePresentation?.song_id ||
+    /song|music|lyric|lyrics|música|musica|letra/i.test(String(effectivePresentation?.type || ''))
+  );
+  const songSections = useMemo(
+    () => isSongPresentation ? buildSongSections(slides) : [],
+    [isSongPresentation, presentationFrameSignature, slides]
+  );
+  const activeSection = songSections.find(section =>
+    currentSlideIndex >= section.startIndex && currentSlideIndex <= section.endIndex
+  ) || null;
+  const serviceSongs = servicePlan?.items.filter(item => item.type === 'song') || [];
 
   useEffect(() => {
     if (currentSlideIndex < 0) return;
@@ -732,15 +994,32 @@ export function LiveControlPanel({
       const currentCard = slideRailRef.current?.querySelector<HTMLElement>(
         `[data-slide-index="${currentSlideIndex}"]`
       );
-      currentCard?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'center'
-      });
+      if (followLive) {
+        currentCard?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center'
+        });
+        const sectionCard = activeSection
+          ? sectionRailRef.current?.querySelector<HTMLElement>(
+              `[data-section-id="${CSS.escape(activeSection.id)}"]`
+            )
+          : null;
+        sectionCard?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center'
+        });
+      }
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [currentSlideIndex, presentationFrameSignature]);
+  }, [activeSection?.id, currentSlideIndex, followLive, presentationFrameSignature]);
+
+  function returnToLive() {
+    setSelectedSlideIndex(null);
+    setFollowLive(true);
+  }
 
   useLiveOperatorShortcuts({
     enabled: can('presentation.navigation') && busy === null && !clearArmed,
@@ -763,10 +1042,59 @@ export function LiveControlPanel({
           {!servicePlanEnabled && (
             <span className="live-free-mode-badge">{t('liveControls.freeMode')}</span>
           )}
-          <div className="live-control-health">
+          <div className="live-control-health live-system-health">
             <span className={`status ${providers.some(p => p.health === 'online') ? 'ok' : 'warn'}`} />
-            <span>{providers.length} {t('providers')}</span>
+            <span>
+              <strong>
+                {providers.some(p => p.health === 'online')
+                  ? t('liveControls.systemReady')
+                  : t('liveControls.systemAttention')}
+              </strong>
+              <small>
+                {t('liveControls.systemApps', {
+                  online: providers.filter(p => p.health === 'online').length,
+                  total: providers.length
+                })}
+                {providers.length
+                  ? ` · ${providers.map(provider => provider.displayName).join(', ')}`
+                  : ''}
+              </small>
+            </span>
           </div>
+        </div>
+      </div>
+
+      <div className="live-universal-bar" role="search">
+        <div className="live-universal-input">
+          <span aria-hidden="true">⌕</span>
+          <input
+            value={universalQuery}
+            onChange={event => setUniversalQuery(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter') void runUniversalSearch();
+            }}
+            placeholder={t('liveControls.universalPlaceholder')}
+            aria-label={t('liveControls.universalPlaceholder')}
+          />
+          <button
+            type="button"
+            disabled={!universalQuery.trim() || busy !== null}
+            onClick={() => void runUniversalSearch()}
+          >
+            {t('liveControls.go')}
+          </button>
+        </div>
+        <div className="live-universal-scopes" aria-label={t('liveControls.searchScope')}>
+          {(['auto','song','bible','media'] as const).map(scope => (
+            <button
+              key={scope}
+              type="button"
+              className={universalScope === scope ? 'active' : ''}
+              onClick={() => setUniversalScope(scope)}
+            >
+              {t(`liveControls.searchScopes.${scope}`)}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -795,6 +1123,20 @@ export function LiveControlPanel({
               <small>{toolAvailability[mode] ? t('liveControls.available') : t('liveControls.unavailable')}</small>
             </button>
           ))}
+        </div>
+
+        <div className="live-follow-row">
+          <button
+            type="button"
+            className={followLive ? 'live-follow-chip active' : 'live-follow-chip'}
+            onClick={returnToLive}
+          >
+            <span />
+            {followLive
+              ? t('liveControls.followingLive')
+              : t('liveControls.returnToLive')}
+          </button>
+          <small>{t('liveControls.followHint')}</small>
         </div>
 
         <article className="operator-card program-card">
@@ -922,6 +1264,59 @@ export function LiveControlPanel({
             </section>
           </div>
 
+          {songSections.length > 0 && (
+            <div className="song-section-shell">
+              <div className="song-section-head">
+                <div>
+                  <strong>{t('liveControls.songSections')}</strong>
+                  <span>{t('liveControls.sectionHint')}</span>
+                </div>
+                {activeSection && (
+                  <em>{t('liveControls.currentSection', { section: activeSection.label })}</em>
+                )}
+              </div>
+              <div ref={sectionRailRef} className="song-section-rail">
+                {songSections.map(section => {
+                  const current = activeSection?.id === section.id;
+                  const selected = selectedSlideIndex === section.startIndex && !current;
+                  return (
+                    <button
+                      key={section.id}
+                      type="button"
+                      data-section-id={section.id}
+                      className={[
+                        'song-section-chip',
+                        current ? 'current' : '',
+                        selected ? 'selected' : ''
+                      ].filter(Boolean).join(' ')}
+                      onClick={() => activateTarget(
+                        section.id,
+                        () => {
+                          setSelectedSlideIndex(current ? null : section.startIndex);
+                          if (!current) setFollowLive(false);
+                        },
+                        () => void goToSlide(section.startIndex)
+                      )}
+                      disabled={busy !== null}
+                    >
+                      <span>{section.label}</span>
+                      <small>
+                        {current
+                          ? t('liveControls.onAir')
+                          : section.startIndex === section.endIndex
+                            ? t('liveControls.slide', { number: section.startIndex + 1 })
+                            : t('liveControls.slideRange', {
+                                start: section.startIndex + 1,
+                                end: section.endIndex + 1
+                              })}
+                      </small>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {slides.length > 0 && (
             <div className="slide-rail-shell">
               <div className="slide-rail-head">
@@ -955,8 +1350,14 @@ export function LiveControlPanel({
                         isCurrent ? 'current' : '',
                         isSelected ? 'selected' : ''
                       ].filter(Boolean).join(' ')}
-                      onClick={() => setSelectedSlideIndex(isCurrent ? null : index)}
-                      onDoubleClick={touchPrimary ? undefined : () => void goToSlide(index)}
+                      onClick={() => activateTarget(
+                        `slide:${index}`,
+                        () => {
+                          setSelectedSlideIndex(isCurrent ? null : index);
+                          if (!isCurrent) setFollowLive(false);
+                        },
+                        () => void goToSlide(index)
+                      )}
                       disabled={busy !== null}
                     >
                       <span className="slide-rail-number">{index + 1}</span>
@@ -1144,8 +1545,52 @@ export function LiveControlPanel({
         )}
 
         {toolMode === 'song' && toolAvailability.song && (
-        <article className="operator-card live-tool-card">
-          <div className="operator-card-head"><span>{t('liveControls.song')}</span></div>
+        <article className="operator-card live-tool-card song-library-card">
+          <div className="operator-card-head">
+            <span>{t('liveControls.song')}</span>
+            <small>{t('liveControls.songLibraryHint')}</small>
+          </div>
+          {serviceSongs.length > 0 && (
+            <div className="service-song-library">
+              <div className="service-song-library-head">
+                <strong>{t('liveControls.serviceSongs')}</strong>
+                <span>{t('liveControls.serviceSongsHint')}</span>
+              </div>
+              <div className="service-song-rail">
+                {serviceSongs.map((item, index) => {
+                  const isCurrent = item.id === serviceHorizon.current?.id || item.state === 'live';
+                  const isPrepared = preparedCue?.serviceItemId === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={[
+                        'service-song-chip',
+                        isCurrent ? 'current' : '',
+                        isPrepared ? 'prepared' : ''
+                      ].filter(Boolean).join(' ')}
+                      onClick={() => activateTarget(
+                        `service-song:${item.id}`,
+                        () => prepareServiceSong(item),
+                        () => void playServiceSong(item)
+                      )}
+                      disabled={!item.providerLinkId || busy !== null}
+                    >
+                      <small>{String(index + 1).padStart(2, '0')}</small>
+                      <strong>{item.title}</strong>
+                      <em>
+                        {isCurrent
+                          ? t('liveControls.onAir')
+                          : isPrepared
+                            ? t('liveControls.prepared')
+                            : t('liveControls.ready')}
+                      </em>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className="operator-inline">
             <input
               value={songQuery}
@@ -1165,23 +1610,61 @@ export function LiveControlPanel({
             </button>
           </div>
           <div className="provider-search-results">
-            {songResults.map(song => (
-              <button
-                key={song.id}
-                disabled={!can('songs.present') || busy !== null}
-                className={preparedCue?.id === `song:${song.id}` ? 'prepared' : ''}
-                onClick={() => prepareSong(song)}
-              >
-                <span><strong>{song.title}</strong><small>{song.artist || ''}</small></span>
-                <em>
-                  {preparedCue?.id === `song:${song.id}`
-                    ? t('liveControls.prepared')
-                    : song.key || song.bpm
-                      ? `${song.key || ''}${song.bpm ? ` · ${song.bpm} BPM` : ''}`
-                      : t('liveControls.prepare')}
-                </em>
-              </button>
-            ))}
+            {songResults.map(song => {
+              const cueId = `song:${song.providerId}:${song.id}`;
+              return (
+                <div
+                  key={`${song.providerId}:${song.id}`}
+                  className={preparedCue?.id === cueId ? 'song-search-card prepared' : 'song-search-card'}
+                >
+                  <button
+                    className="song-search-main"
+                    disabled={!can('songs.present') || busy !== null}
+                    onClick={() => prepareSong(song)}
+                  >
+                    <span>
+                      <strong>{song.title}</strong>
+                      <small>
+                        {[song.artist, song.key, song.bpm ? `${song.bpm} BPM` : '']
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </small>
+                    </span>
+                    <em>{preparedCue?.id === cueId
+                      ? t('liveControls.prepared')
+                      : t('liveControls.prepare')}</em>
+                  </button>
+                  <div className="song-search-actions">
+                    <button
+                      type="button"
+                      className="primary"
+                      disabled={!can('songs.present') || busy !== null}
+                      onClick={() => void playSongNow(song)}
+                    >
+                      {t('liveControls.playNow')}
+                    </button>
+                    {servicePlan && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={busy !== null}
+                          onClick={() => void addSongToService(song, 'next')}
+                        >
+                          {t('liveControls.addNext')}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy !== null}
+                          onClick={() => void addSongToService(song, 'end')}
+                        >
+                          {t('liveControls.addEnd')}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
             {songQuery && !songResults.length && busy !== 'song-search' && (
               <small className="empty-result">{t('liveControls.searchHint')}</small>
             )}
@@ -1194,7 +1677,13 @@ export function LiveControlPanel({
             controller={controller}
             actorId={actorId}
             liveSessionId={liveSessionId}
-            onPresentation={presentation => setPreviewPresentation(presentation)}
+            externalQuery={bibleCommand?.text}
+            externalQueryNonce={bibleCommand?.nonce}
+            currentPresentationProviderId={currentPresentationProviderId}
+            onPresentation={presentation => {
+              setPreviewPresentation(presentation);
+              setFollowLive(true);
+            }}
           />
         )}
 
