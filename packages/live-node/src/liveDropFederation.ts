@@ -172,6 +172,7 @@ export async function stageAndOpenPeerLiveDrop(options: {
   federatedProviderId: string;
   actorId: string;
   liveSessionId: string;
+  serviceItemId?: string;
   fetchImpl?: FetchLike;
 }): Promise<PeerLiveDropResult> {
   const {
@@ -181,7 +182,8 @@ export async function stageAndOpenPeerLiveDrop(options: {
     remoteProviderId,
     federatedProviderId,
     actorId,
-    liveSessionId
+    liveSessionId,
+    serviceItemId
   } = options;
   const fetchImpl = options.fetchImpl || fetch;
 
@@ -268,7 +270,8 @@ export async function stageAndOpenPeerLiveDrop(options: {
       body: JSON.stringify({
         actorId,
         liveSessionId,
-        providerId: remoteProviderId
+        providerId: remoteProviderId,
+        serviceItemId
       })
     },
     20_000
