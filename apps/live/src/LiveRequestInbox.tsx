@@ -198,19 +198,40 @@ export function LiveRequestInbox({
   async function setStatus(
     requestId: string,
     status: 'accepted' | 'rejected' | 'completed'
-  ) {
+  ): Promise<boolean> {
     const busyKey = `${requestId}:status`;
     setBusy(busyKey);
     clearError(requestId);
     try {
       await controller.updateRequestStatus(requestId, status, actorId);
+      return true;
     } catch (error) {
       setRequestError(
         requestId,
         error instanceof Error ? error.message : 'request_status_failed'
       );
+      return false;
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function acceptAndPrepare(request: LiveRequest) {
+    const accepted = await setStatus(request.id, 'accepted');
+    if (!accepted) return;
+
+    // Preparation is intentionally automatic after acceptance because it does
+    // not change any public output. The operator still owns the final TAKE.
+    if (request.kind === 'bible') {
+      await prepareBibleRequest(request);
+      return;
+    }
+    if (request.kind === 'section') {
+      await prepareSectionRequest(request);
+      return;
+    }
+    if (request.kind === 'media') {
+      await prepareMediaRequest(request);
     }
   }
 
@@ -939,9 +960,13 @@ export function LiveRequestInbox({
                     <button
                       className="primary"
                       disabled={requestBusy}
-                      onClick={() => void setStatus(request.id, 'accepted')}
+                      onClick={() => void acceptAndPrepare(request)}
                     >
-                      {busy === `${request.id}:status` ? '…' : t('requestInbox.accept')}
+                      {busy?.startsWith(`${request.id}:`)
+                        ? '…'
+                        : request.kind === 'message'
+                          ? t('requestInbox.accept')
+                          : t('requestInbox.acceptPrepare')}
                     </button>
                   </>
                 ) : request.kind === 'bible' && canPrepareBible ? (
