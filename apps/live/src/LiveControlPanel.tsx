@@ -232,11 +232,21 @@ function getTextResults(results: CommandResult[]): SearchTextResult[] {
       .filter(item => item && typeof item === 'object')
       .map(item => {
         const text = item as Record<string, unknown>;
+        const slides = Array.isArray(text.slides)
+          ? text.slides.filter(value => value && typeof value === 'object')
+          : [];
+        const firstSlide = slides[0] as Record<string, unknown> | undefined;
+        const preview =
+          typeof firstSlide?.text === 'string'
+            ? firstSlide.text
+            : typeof firstSlide?.styled_text === 'string'
+              ? firstSlide.styled_text
+              : undefined;
         return {
           id: String(text.id || ''),
           providerId: result.providerInstanceId,
           title: String(text.title || text.name || ''),
-          text: typeof text.text === 'string' ? text.text : undefined
+          text: preview
         };
       });
   }).filter(item => item.id && item.providerId && item.title);
