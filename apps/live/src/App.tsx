@@ -29,6 +29,7 @@ import { useLiveFocus } from './useLiveFocus';
 import { useOperatorViewport } from './useOperatorViewport';
 import { RequestSurface } from './RequestSurface';
 import { LiveRequestInbox } from './LiveRequestInbox';
+import { LiveSessionPulse } from './LiveSessionPulse';
 import { SceneStudio } from './SceneStudio';
 import { LiveSceneBar } from './LiveSceneBar';
 import { PlaylistSyncAutomation } from './PlaylistSyncAutomation';
@@ -649,6 +650,10 @@ export function App() {
             <LiveRequestInbox
               controller={liveNode}
               actorId={user.uid}
+              liveSessionId={liveSessionId}
+            />
+            <LiveSessionPulse
+              controller={liveNode}
               liveSessionId={liveSessionId}
             />
           </LiveCueCoordinatorProvider>
