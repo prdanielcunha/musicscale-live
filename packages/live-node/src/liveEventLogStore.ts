@@ -1,6 +1,9 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import type { LiveSessionEvent } from '@millionsnest/live-domain';
+import type {
+  LiveSessionEvent,
+  LiveSessionEventSummary
+} from '@millionsnest/live-domain';
 
 export interface LiveEventQuery {
   organizationId: string;
@@ -61,12 +64,66 @@ export class LiveEventLogStore {
 
   async count(query: Omit<LiveEventQuery, 'limit'>): Promise<number> {
     await this.load();
+    return this.matching(query).length;
+  }
+
+  async summarize(
+    query: Omit<LiveEventQuery, 'limit'>
+  ): Promise<LiveSessionEventSummary> {
+    await this.load();
+    const matched = this.matching(query);
+    const plannedItems = new Set<string>();
+    const byType: Record<string, number> = {};
+    let info = 0;
+    let warnings = 0;
+    let errors = 0;
+    let plannedActions = 0;
+    let adHocActions = 0;
+
+    for (const event of matched) {
+      byType[event.type] = (byType[event.type] || 0) + 1;
+      if (event.level === 'error') errors += 1;
+      else if (event.level === 'warning') warnings += 1;
+      else info += 1;
+
+      if (event.serviceItemId && event.level !== 'error') {
+        plannedItems.add(event.serviceItemId);
+        plannedActions += 1;
+      }
+
+      const payload = event.payload && typeof event.payload === 'object'
+        ? event.payload as Record<string, unknown>
+        : {};
+      if (payload.adHoc === true && event.level !== 'error') adHocActions += 1;
+    }
+
+    const chronological = matched
+      .slice()
+      .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+
+    return {
+      total: matched.length,
+      info,
+      warnings,
+      errors,
+      plannedActions,
+      plannedServiceItems: plannedItems.size,
+      adHocActions,
+      byType,
+      startedAt: chronological[0]?.occurredAt,
+      lastEventAt: chronological[chronological.length - 1]?.occurredAt
+    };
+  }
+
+  private matching(
+    query: Omit<LiveEventQuery, 'limit'>
+  ): LiveSessionEvent[] {
     return this.events.filter(event =>
       event.organizationId === query.organizationId &&
       event.venueId === query.venueId &&
       event.liveSystemId === query.liveSystemId &&
       (!query.liveSessionId || event.liveSessionId === query.liveSessionId)
-    ).length;
+    );
   }
 
   private async load(): Promise<void> {
