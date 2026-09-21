@@ -314,7 +314,7 @@ export function BibleWorkspace({
       const presentation = provider.observed?.currentPresentation;
       if (presentation && typeof presentation === 'object') {
         return {
-          providerId: provider.id,
+          providerId: provider.providerId,
           presentation: presentation as Record<string, unknown>
         };
       }
