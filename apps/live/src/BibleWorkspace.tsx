@@ -28,6 +28,13 @@ interface BibleVersion {
   languageIso?: string;
 }
 
+interface BibleBook {
+  id: string;
+  name: string;
+  abbrev: string;
+  usfxCode?: string;
+}
+
 interface SavedBibleReference extends BibleReferenceMatch {
   version?: string;
   savedAt: string;
@@ -154,6 +161,34 @@ function getBibleVersions(results: CommandResult[]): BibleVersion[] {
   const seen = new Set<string>();
   return versions.filter(item => {
     const key = `${item.key}:${item.version}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getBibleBooks(results: CommandResult[]): BibleBook[] {
+  const values = results.flatMap(result => {
+    const raw = result.observedState?.books;
+    return Array.isArray(raw) ? raw : [];
+  });
+
+  const books = values
+    .filter(value => value && typeof value === 'object')
+    .map(value => {
+      const item = value as Record<string, unknown>;
+      return {
+        id: String(item.id || ''),
+        name: String(item.name || item.abbrev || ''),
+        abbrev: String(item.abbrev || item.name || ''),
+        usfxCode: item.usfx_code ? String(item.usfx_code) : undefined
+      };
+    })
+    .filter(item => item.id && item.name);
+
+  const seen = new Set<string>();
+  return books.filter(book => {
+    const key = book.id || book.name.toLocaleLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -314,6 +349,11 @@ export function BibleWorkspace({
   const [selected, setSelected] = useState<BibleReferenceMatch | null>(null);
   const [versions, setVersions] = useState<BibleVersion[]>([]);
   const [version, setVersion] = useState('');
+  const [books, setBooks] = useState<BibleBook[]>([]);
+  const [booksLoading, setBooksLoading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerBookId, setPickerBookId] = useState('');
+  const [pickerChapter, setPickerChapter] = useState('1');
   const [favorites, setFavorites] = useState<SavedBibleReference[]>([]);
   const [history, setHistory] = useState<SavedBibleReference[]>([]);
   const [view, setView] = useState<'search' | 'favorites' | 'history'>('search');
@@ -346,6 +386,7 @@ export function BibleWorkspace({
   const canSearch = capabilitySet.has('bible.search');
   const canPresent = capabilitySet.has('bible.present');
   const canReadVersions = capabilitySet.has('bible.versions.read');
+  const canReadBooks = capabilitySet.has('bible.books.read');
 
   const livePresentationEntry = useMemo(() => {
     for (const provider of providers) {
@@ -441,7 +482,45 @@ export function BibleWorkspace({
     () => versions.find(item => item.key === version || item.version === version),
     [version, versions]
   );
-  const bibleLanguageId = selectedVersion?.languageId;
+  const bibleLanguageId =
+    selectedVersion?.languageId ||
+    versions.find(item => item.languageId)?.languageId;
+
+  useEffect(() => {
+    if (!canReadBooks || !bibleLanguageId) {
+      setBooks([]);
+      return;
+    }
+
+    let cancelled = false;
+    setBooksLoading(true);
+    void controller.executeCommand({
+      capability: 'bible.books.read',
+      payload: { languageId: bibleLanguageId },
+      liveSessionId,
+      actorId,
+      safetyLevel: 'normal'
+    }).then(response => {
+      if (cancelled) return;
+      const nextBooks = getBibleBooks(response);
+      setBooks(nextBooks);
+      setPickerBookId(current => current || nextBooks[0]?.id || '');
+    }).catch(() => {
+      if (!cancelled) setBooks([]);
+    }).finally(() => {
+      if (!cancelled) setBooksLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    actorId,
+    bibleLanguageId,
+    canReadBooks,
+    controller.executeCommand,
+    liveSessionId
+  ]);
 
   function chapterSignature(reference: ParsedReference): string {
     return [
