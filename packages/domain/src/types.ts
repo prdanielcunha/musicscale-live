@@ -119,10 +119,24 @@ export interface LiveSessionEvent<TPayload = Record<string, unknown>>
   level: 'info' | 'warning' | 'error';
 }
 
+export interface LiveSessionEventSummary {
+  total: number;
+  info: number;
+  warnings: number;
+  errors: number;
+  plannedActions: number;
+  plannedServiceItems: number;
+  adHocActions: number;
+  byType: Record<string, number>;
+  startedAt?: string;
+  lastEventAt?: string;
+}
+
 export interface LiveSessionEventPage {
   events: LiveSessionEvent[];
   total: number;
   liveSessionId?: EntityId;
+  summary: LiveSessionEventSummary;
 }
 
 export interface CapabilitySnapshot {
