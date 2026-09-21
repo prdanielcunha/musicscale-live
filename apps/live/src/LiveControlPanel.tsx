@@ -756,6 +756,59 @@ export function LiveControlPanel({
       };
     }
 
+    if (item.type === 'text') {
+      const payload = item.payload || {};
+      const source = String(payload.source || 'provider-text');
+      const providerId = String(payload.providerId || '').trim();
+
+      if (source === 'quick-text') {
+        const text = String(payload.text || '').trim();
+        if (!text || !can('text.quick.present')) return null;
+        return {
+          id: `service-item:${item.id}`,
+          kind: 'text',
+          title: item.title,
+          subtitle: t('liveControls.quickText'),
+          capability: 'text.quick.present',
+          payload: { text },
+          targetProviderIds: providerId ? [providerId] : undefined,
+          serviceItemId: item.id
+        };
+      }
+
+      const id = String(payload.id || '').trim();
+      if (!id || !can('text.present')) return null;
+      return {
+        id: `service-item:${item.id}`,
+        kind: 'text',
+        title: item.title,
+        subtitle: t('liveControls.savedText'),
+        capability: 'text.present',
+        payload: { id },
+        targetProviderIds: providerId ? [providerId] : undefined,
+        serviceItemId: item.id
+      };
+    }
+
+    if (item.type === 'announcement') {
+      if (!can('announcement.present')) return null;
+      const payload = item.payload || {};
+      const id = String(payload.id || '').trim();
+      const name = String(payload.name || item.title || '').trim();
+      const providerId = String(payload.providerId || '').trim();
+      if (!id && !name) return null;
+      return {
+        id: `service-item:${item.id}`,
+        kind: 'announcement',
+        title: item.title,
+        subtitle: t('liveControls.announcement'),
+        capability: 'announcement.present',
+        payload: id ? { id } : { name },
+        targetProviderIds: providerId ? [providerId] : undefined,
+        serviceItemId: item.id
+      };
+    }
+
     return null;
   }
 
@@ -904,6 +957,146 @@ export function LiveControlPanel({
         : 'liveControls.songAddedEnd',
       { title: song.title }
     ));
+  }
+
+  async function addOperatorItemToService(
+    item: ServiceItem,
+    placement: 'next' | 'end'
+  ) {
+    if (!servicePlan || busy !== null) return;
+    setBusy(`service-add:${item.id}`);
+    setMessage(null);
+    try {
+      const items = [...servicePlan.items];
+      const insertIndex = placement === 'next'
+        ? Math.max(0, serviceHorizon.activeIndex >= 0 ? serviceHorizon.activeIndex + 1 : 0)
+        : items.length;
+      items.splice(insertIndex, 0, item);
+
+      await controller.cacheServicePlan({
+        ...servicePlan,
+        items,
+        revision: servicePlan.revision + 1,
+        metadata: {
+          ...(servicePlan.metadata || {}),
+          lastLiveEditAt: new Date().toISOString()
+        }
+      }, providerLinks);
+
+      setMessage(t(
+        placement === 'next'
+          ? 'liveControls.contentAddedNext'
+          : 'liveControls.contentAddedEnd',
+        { title: item.title }
+      ));
+    } catch (error) {
+      setMessage(t('liveControls.contentAddFailed', {
+        code: error instanceof Error ? error.message : 'service_plan_update_failed'
+      }));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function searchTexts(explicitQuery?: string) {
+    const query = (explicitQuery ?? textQuery).trim();
+    if (!query || !can('text.search')) return;
+    setTextQuery(query);
+    const results = await run('text-search', 'text.search', { text: query });
+    setTextResults(getTextResults(results));
+  }
+
+  async function loadAnnouncements(force = false) {
+    if (!can('announcement.read') || busy !== null) return;
+    if (announcementsLoaded && !force) return;
+    const results = await run('announcement-read', 'announcement.read', {});
+    setAnnouncements(getAnnouncementResults(results));
+    if (results.some(result => result.accepted)) setAnnouncementsLoaded(true);
+  }
+
+  function prepareSavedText(item: SearchTextResult) {
+    if (!can('text.present')) return;
+    setPreparedCue({
+      id: `text:${item.providerId}:${item.id}`,
+      kind: 'text',
+      title: item.title,
+      subtitle: item.text || t('liveControls.savedText'),
+      capability: 'text.present',
+      payload: { id: item.id },
+      targetProviderIds: [item.providerId]
+    });
+  }
+
+  function prepareQuickText() {
+    const text = quickText.trim();
+    if (!text || !can('text.quick.present')) return;
+    setPreparedCue({
+      id: `quick-text:${createClientId()}`,
+      kind: 'text',
+      title: text.length > 68 ? `${text.slice(0, 65)}…` : text,
+      subtitle: t('liveControls.quickText'),
+      capability: 'text.quick.present',
+      payload: { text }
+    });
+  }
+
+  function prepareAnnouncement(item: AnnouncementResult) {
+    if (!can('announcement.present')) return;
+    setPreparedCue({
+      id: `announcement:${item.providerId}:${item.id}`,
+      kind: 'announcement',
+      title: item.name,
+      subtitle: item.text || t('liveControls.announcement'),
+      capability: 'announcement.present',
+      payload: { id: item.id },
+      targetProviderIds: [item.providerId]
+    });
+  }
+
+  function savedTextServiceItem(item: SearchTextResult): ServiceItem {
+    return {
+      id: `live-text:${createClientId()}`,
+      type: 'text',
+      title: item.title,
+      state: 'planned',
+      payload: {
+        source: 'provider-text',
+        id: item.id,
+        providerId: item.providerId,
+        text: item.text
+      }
+    };
+  }
+
+  function quickTextServiceItem(): ServiceItem | null {
+    const text = quickText.trim();
+    if (!text) return null;
+    return {
+      id: `live-text:${createClientId()}`,
+      type: 'text',
+      title: text.length > 56 ? `${text.slice(0, 53)}…` : text,
+      state: 'planned',
+      payload: {
+        source: 'quick-text',
+        text
+      }
+    };
+  }
+
+  function announcementServiceItem(item: AnnouncementResult): ServiceItem {
+    return {
+      id: `live-announcement:${createClientId()}`,
+      type: 'announcement',
+      title: item.name,
+      state: 'planned',
+      payload: {
+        source: 'provider-announcement',
+        id: item.id,
+        providerId: item.providerId,
+        name: item.name,
+        text: item.text
+      }
+    };
   }
 
   function activateTarget(key: string, prepare: () => void, execute: () => void) {
