@@ -107,6 +107,38 @@ export interface LiveEvent<TPayload = Record<string, unknown>> {
   payload: TPayload;
 }
 
+export interface LiveSessionEvent<TPayload = Record<string, unknown>>
+  extends LiveEvent<TPayload> {
+  organizationId: EntityId;
+  venueId: EntityId;
+  liveSystemId: EntityId;
+  liveSessionId: EntityId;
+  actorId?: EntityId;
+  serviceItemId?: EntityId;
+  origin?: CommandOrigin;
+  level: 'info' | 'warning' | 'error';
+}
+
+export interface LiveSessionEventSummary {
+  total: number;
+  info: number;
+  warnings: number;
+  errors: number;
+  plannedActions: number;
+  plannedServiceItems: number;
+  adHocActions: number;
+  byType: Record<string, number>;
+  startedAt?: string;
+  lastEventAt?: string;
+}
+
+export interface LiveSessionEventPage {
+  events: LiveSessionEvent[];
+  total: number;
+  liveSessionId?: EntityId;
+  summary: LiveSessionEventSummary;
+}
+
 export interface CapabilitySnapshot {
   providerId: string;
   capabilities: Capability[];

@@ -5,6 +5,7 @@ import type {
   LiveNodeHealth,
   LiveNodeRuntimeState,
   LiveRequest,
+  LiveSessionEventPage,
   PairingChallenge,
   PairingCompleteResponse,
   PairingRequest,
@@ -224,6 +225,23 @@ export async function loadNodeState(
   return requestJson<LiveNodeStateResponse>(baseUrl, '/state', {
     headers: { Authorization: `Bearer ${token}` }
   });
+}
+
+export async function listNodeEvents(
+  baseUrl: string,
+  token: string,
+  liveSessionId?: string,
+  limit = 80
+): Promise<LiveSessionEventPage> {
+  const params = new URLSearchParams();
+  if (liveSessionId) params.set('liveSessionId', liveSessionId);
+  params.set('limit', String(Math.max(1, Math.min(250, Math.floor(limit)))));
+  return requestJson<LiveSessionEventPage>(
+    baseUrl,
+    `/events?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+    3500
+  );
 }
 
 export async function revokeNodePairing(
