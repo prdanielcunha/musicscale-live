@@ -19,7 +19,8 @@ const SUBJECT_KEYS = [
   'initialIndex',
   'mode',
   'kind',
-  'message'
+  'message',
+  'text'
 ] as const;
 
 function compactValue(value: unknown): unknown {
@@ -35,6 +36,18 @@ function compactValue(value: unknown): unknown {
       .filter(item => item !== undefined);
   }
   return undefined;
+}
+
+function isRunOfShowAction(capability: LiveCommand['capability']): boolean {
+  return [
+    'songs.present',
+    'bible.present',
+    'media.open',
+    'text.present',
+    'text.quick.present',
+    'announcement.present',
+    'presentation.take'
+  ].includes(capability);
 }
 
 function commandSubject(payload: Record<string, unknown>): Record<string, unknown> {
@@ -54,6 +67,11 @@ export function semanticEventType(capability: LiveCommand['capability']): string
       return 'bible.presented';
     case 'media.open':
       return 'media.presented';
+    case 'text.present':
+    case 'text.quick.present':
+      return 'text.presented';
+    case 'announcement.present':
+      return 'announcement.presented';
     case 'presentation.navigation':
       return 'presentation.navigated';
     case 'presentation.take':
@@ -86,6 +104,7 @@ export function eventFromCommand(
   const accepted = results.filter(result => result.accepted);
   const failed = results.filter(result => !result.accepted);
   const requestedEventType = semanticEventType(command.capability);
+  const runOfShowAction = isRunOfShowAction(command.capability);
   const level: LiveSessionEvent['level'] =
     accepted.length === 0
       ? 'error'
@@ -111,8 +130,8 @@ export function eventFromCommand(
       capability: command.capability,
       requestedEventType,
       safetyLevel: command.safetyLevel,
-      planned: Boolean(command.serviceItemId),
-      adHoc: !command.serviceItemId,
+      planned: runOfShowAction && Boolean(command.serviceItemId),
+      adHoc: runOfShowAction && !command.serviceItemId,
       outputTargets: command.outputTargets.slice(0, 12),
       targetProviderIds: command.targetProviderIds.slice(0, 12),
       subject: commandSubject(command.payload),
