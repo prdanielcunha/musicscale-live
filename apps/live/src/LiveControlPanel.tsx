@@ -1027,9 +1027,20 @@ export function LiveControlPanel({
     if (results.some(result => result.accepted)) setAnnouncementsLoaded(true);
   }
 
-  function prepareSavedText(item: SearchTextResult) {
-    if (!can('text.present')) return;
-    setPreparedCue({
+  function quickTextProviderId(): string | undefined {
+    const candidates = providers.filter(provider =>
+      (provider.health === 'online' || provider.health === 'degraded') &&
+      provider.capabilities.includes('text.quick.present')
+    );
+    const routed = controller.nodeState?.routing?.presentation;
+    if (routed && candidates.some(provider => provider.providerId === routed)) {
+      return routed;
+    }
+    return candidates.length === 1 ? candidates[0]?.providerId : undefined;
+  }
+
+  function savedTextCue(item: SearchTextResult): PreparedProgramCue {
+    return {
       id: `text:${item.providerId}:${item.id}`,
       kind: 'text',
       title: item.title,
@@ -1037,25 +1048,36 @@ export function LiveControlPanel({
       capability: 'text.present',
       payload: { id: item.id },
       targetProviderIds: [item.providerId]
-    });
+    };
   }
 
-  function prepareQuickText() {
+  function prepareSavedText(item: SearchTextResult) {
+    if (!can('text.present')) return;
+    setPreparedCue(savedTextCue(item));
+  }
+
+  function quickTextCue(): PreparedProgramCue | null {
     const text = quickText.trim();
-    if (!text || !can('text.quick.present')) return;
-    setPreparedCue({
+    if (!text || !can('text.quick.present')) return null;
+    const providerId = quickTextProviderId();
+    return {
       id: `quick-text:${createClientId()}`,
       kind: 'text',
       title: text.length > 68 ? `${text.slice(0, 65)}…` : text,
       subtitle: t('liveControls.quickText'),
       capability: 'text.quick.present',
-      payload: { text }
-    });
+      payload: { text },
+      targetProviderIds: providerId ? [providerId] : undefined
+    };
   }
 
-  function prepareAnnouncement(item: AnnouncementResult) {
-    if (!can('announcement.present')) return;
-    setPreparedCue({
+  function prepareQuickText() {
+    const cue = quickTextCue();
+    if (cue) setPreparedCue(cue);
+  }
+
+  function announcementCue(item: AnnouncementResult): PreparedProgramCue {
+    return {
       id: `announcement:${item.providerId}:${item.id}`,
       kind: 'announcement',
       title: item.name,
@@ -1063,7 +1085,12 @@ export function LiveControlPanel({
       capability: 'announcement.present',
       payload: { id: item.id },
       targetProviderIds: [item.providerId]
-    });
+    };
+  }
+
+  function prepareAnnouncement(item: AnnouncementResult) {
+    if (!can('announcement.present')) return;
+    setPreparedCue(announcementCue(item));
   }
 
   function savedTextServiceItem(item: SearchTextResult): ServiceItem {
@@ -1091,7 +1118,8 @@ export function LiveControlPanel({
       state: 'planned',
       payload: {
         source: 'quick-text',
-        text
+        text,
+        providerId: quickTextProviderId()
       }
     };
   }
