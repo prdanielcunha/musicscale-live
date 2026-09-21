@@ -144,7 +144,6 @@ export function eventFromRequestCreated(
     liveSystemId,
     liveSessionId: request.liveSessionId,
     actorId: request.actorId,
-    origin: request.kind === 'section' ? 'conductor' : 'pastor',
     level: 'info',
     payload: {
       requestId: request.id,
