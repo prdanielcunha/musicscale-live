@@ -1095,6 +1095,7 @@ export function BibleWorkspace({
       setChapterVerses(snapshot.verses);
       setMultiKeys(new Set());
       setQuery(`${snapshot.context.bookLabel} ${snapshot.context.chapter}`);
+      setMessage(null);
       void prefetchAdjacentChapters(snapshot.context);
     } catch (error) {
       setMessage(t('bibleWorkspace.errors.chapter', {
@@ -1127,8 +1128,6 @@ export function BibleWorkspace({
     const snapshot = await loadChapter(contextForBook(book, chapter));
     if (!snapshot) return;
     setQuery(`${snapshot.context.bookLabel} ${snapshot.context.chapter}`);
-    const first = snapshot.verses[0];
-    if (first) setSelected(verseAsMatch(first));
   }
 
   const collection = view === 'favorites' ? favorites : history;
@@ -1186,8 +1185,34 @@ export function BibleWorkspace({
     }));
   }
 
-  const previousChapterSnapshot = cachedAdjacentSnapshot(-1);
-  const nextChapterSnapshot = cachedAdjacentSnapshot(1);
+  function cachedBookBoundarySnapshot(delta: -1 | 1): ChapterSnapshot | undefined {
+    if (!navigationContext || !books.length) return undefined;
+    const currentBook = bookForContext(navigationContext);
+    if (!currentBook) return undefined;
+    const currentIndex = books.findIndex(book => book.id === currentBook.id);
+    const adjacentBook = books[currentIndex + delta];
+    if (!adjacentBook) return undefined;
+
+    const snapshots = Array.from(chapterCache.current.values()).filter(snapshot => {
+      const snapshotBook = bookForContext(snapshot.context);
+      return snapshotBook?.id === adjacentBook.id && snapshot.verses.length > 0;
+    });
+    if (!snapshots.length) return undefined;
+    return snapshots.sort((a, b) =>
+      delta > 0
+        ? a.context.chapter - b.context.chapter
+        : b.context.chapter - a.context.chapter
+    )[0];
+  }
+
+  const sameBookPrevious = cachedAdjacentSnapshot(-1);
+  const sameBookNext = cachedAdjacentSnapshot(1);
+  const previousChapterSnapshot = sameBookPrevious?.verses.length
+    ? sameBookPrevious
+    : cachedBookBoundarySnapshot(-1);
+  const nextChapterSnapshot = sameBookNext?.verses.length
+    ? sameBookNext
+    : cachedBookBoundarySnapshot(1);
   const previousVerseCandidate = navigationIndex > 0
     ? navigationVerses[navigationIndex - 1]
     : previousChapterSnapshot?.verses[previousChapterSnapshot.verses.length - 1];
