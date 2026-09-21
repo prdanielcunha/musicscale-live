@@ -8,6 +8,7 @@ import type {
   LiveNodeHealth,
   LiveCommand,
   LiveRequest,
+  LiveSessionEventPage,
   PairingChallenge,
   PairingRequest,
   PairingScope,
@@ -37,6 +38,7 @@ import {
   fetchProviderClipThumbnail,
   fetchProviderOutputSnapshot,
   heartbeatNode,
+  listNodeEvents,
   listNodeLiveDrop,
   loadNodeState,
   openNodeLiveDrop,
@@ -316,6 +318,19 @@ export function useLiveNode() {
     await refreshState();
     return response.topology;
   }, [credential, refreshState]);
+
+  const listEvents = useCallback(async (
+    liveSessionId?: string,
+    limit = 80
+  ): Promise<LiveSessionEventPage> => {
+    if (!credential) throw new Error('node_not_paired');
+    return listNodeEvents(
+      credential.baseUrl,
+      credential.token,
+      liveSessionId,
+      limit
+    );
+  }, [credential]);
 
   const submitRequest = useCallback(async (input: {
     id?: string;
@@ -602,6 +617,7 @@ export function useLiveNode() {
     forgetPeerNode,
     setProviderRoute,
     saveSignalTopology,
+    listEvents,
     executeCommand,
     executeScene,
     listLiveDrop,
