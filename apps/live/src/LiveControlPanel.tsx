@@ -13,7 +13,7 @@ import { createClientId } from './clientId';
 import { BibleWorkspace } from './BibleWorkspace';
 
 type Controller = ReturnType<typeof useLiveNode>;
-type ToolMode = 'song' | 'bible' | 'media' | 'stage';
+type ToolMode = 'song' | 'bible' | 'media' | 'text' | 'stage';
 
 interface SearchSongResult {
   id: string;
@@ -31,6 +31,21 @@ interface SongSection {
   endIndex: number;
 }
 
+interface SearchTextResult {
+  id: string;
+  providerId: string;
+  title: string;
+  text?: string;
+}
+
+interface AnnouncementResult {
+  id: string;
+  providerId: string;
+  name: string;
+  text?: string;
+  archived?: boolean;
+}
+
 interface SearchMediaResult {
   name: string;
   isDir?: boolean;
@@ -42,10 +57,16 @@ interface SearchMediaResult {
 
 interface PreparedProgramCue {
   id: string;
-  kind: 'song' | 'bible' | 'media';
+  kind: 'song' | 'bible' | 'media' | 'text' | 'announcement';
   title: string;
   subtitle?: string;
-  capability: 'songs.present' | 'bible.present' | 'media.open';
+  capability:
+    | 'songs.present'
+    | 'bible.present'
+    | 'media.open'
+    | 'text.present'
+    | 'text.quick.present'
+    | 'announcement.present';
   payload: Record<string, unknown>;
   targetProviderIds?: string[];
   serviceItemId?: string;
@@ -203,6 +224,59 @@ function mediaThumbnailUrl(value: string | undefined): string | undefined {
   return `data:${mime};base64,${normalized}`;
 }
 
+function getTextResults(results: CommandResult[]): SearchTextResult[] {
+  const normalized = results.flatMap(result => {
+    const value = result.observedState?.results;
+    if (!Array.isArray(value)) return [];
+    return value
+      .filter(item => item && typeof item === 'object')
+      .map(item => {
+        const text = item as Record<string, unknown>;
+        return {
+          id: String(text.id || ''),
+          providerId: result.providerInstanceId,
+          title: String(text.title || text.name || ''),
+          text: typeof text.text === 'string' ? text.text : undefined
+        };
+      });
+  }).filter(item => item.id && item.providerId && item.title);
+
+  const seen = new Set<string>();
+  return normalized.filter(item => {
+    const key = `${item.providerId}:${item.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 24);
+}
+
+function getAnnouncementResults(results: CommandResult[]): AnnouncementResult[] {
+  const normalized = results.flatMap(result => {
+    const value = result.observedState?.announcements;
+    if (!Array.isArray(value)) return [];
+    return value
+      .filter(item => item && typeof item === 'object')
+      .map(item => {
+        const announcement = item as Record<string, unknown>;
+        return {
+          id: String(announcement.id || ''),
+          providerId: result.providerInstanceId,
+          name: String(announcement.name || ''),
+          text: typeof announcement.text === 'string' ? announcement.text : undefined,
+          archived: Boolean(announcement.archived)
+        };
+      });
+  }).filter(item => item.id && item.providerId && item.name && !item.archived);
+
+  const seen = new Set<string>();
+  return normalized.filter(item => {
+    const key = `${item.providerId}:${item.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 40);
+}
+
 function getMediaResults(results: CommandResult[]): SearchMediaResult[] {
   return results
     .flatMap(result => {
@@ -243,12 +317,17 @@ export function LiveControlPanel({
   const [songQuery, setSongQuery] = useState('');
   const [songResults, setSongResults] = useState<SearchSongResult[]>([]);
   const [universalQuery, setUniversalQuery] = useState('');
-  const [universalScope, setUniversalScope] = useState<'auto' | 'song' | 'bible' | 'media'>('auto');
+  const [universalScope, setUniversalScope] = useState<'auto' | 'song' | 'bible' | 'media' | 'text'>('auto');
   const [bibleCommand, setBibleCommand] = useState<{ text: string; nonce: number } | null>(null);
   const [followLive, setFollowLive] = useState(true);
   const [mediaKind, setMediaKind] = useState<'video' | 'image' | 'audio'>('video');
   const [mediaQuery, setMediaQuery] = useState('');
   const [mediaResults, setMediaResults] = useState<SearchMediaResult[]>([]);
+  const [textQuery, setTextQuery] = useState('');
+  const [textResults, setTextResults] = useState<SearchTextResult[]>([]);
+  const [quickText, setQuickText] = useState('');
+  const [announcements, setAnnouncements] = useState<AnnouncementResult[]>([]);
+  const [announcementsLoaded, setAnnouncementsLoaded] = useState(false);
   const [stageText, setStageText] = useState('');
   const [toolMode, setToolMode] = useState<ToolMode>('song');
   const [preparedCue, setPreparedCue] = useState<PreparedProgramCue | null>(null);
@@ -339,6 +418,12 @@ export function LiveControlPanel({
     song: capabilitySet.has('songs.search') || capabilitySet.has('songs.present'),
     bible: capabilitySet.has('bible.present'),
     media: capabilitySet.has('media.search') || capabilitySet.has('media.open'),
+    text:
+      capabilitySet.has('text.search') ||
+      capabilitySet.has('text.present') ||
+      capabilitySet.has('text.quick.present') ||
+      capabilitySet.has('announcement.read') ||
+      capabilitySet.has('announcement.present'),
     stage: capabilitySet.has('stage.message')
   }), [capabilitySet]);
 
@@ -353,7 +438,7 @@ export function LiveControlPanel({
 
   useEffect(() => {
     if (toolAvailability[toolMode]) return;
-    const fallback = (['song', 'bible', 'media', 'stage'] as ToolMode[])
+    const fallback = (['song', 'bible', 'media', 'text', 'stage'] as ToolMode[])
       .find(mode => toolAvailability[mode]);
     if (fallback) setToolMode(fallback);
   }, [toolAvailability, toolMode]);
