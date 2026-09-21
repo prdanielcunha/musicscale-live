@@ -101,7 +101,8 @@ describe('Live Drop federation', () => {
         expect(JSON.parse(String(init?.body || '{}'))).toMatchObject({
           actorId: 'operator_1',
           liveSessionId: 'music-scale:scale_1',
-          providerId: 'resolume-primary'
+          providerId: 'resolume-primary',
+          serviceItemId: 'live-media:item_1'
         });
         return json({
           asset: {
@@ -131,6 +132,7 @@ describe('Live Drop federation', () => {
       federatedProviderId: 'peer:node_led:resolume-primary',
       actorId: 'operator_1',
       liveSessionId: 'music-scale:scale_1',
+      serviceItemId: 'live-media:item_1',
       fetchImpl
     });
 
