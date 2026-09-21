@@ -49,6 +49,7 @@ const ACTIONS_BY_CAPABILITY: Partial<Record<Capability, string[]>> = {
   'presentation.background.read': ['GetCurrentBackground', 'GetBackgrounds', 'GetThumbnail'],
   'presentation.background.set': ['SetCurrentBackground', 'GetCurrentBackground'],
   'bible.search': ['IdentifyVerseReferences'],
+  'bible.books.read': ['GetBibleBooks'],
   'bible.present': ['ShowVerse'],
   'songs.search': ['SearchLyrics'],
   'songs.present': ['ShowLyrics'],
@@ -387,6 +388,15 @@ export class HolyricsAdapter implements ProviderAdapter {
         if (!action) throw new Error('bible_versions_unavailable');
         const versions = await this.api.request<unknown[]>(action);
         return { versions, sourceAction: action };
+      }
+
+      case 'bible.books.read': {
+        const languageId = String(payload.languageId || '').trim();
+        if (!languageId) throw new Error('bible_language_id_required');
+        const books = await this.api.request<unknown[]>('GetBibleBooks', {
+          language_id: languageId
+        });
+        return { books, languageId };
       }
 
       case 'songs.search': {
