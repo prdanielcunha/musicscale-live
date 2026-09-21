@@ -2274,13 +2274,14 @@ async function start(): Promise<void> {
         liveSystemId: session.binding.liveSystemId,
         ...(liveSessionId ? { liveSessionId } : {})
       };
-      const [events, total] = await Promise.all([
+      const [events, summary] = await Promise.all([
         eventLogStore.list({ ...scope, limit }),
-        eventLogStore.count(scope)
+        eventLogStore.summarize(scope)
       ]);
       return send(res, 200, {
         events,
-        total,
+        total: summary.total,
+        summary,
         ...(liveSessionId ? { liveSessionId } : {})
       });
     }
