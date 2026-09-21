@@ -930,7 +930,7 @@ export function LiveControlPanel({
   const currentPresentationProviderId = providers.find(provider => {
     const candidate = provider.observed?.currentPresentation;
     return candidate && typeof candidate === 'object';
-  })?.id || null;
+  })?.providerId || null;
   const effectivePresentation =
     samePresentationFrame(previewPresentation, currentPresentation)
       ? previewPresentation
