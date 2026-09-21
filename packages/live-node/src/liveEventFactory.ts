@@ -129,7 +129,10 @@ export function eventFromCommand(
   };
 }
 
-export function eventFromRequestCreated(request: LiveRequest): LiveSessionEvent {
+export function eventFromRequestCreated(
+  request: LiveRequest,
+  liveSystemId: string
+): LiveSessionEvent {
   return {
     id: `event:request:${request.id}:created`,
     correlationId: request.id,
@@ -138,7 +141,7 @@ export function eventFromRequestCreated(request: LiveRequest): LiveSessionEvent 
     source: 'live-node',
     organizationId: request.organizationId,
     venueId: request.venueId,
-    liveSystemId: '',
+    liveSystemId,
     liveSessionId: request.liveSessionId,
     actorId: request.actorId,
     origin: request.kind === 'section' ? 'conductor' : 'pastor',
