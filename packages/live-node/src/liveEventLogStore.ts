@@ -1,0 +1,102 @@
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import type { LiveSessionEvent } from '@millionsnest/live-domain';
+
+export interface LiveEventQuery {
+  organizationId: string;
+  venueId: string;
+  liveSystemId: string;
+  liveSessionId?: string;
+  limit?: number;
+}
+
+export class LiveEventLogStore {
+  private loaded = false;
+  private events: LiveSessionEvent[] = [];
+  private writeQueue: Promise<void> = Promise.resolve();
+
+  constructor(
+    private readonly filePath: string,
+    private readonly maxEntries = 5000
+  ) {}
+
+  async append(event: LiveSessionEvent): Promise<void> {
+    let rejectResult!: (error: unknown) => void;
+    const result = new Promise<void>((resolve, reject) => {
+      rejectResult = reject;
+      this.writeQueue = this.writeQueue
+        .then(async () => {
+          await this.load();
+          if (!this.events.some(item => item.id === event.id)) {
+            this.events.push(structuredClone(event));
+            if (this.events.length > this.maxEntries) {
+              this.events = this.events.slice(-this.maxEntries);
+            }
+            await this.persist();
+          }
+          resolve();
+        })
+        .catch(error => {
+          rejectResult(error);
+        });
+    });
+    return result;
+  }
+
+  async list(query: LiveEventQuery): Promise<LiveSessionEvent[]> {
+    await this.load();
+    const limit = Math.max(1, Math.min(250, Math.floor(query.limit || 80)));
+    return this.events
+      .filter(event =>
+        event.organizationId === query.organizationId &&
+        event.venueId === query.venueId &&
+        event.liveSystemId === query.liveSystemId &&
+        (!query.liveSessionId || event.liveSessionId === query.liveSessionId)
+      )
+      .slice()
+      .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+      .slice(0, limit)
+      .map(event => structuredClone(event));
+  }
+
+  async count(query: Omit<LiveEventQuery, 'limit'>): Promise<number> {
+    await this.load();
+    return this.events.filter(event =>
+      event.organizationId === query.organizationId &&
+      event.venueId === query.venueId &&
+      event.liveSystemId === query.liveSystemId &&
+      (!query.liveSessionId || event.liveSessionId === query.liveSessionId)
+    ).length;
+  }
+
+  private async load(): Promise<void> {
+    if (this.loaded) return;
+    try {
+      const raw = await readFile(this.filePath, 'utf8');
+      const parsed = JSON.parse(raw);
+      this.events = Array.isArray(parsed)
+        ? parsed.filter(item =>
+            item &&
+            typeof item === 'object' &&
+            typeof item.id === 'string' &&
+            typeof item.liveSessionId === 'string' &&
+            typeof item.occurredAt === 'string'
+          ) as LiveSessionEvent[]
+        : [];
+    } catch (error: any) {
+      if (error?.code !== 'ENOENT') throw error;
+      this.events = [];
+    }
+    if (this.events.length > this.maxEntries) {
+      this.events = this.events.slice(-this.maxEntries);
+    }
+    this.loaded = true;
+  }
+
+  private async persist(): Promise<void> {
+    await mkdir(dirname(this.filePath), { recursive: true });
+    const temp = `${this.filePath}.tmp`;
+    await writeFile(temp, JSON.stringify(this.events, null, 2), { mode: 0o600 });
+    await rename(temp, this.filePath);
+  }
+}
