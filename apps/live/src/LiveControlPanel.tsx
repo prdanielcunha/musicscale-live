@@ -454,7 +454,7 @@ export function LiveControlPanel({
     }
     // Announcement loading is progressive and does not block the operator.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toolMode, announcementsLoaded, capabilitySet]);
+  }, [toolMode, announcementsLoaded, capabilitySet, busy]);
 
   useEffect(() => {
     let stopped = false;
