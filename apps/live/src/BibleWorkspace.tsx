@@ -331,6 +331,7 @@ export function BibleWorkspace({
   const chapterRequests = useRef(new Map<string, Promise<ChapterSnapshot>>());
   const verseListRef = useRef<HTMLDivElement | null>(null);
   const smartRailRef = useRef<HTMLDivElement | null>(null);
+  const previousLiveVerseId = useRef('');
   const tapTarget = useRef<{ key: string; at: number } | null>(null);
 
   const providers = controller.nodeState?.providers || [];
@@ -509,6 +510,8 @@ export function BibleWorkspace({
         verses
       };
       chapterCache.current.set(signature, snapshot);
+      const canonicalSignature = chapterSignature(snapshot.context);
+      chapterCache.current.set(canonicalSignature, snapshot);
       setChapterCacheEpoch(current => current + 1);
       return snapshot;
     })().finally(() => {
@@ -935,12 +938,16 @@ export function BibleWorkspace({
       })
     : -1;
 
+  const navigationContext =
+    navigationSnapshot?.context ||
+    (sameChapter(focusReference, effectiveChapter) ? effectiveChapter : focusReference);
+
   function cachedAdjacentSnapshot(delta: -1 | 1): ChapterSnapshot | undefined {
-    if (!focusReference) return undefined;
-    const chapter = focusReference.chapter + delta;
+    if (!navigationContext) return undefined;
+    const chapter = navigationContext.chapter + delta;
     if (chapter <= 0) return undefined;
     return chapterCache.current.get(chapterSignature({
-      ...focusReference,
+      ...navigationContext,
       chapter,
       verse: undefined
     }));
@@ -981,6 +988,25 @@ export function BibleWorkspace({
     navigationIndex,
     navigationVerses
   ]);
+
+  useEffect(() => {
+    if (!isBibleLive) {
+      previousLiveVerseId.current = '';
+      return;
+    }
+    if (!liveVerseId || !cachedLiveVerse) return;
+
+    const previousId = previousLiveVerseId.current;
+    previousLiveVerseId.current = liveVerseId;
+    setSelected(current => {
+      const currentId = current?.ids.length === 1 ? current.ids[0] : '';
+      const shouldFollowLive =
+        !current ||
+        currentId === liveVerseId ||
+        (previousId && currentId === previousId);
+      return shouldFollowLive ? verseAsMatch(cachedLiveVerse) : current;
+    });
+  }, [cachedLiveVerse?.id, isBibleLive, liveVerseId]);
 
   useEffect(() => {
     const reference = selected?.reference || (isBibleLive ? liveReference : '');
