@@ -507,6 +507,7 @@ export function useLiveNode() {
       actorId: string;
       liveSessionId: string;
       providerId?: string;
+      serviceItemId?: string;
     }
   ) => {
     if (!credential) throw new Error('node_not_paired');
