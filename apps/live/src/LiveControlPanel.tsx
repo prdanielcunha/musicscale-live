@@ -1692,6 +1692,69 @@ export function LiveControlPanel({
           </div>
         )}
 
+        {servicePlan?.items.length ? (
+          <section className="service-plan-timeline" aria-label={t('liveControls.fullRunOfShow')}>
+            <header>
+              <div>
+                <small>{t('liveControls.fullRunOfShow')}</small>
+                <strong>{servicePlan.title}</strong>
+              </div>
+              <span>{t('liveControls.runOfShowHint')}</span>
+            </header>
+            <div className="service-plan-timeline-rail">
+              {servicePlan.items.map((item, index) => {
+                const cue = buildServiceItemCue(item);
+                const isCurrent =
+                  item.id === serviceHorizon.current?.id ||
+                  item.state === 'live';
+                const isPrepared = preparedCue?.serviceItemId === item.id;
+                const unavailable = !cue;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={[
+                      'service-plan-timeline-item',
+                      isCurrent ? 'current' : '',
+                      isPrepared ? 'prepared' : '',
+                      item.state === 'completed' ? 'completed' : '',
+                      item.state === 'skipped' ? 'skipped' : '',
+                      unavailable ? 'unavailable' : ''
+                    ].filter(Boolean).join(' ')}
+                    disabled={busy !== null || unavailable}
+                    onClick={() => cue && activateTarget(
+                      `service-plan:${item.id}`,
+                      () => prepareServiceItemCue(item),
+                      () => void takePreparedCue(cue)
+                    )}
+                  >
+                    <small>{String(index + 1).padStart(2, '0')}</small>
+                    <span>
+                      <strong>{item.title}</strong>
+                      <em>
+                        {t(`liveControls.serviceItemTypes.${item.type}`, {
+                          defaultValue: item.type
+                        })}
+                      </em>
+                    </span>
+                    <b>
+                      {isCurrent
+                        ? t('liveControls.onAir')
+                        : isPrepared
+                          ? t('liveControls.prepared')
+                          : unavailable
+                            ? t('liveControls.serviceItemNeedsSetup')
+                            : t(`liveControls.serviceStates.${item.state}`, {
+                                defaultValue: item.state
+                              })}
+                    </b>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
         {toolMode === 'song' && toolAvailability.song && (
         <article className="operator-card live-tool-card song-library-card">
           <div className="operator-card-head">
