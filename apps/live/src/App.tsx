@@ -190,11 +190,17 @@ export function App() {
 
     const currentPlan = liveNode.nodeState?.state.servicePlan || null;
     const expectedItemIds = nodeScale.songs.map(song => `song:${song.id}`).join('|');
-    const currentItemIds = currentPlan?.items.map(item => item.id).join('|') || '';
+    // Runtime additions made from the Live cockpit use the live-song:* namespace.
+    // They must survive the automatic MusicScale -> ServicePlan reconciliation.
+    // Only canonical scale items participate in the stale-plan comparison.
+    const currentScaleItemIds = currentPlan?.items
+      .filter(item => item.id.startsWith('song:'))
+      .map(item => item.id)
+      .join('|') || '';
     const samePlan =
       currentPlan?.sourceMusicScaleId === nodeScale.id &&
       currentPlan.revision >= Math.max(1, nodeScale.publishRevision || 1) &&
-      currentItemIds === expectedItemIds;
+      currentScaleItemIds === expectedItemIds;
 
     if (samePlan) {
       autoCacheSignature.current = null;
