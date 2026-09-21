@@ -993,8 +993,7 @@ async function execute(command: LiveCommand): Promise<CommandResult[]> {
       errorCode: 'no_provider_for_capability',
       recoverable: true
     }];
-    idempotency.set(command.idempotencyKey, result);
-    return result;
+    return finalizeCommand(command, result);
   }
 
   const results = await Promise.all(targets.map(async provider => {
