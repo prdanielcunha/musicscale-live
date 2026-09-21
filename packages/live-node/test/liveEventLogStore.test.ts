@@ -49,12 +49,21 @@ describe('LiveEventLogStore', () => {
     });
 
     expect(results.map(item => item.id)).toEqual(['e2', 'e1']);
-    expect(await restored.count({
+    const query = {
       organizationId: 'org_1',
       venueId: 'venue_1',
       liveSystemId: 'system_1',
       liveSessionId: 'session_1'
-    })).toBe(2);
+    };
+    expect(await restored.count(query)).toBe(2);
+    expect(await restored.summarize(query)).toMatchObject({
+      total: 2,
+      info: 2,
+      warnings: 0,
+      errors: 0,
+      plannedServiceItems: 0,
+      adHocActions: 0
+    });
   });
 
   it('deduplicates IDs and bounds local retention', async () => {
