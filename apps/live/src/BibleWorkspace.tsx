@@ -170,7 +170,7 @@ function parseReference(value: string): ParsedReference | null {
     .replace(/\s+/g, ' ')
     .trim();
   const match = normalized.match(
-    /^((?:[1-3]\s*)?[\p{L}.ªº]+(?:\s+[\p{L}.ªº]+)*)\s+(\d+)(?:\s*[:.]\s*(\d+))?/iu
+    /^((?:[1-3]\s*)?[\p{L}.ªº]+(?:\s+[\p{L}.ªº]+)*)\s+(\d+)(?:(?:\s*[:.]\s*|\s+)(\d+))?/iu
   );
   if (!match) return null;
   const chapter = Number(match[2]);
