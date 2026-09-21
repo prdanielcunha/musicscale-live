@@ -444,6 +444,19 @@ export function LiveControlPanel({
   }, [toolAvailability, toolMode]);
 
   useEffect(() => {
+    if (
+      toolMode === 'text' &&
+      can('announcement.read') &&
+      !announcementsLoaded &&
+      busy === null
+    ) {
+      void loadAnnouncements();
+    }
+    // Announcement loading is progressive and does not block the operator.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolMode, announcementsLoaded, capabilitySet]);
+
+  useEffect(() => {
     let stopped = false;
     let polling = false;
     const refresh = async () => {
@@ -1278,6 +1291,7 @@ export function LiveControlPanel({
       if (cue.kind === 'song') setToolMode('song');
       if (cue.kind === 'bible') setToolMode('bible');
       if (cue.kind === 'media') setToolMode('media');
+      if (cue.kind === 'text' || cue.kind === 'announcement') setToolMode('text');
       setFollowLive(true);
     }
   }
@@ -1298,7 +1312,7 @@ export function LiveControlPanel({
     const raw = universalQuery.trim();
     if (!raw || busy !== null) return;
 
-    const prefix = raw.match(/^(b(?:íblia|iblia)?|bible|song|música|musica|media|mídia|midia)\s*:\s*(.+)$/i);
+    const prefix = raw.match(/^(b(?:íblia|iblia)?|bible|song|música|musica|media|mídia|midia|text|texto|aviso|announcement)\s*:\s*(.+)$/i);
     const requested = prefix?.[1]?.toLocaleLowerCase();
     const query = (prefix?.[2] || raw).trim();
     const inferredScope =
@@ -1308,7 +1322,9 @@ export function LiveControlPanel({
           ? 'bible'
           : requested === 'media' || requested === 'mídia' || requested === 'midia'
             ? 'media'
-            : 'song';
+            : requested === 'text' || requested === 'texto' || requested === 'aviso' || requested === 'announcement'
+              ? 'text'
+              : 'song';
 
     if (inferredScope === 'bible') {
       setToolMode('bible');
@@ -1318,6 +1334,18 @@ export function LiveControlPanel({
     if (inferredScope === 'media') {
       setToolMode('media');
       await searchMedia(query);
+      return;
+    }
+    if (inferredScope === 'text') {
+      setToolMode('text');
+      setTextQuery(query);
+      if (requested === 'aviso' || requested === 'announcement') {
+        await loadAnnouncements(true);
+      } else if (can('text.search')) {
+        await searchTexts(query);
+      } else {
+        await loadAnnouncements();
+      }
       return;
     }
     setToolMode('song');
@@ -1512,7 +1540,7 @@ export function LiveControlPanel({
           </button>
         </div>
         <div className="live-universal-scopes" aria-label={t('liveControls.searchScope')}>
-          {(['auto','song','bible','media'] as const).map(scope => (
+          {(['auto','song','bible','media','text'] as const).map(scope => (
             <button
               key={scope}
               type="button"
@@ -1537,7 +1565,7 @@ export function LiveControlPanel({
 
       <div className="live-control-grid">
         <div className="live-tool-dock" role="tablist" aria-label={t('liveControls.tools')}>
-          {(['song','bible','media','stage'] as ToolMode[]).map(mode => (
+          {(['song','bible','media','text','stage'] as ToolMode[]).map(mode => (
             <button
               key={mode}
               role="tab"
