@@ -409,7 +409,7 @@ export class HolyricsAdapter implements ProviderAdapter {
         if (!text) throw new Error('text_search_text_required');
         const results = await this.api.request<unknown[]>('SearchText', {
           text,
-          fields: String(payload.fields || 'id,title,text')
+          fields: String(payload.fields || 'id,title,folder,slides')
         });
         return { results };
       }
