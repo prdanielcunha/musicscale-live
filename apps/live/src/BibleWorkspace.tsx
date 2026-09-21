@@ -601,6 +601,77 @@ export function BibleWorkspace({
     return request;
   }
 
+  function bookForContext(context: ParsedReference | null | undefined): BibleBook | undefined {
+    if (!context) return undefined;
+    if (context.book) {
+      const byId = books.find(book => Number(book.id) === context.book);
+      if (byId) return byId;
+    }
+    const label = context.bookLabel.toLocaleLowerCase();
+    return books.find(book =>
+      book.name.toLocaleLowerCase() === label ||
+      book.abbrev.toLocaleLowerCase() === label
+    );
+  }
+
+  function contextForBook(book: BibleBook, chapter: number): ParsedReference {
+    return {
+      bookLabel: book.name || book.abbrev,
+      book: Number(book.id) || undefined,
+      chapter
+    };
+  }
+
+  async function lastChapterForBook(book: BibleBook): Promise<ChapterSnapshot | null> {
+    // Discover the provider's actual final chapter instead of maintaining a
+    // hard-coded Bible chapter-count table in MusicScale Live.
+    let low = 1;
+    let high = 2;
+    let lowSnapshot = await requestChapter(contextForBook(book, low));
+    if (!lowSnapshot.verses.length) return null;
+
+    while (high <= 512) {
+      const snapshot = await requestChapter(contextForBook(book, high));
+      if (!snapshot.verses.length) break;
+      low = high;
+      lowSnapshot = snapshot;
+      high *= 2;
+    }
+
+    let best = lowSnapshot;
+    let left = low + 1;
+    let right = Math.min(high - 1, 511);
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+      const snapshot = await requestChapter(contextForBook(book, mid));
+      if (snapshot.verses.length) {
+        best = snapshot;
+        left = mid + 1;
+      } else {
+        right = mid - 1;
+      }
+    }
+    return best;
+  }
+
+  async function chapterAcrossBookBoundary(
+    context: ParsedReference,
+    delta: -1 | 1
+  ): Promise<ChapterSnapshot | null> {
+    if (!books.length) return null;
+    const currentBook = bookForContext(context);
+    if (!currentBook) return null;
+    const index = books.findIndex(book => book.id === currentBook.id);
+    if (index < 0) return null;
+    const adjacentBook = books[index + delta];
+    if (!adjacentBook) return null;
+    if (delta > 0) {
+      const snapshot = await requestChapter(contextForBook(adjacentBook, 1));
+      return snapshot.verses.length ? snapshot : null;
+    }
+    return lastChapterForBook(adjacentBook);
+  }
+
   async function prefetchAdjacentChapters(context: ParsedReference) {
     if (!canSearch) return;
     const jobs: Promise<ChapterSnapshot>[] = [];
@@ -616,7 +687,20 @@ export function BibleWorkspace({
       chapter: context.chapter + 1,
       verse: undefined
     }));
-    await Promise.allSettled(jobs);
+    const settled = await Promise.allSettled(jobs);
+
+    // At the end of a book, prepare the first real chapter of the next book
+    // from the provider's own book list. Never fabricate a cross-book reference.
+    const nextResult = settled[settled.length - 1];
+    if (
+      nextResult?.status === 'fulfilled' &&
+      !nextResult.value.verses.length
+    ) {
+      const nextBook = await chapterAcrossBookBoundary(context, 1);
+      if (nextBook?.verses.length) {
+        chapterCache.current.set(chapterSignature(nextBook.context), nextBook);
+      }
+    }
   }
 
   function saveHistory(match: BibleReferenceMatch) {
@@ -939,17 +1023,24 @@ export function BibleWorkspace({
     }
 
     const adjacentChapterNumber = currentSnapshot.context.chapter + delta;
-    if (adjacentChapterNumber <= 0) return null;
+    if (adjacentChapterNumber > 0) {
+      const adjacentSnapshot = await requestChapter({
+        ...currentSnapshot.context,
+        chapter: adjacentChapterNumber,
+        verse: undefined
+      });
+      if (adjacentSnapshot.verses.length) {
+        return delta > 0
+          ? adjacentSnapshot.verses[0] || null
+          : adjacentSnapshot.verses[adjacentSnapshot.verses.length - 1] || null;
+      }
+    }
 
-    const adjacentSnapshot = await requestChapter({
-      ...currentSnapshot.context,
-      chapter: adjacentChapterNumber,
-      verse: undefined
-    });
-    if (!adjacentSnapshot.verses.length) return null;
+    const acrossBook = await chapterAcrossBookBoundary(currentSnapshot.context, delta);
+    if (!acrossBook?.verses.length) return null;
     return delta > 0
-      ? adjacentSnapshot.verses[0] || null
-      : adjacentSnapshot.verses[adjacentSnapshot.verses.length - 1] || null;
+      ? acrossBook.verses[0] || null
+      : acrossBook.verses[acrossBook.verses.length - 1] || null;
   }
 
   async function moveVerse(delta: -1 | 1) {
@@ -976,15 +1067,41 @@ export function BibleWorkspace({
   async function moveChapter(delta: -1 | 1) {
     if (!chapterContext || busy !== null) return;
     const nextChapter = chapterContext.chapter + delta;
-    if (nextChapter <= 0) return;
-    const next = {
-      ...chapterContext,
-      chapter: nextChapter,
-      verse: undefined
-    };
-    const snapshot = await loadChapter(next);
-    if (snapshot) {
+
+    if (nextChapter > 0) {
+      const next = {
+        ...chapterContext,
+        chapter: nextChapter,
+        verse: undefined
+      };
+      const snapshot = await loadChapter(next);
+      if (snapshot) {
+        setQuery(`${snapshot.context.bookLabel} ${snapshot.context.chapter}`);
+        return;
+      }
+    }
+
+    setBusy('chapter');
+    setMessage(null);
+    try {
+      const snapshot = await chapterAcrossBookBoundary(chapterContext, delta);
+      if (!snapshot?.verses.length) {
+        setMessage(t(delta > 0
+          ? 'bibleWorkspace.noNextChapterFromProvider'
+          : 'bibleWorkspace.noPreviousChapterFromProvider'));
+        return;
+      }
+      setChapterContext(snapshot.context);
+      setChapterVerses(snapshot.verses);
+      setMultiKeys(new Set());
       setQuery(`${snapshot.context.bookLabel} ${snapshot.context.chapter}`);
+      void prefetchAdjacentChapters(snapshot.context);
+    } catch (error) {
+      setMessage(t('bibleWorkspace.errors.chapter', {
+        code: error instanceof Error ? error.message : 'unknown'
+      }));
+    } finally {
+      setBusy(null);
     }
   }
 
