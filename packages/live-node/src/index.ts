@@ -37,6 +37,13 @@ import { isTrustedLiveWebOrigin } from './networkPolicy';
 import { SceneExecutor } from './sceneExecutor';
 import { PeerDiscovery } from './peerDiscovery';
 import { sanitizeObservedStateForPersistence } from './observedStateSanitizer';
+import { LiveEventLogStore } from './liveEventLogStore';
+import {
+  eventFromCommand,
+  eventFromRequestCreated,
+  eventFromRequestStatus,
+  eventFromScene
+} from './liveEventFactory';
 import { HolyricsAdapter, HolyricsHttpClient } from '@millionsnest/live-adapter-holyrics';
 import { ResolumeAdapter, ResolumeRestClient } from '@millionsnest/live-adapter-resolume';
 import {
@@ -120,6 +127,7 @@ const providerConfigStore = new ProviderConfigStore(join(STATE_DIR, 'providers.j
 const providerRoutingStore = new ProviderRoutingStore(join(STATE_DIR, 'routing.json'));
 const peerNodeStore = new PeerNodeStore(join(STATE_DIR, 'peers.json'));
 const signalTopologyStore = new SignalTopologyStore(join(STATE_DIR, 'signal-topology.json'));
+const eventLogStore = new LiveEventLogStore(join(STATE_DIR, 'events.json'));
 const liveDropStore = new LiveDropStore(
   join(STATE_DIR, 'live-drop'),
   undefined,
@@ -916,6 +924,21 @@ async function setProviderRouteSelection(
   return providerRoutingStore.all();
 }
 
+async function finalizeCommand(
+  command: LiveCommand,
+  results: CommandResult[]
+): Promise<CommandResult[]> {
+  idempotency.set(command.idempotencyKey, results);
+  await eventLogStore.append(eventFromCommand(command, results)).catch(error => {
+    console.error(JSON.stringify({
+      event: 'live_event_log_append_failed',
+      commandId: command.id,
+      error: error instanceof Error ? error.message : 'unknown'
+    }));
+  });
+  return results;
+}
+
 async function execute(command: LiveCommand): Promise<CommandResult[]> {
   const cached = idempotency.get(command.idempotencyKey);
   if (cached) return cached;
@@ -944,8 +967,7 @@ async function execute(command: LiveCommand): Promise<CommandResult[]> {
           errorCode: 'configured_provider_route_unavailable',
           recoverable: true
         }];
-        idempotency.set(command.idempotencyKey, result);
-        return result;
+        return finalizeCommand(command, result);
       }
     } else if (candidates.length === 1) {
       targets = candidates;
@@ -958,8 +980,7 @@ async function execute(command: LiveCommand): Promise<CommandResult[]> {
         errorCode: 'ambiguous_provider_route',
         recoverable: true
       }];
-      idempotency.set(command.idempotencyKey, result);
-      return result;
+      return finalizeCommand(command, result);
     }
   }
 
@@ -972,8 +993,7 @@ async function execute(command: LiveCommand): Promise<CommandResult[]> {
       errorCode: 'no_provider_for_capability',
       recoverable: true
     }];
-    idempotency.set(command.idempotencyKey, result);
-    return result;
+    return finalizeCommand(command, result);
   }
 
   const results = await Promise.all(targets.map(async provider => {
@@ -1026,8 +1046,7 @@ async function execute(command: LiveCommand): Promise<CommandResult[]> {
     servicePlan: nextServicePlan
   });
 
-  idempotency.set(command.idempotencyKey, results);
-  return results;
+  return finalizeCommand(command, results);
 }
 
 const sceneExecutor = new SceneExecutor({ executeCommand: execute });
@@ -2239,6 +2258,34 @@ async function start(): Promise<void> {
       });
     }
 
+    if (req.method === 'GET' && url.pathname === '/events') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      if (!session.binding) return send(res, 403, { error: 'pairing_scope_required' });
+
+      const liveSessionId = String(url.searchParams.get('liveSessionId') || '').trim();
+      const requestedLimit = Number(url.searchParams.get('limit') || '80');
+      const limit = Number.isFinite(requestedLimit)
+        ? Math.max(1, Math.min(250, Math.floor(requestedLimit)))
+        : 80;
+      const scope = {
+        organizationId: session.binding.organizationId,
+        venueId: session.binding.venueId,
+        liveSystemId: session.binding.liveSystemId,
+        ...(liveSessionId ? { liveSessionId } : {})
+      };
+      const [events, summary] = await Promise.all([
+        eventLogStore.list({ ...scope, limit }),
+        eventLogStore.summarize(scope)
+      ]);
+      return send(res, 200, {
+        events,
+        total: summary.total,
+        summary,
+        ...(liveSessionId ? { liveSessionId } : {})
+      });
+    }
+
     if (req.method === 'GET' && url.pathname === '/requests') {
       const session = await authorize(req);
       if (!session) return send(res, 401, { error: 'unauthorized' });
@@ -2265,6 +2312,13 @@ async function start(): Promise<void> {
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .slice(0, 200);
       const next = await runtimeState.patch({ requests: nextRequests });
+      const requestLiveSystemId =
+        session.binding?.liveSystemId ||
+        next.servicePlan?.liveSystemId ||
+        '';
+      await eventLogStore
+        .append(eventFromRequestCreated(request, requestLiveSystemId))
+        .catch(() => undefined);
       return send(res, 201, { request, stateRevision: next.revision });
     }
 
@@ -2304,8 +2358,18 @@ async function start(): Promise<void> {
           : item
       );
       const next = await runtimeState.patch({ requests });
+      const updatedRequest = requests.find(item => item.id === requestId);
+      if (updatedRequest) {
+        const requestLiveSystemId =
+          session.binding?.liveSystemId ||
+          next.servicePlan?.liveSystemId ||
+          '';
+        await eventLogStore
+          .append(eventFromRequestStatus(updatedRequest, requestLiveSystemId))
+          .catch(() => undefined);
+      }
       return send(res, 200, {
-        request: requests.find(item => item.id === requestId),
+        request: updatedRequest,
         stateRevision: next.revision
       });
     }
@@ -2336,6 +2400,9 @@ async function start(): Promise<void> {
 
       const result = await sceneExecutor.execute(sceneRequest);
       sceneIdempotency.set(sceneRequest.idempotencyKey, result);
+      await eventLogStore
+        .append(eventFromScene(sceneRequest, result))
+        .catch(() => undefined);
       return send(res, 200, result);
     }
 
