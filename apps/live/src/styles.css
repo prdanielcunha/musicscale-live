@@ -378,6 +378,27 @@ radial-gradient(circle at 50% 50%,rgba(124,92,255,.17),transparent 34%),#08090D;
 
 .request-compose{margin-top:18px;padding:13px;border:1px solid rgba(255,255,255,.05);border-radius:15px;background:#0d0e14}.request-kind-tabs{display:flex;gap:5px;flex-wrap:wrap}.request-kind-tabs button{border:1px solid rgba(255,255,255,.05);background:#12131a;color:#727787;border-radius:999px;padding:6px 9px;font-size:8px;cursor:pointer}.request-kind-tabs button.active{border-color:rgba(124,92,255,.22);background:rgba(124,92,255,.1);color:#bdb5ff}
 .request-input-row{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:10px}.request-input-row input{min-width:0;background:#101117;border:1px solid rgba(255,255,255,.065);color:#eef0f5;border-radius:11px;padding:12px 13px;font:inherit;font-size:11px;outline:none}.request-input-row input:focus{border-color:rgba(124,92,255,.34);box-shadow:0 0 0 3px rgba(124,92,255,.05)}.request-sent{margin:8px 0 0;color:#55c998;font-size:8px}
+.request-route-hint{
+  margin:8px 0 0;padding:9px 10px;border:1px solid rgba(244,163,64,.16);border-radius:10px;
+  background:rgba(244,163,64,.045);color:#b89a70;font-size:7px;line-height:1.45;
+}
+.pastor-bible-preview-shell{margin-top:8px}
+.pastor-bible-preview-shell>p{margin:0;padding:8px 2px;color:#6d7281;font-size:7px;line-height:1.45}
+.pastor-bible-preview{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 11px;
+  border:1px solid rgba(124,92,255,.16);border-radius:11px;
+  background:linear-gradient(100deg,rgba(124,92,255,.075),rgba(16,17,23,.96));
+}
+.pastor-bible-preview>div{min-width:0}
+.pastor-bible-preview small{display:block;color:#8f84d8;font-size:6px;font-weight:800;letter-spacing:.1em}
+.pastor-bible-preview strong{display:block;margin-top:4px;color:#e5e6eb;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pastor-bible-preview span{display:block;margin-top:3px;color:#6e7382;font-size:7px}
+.pastor-bible-preview>button{flex:none;min-height:38px;font-size:8px}
+@media(max-width:720px){
+  .pastor-bible-preview{align-items:stretch;flex-direction:column}
+  .pastor-bible-preview>button{width:100%}
+}
+
 .request-history{margin-top:14px}.request-history-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:7px}.request-history-head strong{font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:#9599a6}.request-history-head small{font-size:8px;color:#5f6473}
 .request-history-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.04)}.request-history-item>div{min-width:0}.request-history-item small{display:block;color:#646978;font-size:7px;text-transform:uppercase;letter-spacing:.08em}.request-history-item strong{display:block;margin-top:2px;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .request-history-status{display:flex;align-items:center;gap:7px;flex:none}
