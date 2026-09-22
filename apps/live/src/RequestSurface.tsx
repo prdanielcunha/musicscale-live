@@ -3,6 +3,10 @@ import { useTranslation } from 'react-i18next';
 import type { RequestKind } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
 import {
+  bibleRequestFromResults,
+  type PreparedBibleRequest
+} from './requestBible';
+import {
   sectionPresentationContext,
   type PreparedSectionCandidate
 } from './requestSection';
@@ -28,6 +32,9 @@ export function RequestSurface({
   const [kind, setKind] = useState<RequestKind>(kinds[0]!);
   const [value, setValue] = useState('');
   const [sending, setSending] = useState(false);
+  const [checkingBible, setCheckingBible] = useState(false);
+  const [biblePreview, setBiblePreview] = useState<(PreparedBibleRequest & { query: string }) | null>(null);
+  const [bibleError, setBibleError] = useState<string | null>(null);
   const [sendingQuick, setSendingQuick] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -45,6 +52,24 @@ export function RequestSurface({
       window.clearInterval(timer);
     };
   }, [controller.refreshState]);
+
+  const bibleSearchProviders = useMemo(
+    () => (controller.nodeState?.providers || []).filter(provider =>
+      (provider.health === 'online' || provider.health === 'degraded') &&
+      provider.capabilities.includes('bible.search') &&
+      provider.capabilities.includes('bible.present')
+    ),
+    [controller.nodeState]
+  );
+
+  const bibleSearchProvider = useMemo(() => {
+    if (mode !== 'pastor') return null;
+    const routed = controller.nodeState?.routing?.bible;
+    if (routed) {
+      return bibleSearchProviders.find(provider => provider.providerId === routed) || null;
+    }
+    return bibleSearchProviders.length === 1 ? bibleSearchProviders[0]! : null;
+  }, [bibleSearchProviders, controller.nodeState?.routing?.bible, mode]);
 
   const conductorContext = useMemo(() => {
     if (mode !== 'conductor') return null;
@@ -71,6 +96,11 @@ export function RequestSurface({
     return contexts[0] || null;
   }, [controller.nodeState, mode]);
 
+  useEffect(() => {
+    setBiblePreview(null);
+    setBibleError(null);
+  }, [kind, value]);
+
   const ownRequests = useMemo(
     () => (controller.nodeState?.state.requests || [])
       .filter(request =>
@@ -96,6 +126,59 @@ export function RequestSurface({
         sourceSurface: mode
       }
     });
+  }
+
+  async function checkBibleReference() {
+    const query = value.trim();
+    if (!query || checkingBible || !bibleSearchProvider) return;
+    setCheckingBible(true);
+    setBibleError(null);
+    setBiblePreview(null);
+    try {
+      const results = await controller.executeCommand({
+        capability: 'bible.search',
+        payload: { text: query },
+        liveSessionId,
+        actorId,
+        targetProviderIds: [bibleSearchProvider.providerId],
+        safetyLevel: 'normal'
+      });
+      const failed = results.find(result => !result.accepted);
+      if (failed) throw new Error(failed.errorCode || 'provider_error');
+
+      const prepared = bibleRequestFromResults(results, query);
+      if (!prepared.ids.length) {
+        throw new Error('bible_reference_not_found');
+      }
+      setBiblePreview({
+        ...prepared,
+        providerId: prepared.providerId || bibleSearchProvider.providerId,
+        query
+      });
+    } catch (error) {
+      setBibleError(error instanceof Error ? error.message : 'bible_reference_check_failed');
+    } finally {
+      setCheckingBible(false);
+    }
+  }
+
+  async function submitCheckedBible() {
+    if (!biblePreview || sending) return;
+    setSending(true);
+    setSent(false);
+    try {
+      await submitPayload('bible', {
+        reference: biblePreview.reference,
+        ids: biblePreview.ids,
+        providerId: biblePreview.providerId,
+        exact: true
+      });
+      setValue('');
+      setBiblePreview(null);
+      setSent(true);
+    } finally {
+      setSending(false);
+    }
   }
 
   async function submit() {
@@ -234,18 +317,71 @@ export function RequestSurface({
             value={value}
             onChange={event => setValue(event.target.value)}
             onKeyDown={event => {
-              if (event.key === 'Enter') void submit();
+              if (event.key !== 'Enter') return;
+              if (mode === 'pastor' && kind === 'bible' && bibleSearchProvider) {
+                if (biblePreview) void submitCheckedBible();
+                else void checkBibleReference();
+                return;
+              }
+              void submit();
             }}
             placeholder={t(`requestsSurface.placeholders.${kind}`)}
           />
-          <button
-            className="primary"
-            disabled={!value.trim() || sending}
-            onClick={() => void submit()}
-          >
-            {sending ? '…' : t('requestsSurface.send')}
-          </button>
+          {mode === 'pastor' && kind === 'bible' && bibleSearchProvider ? (
+            <button
+              className="secondary"
+              disabled={!value.trim() || checkingBible || sending}
+              onClick={() => void checkBibleReference()}
+            >
+              {checkingBible ? '…' : t('requestsSurface.bibleCheck')}
+            </button>
+          ) : (
+            <button
+              className="primary"
+              disabled={!value.trim() || sending}
+              onClick={() => void submit()}
+            >
+              {sending ? '…' : t('requestsSurface.send')}
+            </button>
+          )}
         </div>
+
+        {mode === 'pastor' && kind === 'bible' && bibleSearchProvider && (
+          <div className="pastor-bible-preview-shell">
+            {biblePreview ? (
+              <div className="pastor-bible-preview">
+                <div>
+                  <small>{t('requestsSurface.bibleChecked')}</small>
+                  <strong>{biblePreview.reference}</strong>
+                  <span>
+                    {t('requestsSurface.bibleCheckedMeta', {
+                      count: biblePreview.verseCount,
+                      provider: bibleSearchProvider.displayName || bibleSearchProvider.providerKey
+                    })}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={sending}
+                  onClick={() => void submitCheckedBible()}
+                >
+                  {sending ? '…' : t('requestsSurface.sendCheckedBible')}
+                </button>
+              </div>
+            ) : (
+              <p>{t('requestsSurface.bibleCheckHint')}</p>
+            )}
+            {bibleError && (
+              <p className="request-action-error">
+                {t(`requestsSurface.bibleErrors.${bibleError}`, {
+                  defaultValue: t('requestsSurface.bibleErrors.generic')
+                })}
+              </p>
+            )}
+          </div>
+        )}
+
         {sent && <p className="request-sent">{t('requestsSurface.sent')}</p>}
       </div>
 
