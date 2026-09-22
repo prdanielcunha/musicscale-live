@@ -174,6 +174,13 @@ export class ResolumeRealtimeClient {
 
       socket.addEventListener('error', () => {
         if (generation !== this.generation) return;
+        if (this.socket === socket) this.socket = null;
+        try {
+          socket.close(1011, 'realtime_error');
+        } catch {
+          // best effort
+        }
+        this.subscribedParameterIds.clear();
         onEvent({ type: 'error', receivedAt: new Date().toISOString() });
         settle(false);
       });
