@@ -762,7 +762,7 @@ export function LiveRequestInbox({
                 <div className="live-request-label-row">
                   <small>{t(`requestsSurface.kinds.${request.kind}`)}</small>
                   <div className="request-label-badges">
-                    {request.payload.sourceSurface && (
+                    {Boolean(request.payload.sourceSurface) && (
                       <em className="request-source-chip">
                         {t(`requestInbox.sources.${String(request.payload.sourceSurface)}`, {
                           defaultValue: String(request.payload.sourceSurface)
