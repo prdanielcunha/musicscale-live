@@ -133,7 +133,7 @@ export class ResolumeAdapter implements ProviderAdapter {
       Date.now() - this.lastCompositionAt < 1800;
 
     if (realtimeFresh) return this.peekState();
-    await this.refreshComposition();
+    await this.refreshComposition(false);
     return this.peekState();
   }
 
@@ -145,7 +145,7 @@ export class ResolumeAdapter implements ProviderAdapter {
     this.realtime?.stop();
   }
 
-  private async refreshComposition(): Promise<void> {
+  private async refreshComposition(throwOnError = false): Promise<void> {
     try {
       const composition = await this.api.get<Record<string, unknown>>('/composition');
       const now = new Date().toISOString();
@@ -177,6 +177,7 @@ export class ResolumeAdapter implements ProviderAdapter {
           }
         }
       };
+      if (throwOnError) throw error;
     }
   }
 
@@ -195,7 +196,7 @@ export class ResolumeAdapter implements ProviderAdapter {
     this.lastRealtimeEventAt = event.receivedAt;
     this.lastState = {
       ...this.lastState,
-      health: event.type === 'error' ? 'degraded' : this.lastState.health,
+      health: this.lastState.health,
       updatedAt: event.receivedAt,
       observed: {
         ...this.lastState.observed,
@@ -219,7 +220,7 @@ export class ResolumeAdapter implements ProviderAdapter {
     if (this.realtimeRefreshTimer) return;
     this.realtimeRefreshTimer = setTimeout(() => {
       this.realtimeRefreshTimer = null;
-      void this.refreshComposition();
+      void this.refreshComposition(false);
     }, delayMs);
   }
 
@@ -297,7 +298,7 @@ export class ResolumeAdapter implements ProviderAdapter {
 
     switch (command.capability) {
       case 'visual.composition.read': {
-        await this.refreshComposition();
+        await this.refreshComposition(true);
         const composition = this.lastState.observed.composition;
         return composition && typeof composition === 'object'
           ? { composition }
