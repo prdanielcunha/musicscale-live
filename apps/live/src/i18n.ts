@@ -142,6 +142,11 @@ const resources = {
     connected: 'Conectado',
     readOnlyBridge: 'Bridge MusicScale em modo leitura',
     loading: 'Carregando contexto...',
+    accessibility: {
+      skipToContent: 'Ir direto para o conteúdo',
+      language: 'Idioma da interface',
+      primaryNavigation: 'Navegação principal do MusicScale Live'
+    },
     chooseMode: 'Superfícies preparadas',
     guidedHome: {
       kicker: 'COMECE AQUI',
@@ -1349,6 +1354,11 @@ const resources = {
     offlineReady: 'Offline-ready', health: 'System health', node: 'Live Node', cloud: 'Cloud Sync',
     providers: 'Providers', pending: 'Pending', connected: 'Connected', readOnlyBridge: 'MusicScale read-only bridge',
     loading: 'Loading context...',
+    accessibility: {
+      skipToContent: 'Skip to content',
+      language: 'Interface language',
+      primaryNavigation: 'MusicScale Live primary navigation'
+    },
     chooseMode: 'Prepared surfaces',
     guidedHome: {
       kicker: 'START HERE',
@@ -2549,6 +2559,11 @@ const resources = {
     offlineReady: 'Offline-ready', health: 'Salud del sistema', node: 'Live Node', cloud: 'Cloud Sync',
     providers: 'Providers', pending: 'Pendiente', connected: 'Conectado', readOnlyBridge: 'Bridge MusicScale en modo lectura',
     loading: 'Cargando contexto...',
+    accessibility: {
+      skipToContent: 'Ir directamente al contenido',
+      language: 'Idioma de la interfaz',
+      primaryNavigation: 'Navegación principal de MusicScale Live'
+    },
     chooseMode: 'Superficies preparadas',
     guidedHome: {
       kicker: 'COMIENCE AQUÍ',

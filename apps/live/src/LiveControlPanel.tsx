@@ -327,6 +327,7 @@ export function LiveControlPanel({
   const [songQuery, setSongQuery] = useState('');
   const [songResults, setSongResults] = useState<SearchSongResult[]>([]);
   const [universalQuery, setUniversalQuery] = useState('');
+  const universalInputRef = useRef<HTMLInputElement | null>(null);
   const [universalScope, setUniversalScope] = useState<'auto' | 'song' | 'bible' | 'media' | 'text'>('auto');
   const [bibleCommand, setBibleCommand] = useState<{ text: string; nonce: number } | null>(null);
   const [followLive, setFollowLive] = useState(true);
@@ -1532,6 +1533,54 @@ export function LiveControlPanel({
     }
   });
 
+  useEffect(() => {
+    const handleUniversalShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        Boolean(target?.isContentEditable);
+
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLocaleLowerCase() === 'k'
+      ) {
+        event.preventDefault();
+        universalInputRef.current?.focus();
+        universalInputRef.current?.select();
+        return;
+      }
+
+      if (
+        event.key === '/' &&
+        !typing &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      ) {
+        event.preventDefault();
+        universalInputRef.current?.focus();
+        return;
+      }
+
+      if (
+        event.key === 'Escape' &&
+        document.activeElement === universalInputRef.current
+      ) {
+        if (universalQuery) {
+          event.preventDefault();
+          setUniversalQuery('');
+        } else {
+          universalInputRef.current?.blur();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleUniversalShortcut);
+    return () => window.removeEventListener('keydown', handleUniversalShortcut);
+  }, [universalQuery]);
+
   return (
     <section className="live-control-panel">
       <div className="live-control-header">
@@ -1569,6 +1618,7 @@ export function LiveControlPanel({
         <div className="live-universal-input">
           <span aria-hidden="true">⌕</span>
           <input
+            ref={universalInputRef}
             value={universalQuery}
             onChange={event => setUniversalQuery(event.target.value)}
             onKeyDown={event => {
@@ -1576,7 +1626,9 @@ export function LiveControlPanel({
             }}
             placeholder={t('liveControls.universalPlaceholder')}
             aria-label={t('liveControls.universalPlaceholder')}
+            aria-keyshortcuts="Control+K Meta+K /"
           />
+          <kbd className="universal-shortcut" aria-hidden="true">Ctrl/⌘ K</kbd>
           <button
             type="button"
             disabled={!universalQuery.trim() || busy !== null}
@@ -1591,6 +1643,7 @@ export function LiveControlPanel({
               key={scope}
               type="button"
               className={universalScope === scope ? 'active' : ''}
+              aria-pressed={universalScope === scope}
               onClick={() => setUniversalScope(scope)}
             >
               {t(`liveControls.searchScopes.${scope}`)}
