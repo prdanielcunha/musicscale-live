@@ -1294,6 +1294,33 @@ const resources = {
       saved: 'Cena salva e enviada ao Live Node.',
       cloudPending: 'Cena salva localmente. A sincronização com a nuvem ficou pendente.',
       actionRequired: 'Escolha pelo menos uma ação para a cena.',
+      rehearsal: {
+        open: 'Ensaiar',
+        close: 'Fechar ensaio',
+        kicker: 'ENSAIO SEGURO',
+        ready: 'Todos os destinos estão disponíveis. Nenhum comando foi executado.',
+        blocked: 'Há dependências que precisam ser resolvidas antes desta cena entrar no ar.',
+        gate: 'STATUS DA CENA',
+        safe: 'Pronta para operar',
+        resolve: 'Resolver dependências',
+        reasons: {
+          explicit: 'Destino explícito indisponível',
+          route: 'A rota configurada não está disponível',
+          single: 'Destino único resolvido',
+          ambiguous: 'Mais de um provider pode executar esta ação; defina a rota',
+          missing: 'Nenhum provider disponível oferece esta capacidade'
+        },
+        safety: {
+          normal: 'normal',
+          guarded: 'protegida',
+          critical: 'crítica'
+        },
+        status: {
+          ready: 'PRONTO',
+          blocked: 'RESOLVER'
+        },
+        footer: 'Modo ensaio é somente leitura: valida rotas, providers, capacidades e tempos sem enviar nenhum comando.'
+      },
       emptyTitle: 'Nenhuma cena criada',
       emptyDescription: 'Crie uma cena simples acima. Ela fica disponível no Live mesmo sem internet.',
       capabilities: {
@@ -2467,6 +2494,33 @@ const resources = {
       saved: 'Scene saved and sent to Live Node.',
       cloudPending: 'Scene saved locally. Cloud sync is pending.',
       actionRequired: 'Choose at least one action for the scene.',
+      rehearsal: {
+        open: 'Rehearse',
+        close: 'Close rehearsal',
+        kicker: 'SAFE REHEARSAL',
+        ready: 'Every destination is available. No command was executed.',
+        blocked: 'Some dependencies must be resolved before this scene can go live.',
+        gate: 'SCENE STATUS',
+        safe: 'Ready to operate',
+        resolve: 'Resolve dependencies',
+        reasons: {
+          explicit: 'Explicit destination is unavailable',
+          route: 'The configured route is unavailable',
+          single: 'Single destination resolved',
+          ambiguous: 'More than one provider can run this action; choose a route',
+          missing: 'No available provider exposes this capability'
+        },
+        safety: {
+          normal: 'normal',
+          guarded: 'guarded',
+          critical: 'critical'
+        },
+        status: {
+          ready: 'READY',
+          blocked: 'RESOLVE'
+        },
+        footer: 'Rehearsal is read-only: it validates routes, providers, capabilities and timing without sending any command.'
+      },
       emptyTitle: 'No scenes yet',
       emptyDescription: 'Create a simple scene above. It remains available in Live without internet.',
       capabilities: {
@@ -3640,6 +3694,33 @@ const resources = {
       saved: 'Escena guardada y enviada al Live Node.',
       cloudPending: 'Escena guardada localmente. La sincronización con la nube quedó pendiente.',
       actionRequired: 'Elija al menos una acción para la escena.',
+      rehearsal: {
+        open: 'Ensayar',
+        close: 'Cerrar ensayo',
+        kicker: 'ENSAYO SEGURO',
+        ready: 'Todos los destinos están disponibles. No se ejecutó ningún comando.',
+        blocked: 'Hay dependencias que deben resolverse antes de llevar esta escena al vivo.',
+        gate: 'ESTADO DE LA ESCENA',
+        safe: 'Lista para operar',
+        resolve: 'Resolver dependencias',
+        reasons: {
+          explicit: 'El destino explícito no está disponible',
+          route: 'La ruta configurada no está disponible',
+          single: 'Destino único resuelto',
+          ambiguous: 'Más de un provider puede ejecutar esta acción; defina la ruta',
+          missing: 'Ningún provider disponible ofrece esta capacidad'
+        },
+        safety: {
+          normal: 'normal',
+          guarded: 'protegida',
+          critical: 'crítica'
+        },
+        status: {
+          ready: 'LISTO',
+          blocked: 'RESOLVER'
+        },
+        footer: 'El modo ensayo es solo lectura: valida rutas, providers, capacidades y tiempos sin enviar ningún comando.'
+      },
       emptyTitle: 'No hay escenas creadas',
       emptyDescription: 'Cree una escena simple arriba. Permanecerá disponible en Live sin internet.',
       capabilities: {
