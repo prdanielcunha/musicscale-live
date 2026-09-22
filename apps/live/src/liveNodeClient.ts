@@ -1,5 +1,6 @@
 import type {
   CommandResult,
+  LiveChatMessage,
   LiveCommand,
   LiveDropAsset,
   LiveNodeHealth,
@@ -614,6 +615,33 @@ export async function openNodeLiveDrop(
   );
 }
 
+
+export async function listNodeChatMessages(
+  baseUrl: string,
+  token: string,
+  liveSessionId: string,
+  limit = 100
+): Promise<{ messages: LiveChatMessage[] }> {
+  const params = new URLSearchParams({
+    liveSessionId,
+    limit: String(Math.max(1, Math.min(300, Math.floor(limit))))
+  });
+  return requestJson(baseUrl, `/chat?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }, 3000);
+}
+
+export async function submitNodeChatMessage(
+  baseUrl: string,
+  token: string,
+  message: LiveChatMessage
+): Promise<{ message: LiveChatMessage }> {
+  return requestJson(baseUrl, '/chat', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(message)
+  }, 3000);
+}
 
 export async function submitNodeLiveRequest(
   baseUrl: string,
