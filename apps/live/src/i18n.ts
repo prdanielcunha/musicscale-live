@@ -200,6 +200,7 @@ const resources = {
     },
     studioNavigation: {
       ariaLabel: 'Áreas do Live Studio',
+      system: 'Sistema',
       sections: {
         overview: 'Visão geral',
         prepare: 'Preparar culto',
@@ -1342,6 +1343,7 @@ const resources = {
     },
     studioNavigation: {
       ariaLabel: 'Live Studio areas',
+      system: 'System',
       sections: {
         overview: 'Overview',
         prepare: 'Prepare service',
@@ -2477,6 +2479,7 @@ const resources = {
     },
     studioNavigation: {
       ariaLabel: 'Áreas de Live Studio',
+      system: 'Sistema',
       sections: {
         overview: 'Visión general',
         prepare: 'Preparar culto',

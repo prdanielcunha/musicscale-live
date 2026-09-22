@@ -39,6 +39,7 @@ import { UniversalMediaLibrary } from './UniversalMediaLibrary';
 import { LiveContextSwitcher } from './LiveContextSwitcher';
 import { buildServicePlan, type PreparedSongLink } from './servicePlanBuilder';
 import { StudioGuidedHome } from './StudioGuidedHome';
+import { resolveStudioFlow } from './studioFlow';
 
 type Surface = 'live' | 'studio' | 'pastor' | 'conductor';
 type LiveSessionMode = 'service' | 'free';
@@ -91,6 +92,7 @@ export function App() {
   const [localNodeDetectionDone, setLocalNodeDetectionDone] = useState(false);
   const [surface, setSurface] = useState<Surface>('studio');
   const [studioSection, setStudioSection] = useState<StudioSection>('overview');
+  const [showAdvancedStudio, setShowAdvancedStudio] = useState(false);
   const [liveMode, setLiveMode] = useState<LiveSessionMode>('service');
   const [freeSessionId] = useState(createEphemeralSessionId);
   const liveNode = useLiveNode();
@@ -120,6 +122,7 @@ export function App() {
       setSelectedScaleId(null);
       setLiveMode('service');
       setStudioSection('overview');
+      setShowAdvancedStudio(false);
 
       if (!currentUser) {
         setLoading(false);
@@ -280,8 +283,8 @@ export function App() {
     return (
       <main className="login-shell">
         <section className="login-panel">
-          <div className="brand-kicker">MILLIONSNEST / LIVE</div>
-          <h1>MillionsNest <strong>LIVE</strong></h1>
+          <div className="brand-kicker">MUSICSCALE / LIVE</div>
+          <h1>MusicScale <strong>LIVE</strong></h1>
           <p>{t('sameEcosystem')}</p>
           <button className="primary" onClick={login}>{t('signIn')}</button>
         </section>
@@ -314,20 +317,72 @@ export function App() {
       ? `music-scale:${scale.id}`
       : `ad-hoc:${context?.organizationId || user.uid}:${freeSessionId}`;
 
-  const studioSections: Array<{
+  const hasCachedPlan = Boolean(
+    scale &&
+    liveNode.nodeState?.state.servicePlan?.sourceMusicScaleId === scale.id
+  );
+
+  const studioFlow = resolveStudioFlow({
+    nodeConnected,
+    providersOnline: liveNode.health?.providersOnline ?? 0,
+    hasScale: Boolean(scale),
+    scopeMatches: nodeScopeMatchesScale,
+    hasCachedPlan
+  });
+
+  const primaryStudioSections: Array<{
     key: StudioSection;
     requiresNode?: boolean;
     requiresScale?: boolean;
   }> = [
     { key: 'overview' },
     { key: 'prepare', requiresNode: true },
-    { key: 'library', requiresNode: true },
+    { key: 'library', requiresNode: true }
+  ];
+
+  const advancedStudioSections: Array<{
+    key: StudioSection;
+    requiresNode?: boolean;
+    requiresScale?: boolean;
+  }> = [
     { key: 'computers', requiresNode: true },
     { key: 'routing', requiresNode: true },
     { key: 'signal', requiresNode: true },
     { key: 'scenes', requiresNode: true },
     { key: 'diagnostics', requiresNode: true }
   ];
+
+  const isAdvancedStudioSection = advancedStudioSections.some(
+    section => section.key === studioSection
+  );
+  const advancedStudioVisible = showAdvancedStudio || isAdvancedStudioSection;
+
+  const openStudioSection = (section: StudioSection) => {
+    if (advancedStudioSections.some(item => item.key === section)) {
+      setShowAdvancedStudio(true);
+    }
+    setStudioSection(section);
+    setSurface('studio');
+  };
+
+  const runStudioFlow = () => {
+    if (studioFlow.requiresScopeResolution) {
+      const organizationId = liveNode.credential?.binding.organizationId;
+      if (!organizationId) return;
+      setOrganizationScope(organizationId);
+      setSelectedScaleId(null);
+      setStudioSection('overview');
+      return;
+    }
+
+    if (studioFlow.destination === 'live') {
+      setLiveMode(studioFlow.freeMode ? 'free' : 'service');
+      setSurface('live');
+      return;
+    }
+
+    openStudioSection(studioFlow.destination);
+  };
 
   return (
     <div className={[
@@ -337,11 +392,22 @@ export function App() {
       ...operatorViewport.classes
     ].filter(Boolean).join(' ')}>
       <header className="topbar">
-        <div>
-          <div className="brand-kicker">MILLIONSNEST / LIVE</div>
+        <div className="topbar-brand">
+          <div className="brand-kicker">MUSICSCALE / LIVE</div>
           <strong>{t('brand')}</strong>
         </div>
         <div className="top-actions">
+          {surface === 'studio' && (
+            <button className="top-smart-action" type="button" onClick={runStudioFlow}>
+              <small>{t('guidedHome.nextLabel')}</small>
+              <strong>{t(`guidedHome.next.${studioFlow.step}Action`)}</strong>
+            </button>
+          )}
+          <div className="top-live-health" aria-label={t('health')}>
+            <span className={`top-health-dot ${nodeConnected ? 'ok' : 'warn'}`} />
+            <span>{nodeConnected ? t('node') : nodeStatus}</span>
+            <b>{liveNode.health?.providersOnline ?? 0}/{liveNode.health?.providers ?? 0}</b>
+          </div>
           <select value={i18n.resolvedLanguage || 'pt'} onChange={e => i18n.changeLanguage(e.target.value)}>
             <option value="pt">PT</option><option value="en">EN</option><option value="es">ES</option>
           </select>
@@ -364,7 +430,7 @@ export function App() {
             scales={scales}
             scope={organizationScope}
             now={clockNow}
-            compact={surface === 'live'}
+            compact={surface !== 'studio'}
             onScopeChange={nextScope => {
               setOrganizationScope(nextScope);
               setSelectedScaleId(null);
@@ -451,32 +517,36 @@ export function App() {
           </section>
         ) : (
           <>
-            <section className="hero">
-              <div>
-                <span className="eyebrow">{t('foundation')} · 0.1.0-alpha.1</span>
-                <h1>{surface === 'studio' ? 'Live Studio' : t(surface)}</h1>
-                <p>{context?.organizationName || t('organization')}</p>
-              </div>
-              <div className="pill-row">
-                <span>{t('lanFirst')}</span><span>{t('providerAgnostic')}</span><span>{t('offlineReady')}</span>
-              </div>
-            </section>
+            {surface === 'studio' && (
+              <section className="hero">
+                <div>
+                  <span className="eyebrow">{t('foundation')} · 0.1.0-alpha.1</span>
+                  <h1>Live Studio</h1>
+                  <p>{context?.organizationName || t('organization')}</p>
+                </div>
+                <div className="pill-row">
+                  <span>{t('lanFirst')}</span><span>{t('providerAgnostic')}</span><span>{t('offlineReady')}</span>
+                </div>
+              </section>
+            )}
 
-            <section className="health-grid">
-              <article><span className="status ok" /><div><small>{t('cloud')}</small><strong>{t('connected')}</strong></div></article>
-              <article>
-                <span className={`status ${nodeConnected ? 'ok' : liveNode.state === 'offline' || liveNode.state === 'blocked' ? 'danger' : 'warn'}`} />
-                <div><small>{t('node')}</small><strong>{nodeStatus}</strong></div>
-              </article>
-              <article>
-                <span className={`status ${providersConnected ? 'ok' : 'warn'}`} />
-                <div><small>{t('providers')}</small><strong>{providersConnected ? `${liveNode.health?.providersOnline ?? 0}/${liveNode.health?.providers ?? 0}` : t('pending')}</strong></div>
-              </article>
-            </section>
+            {surface === 'studio' && studioSection === 'overview' && (
+              <section className="health-grid">
+                <article><span className="status ok" /><div><small>{t('cloud')}</small><strong>{t('connected')}</strong></div></article>
+                <article>
+                  <span className={`status ${nodeConnected ? 'ok' : liveNode.state === 'offline' || liveNode.state === 'blocked' ? 'danger' : 'warn'}`} />
+                  <div><small>{t('node')}</small><strong>{nodeStatus}</strong></div>
+                </article>
+                <article>
+                  <span className={`status ${providersConnected ? 'ok' : 'warn'}`} />
+                  <div><small>{t('providers')}</small><strong>{providersConnected ? `${liveNode.health?.providersOnline ?? 0}/${liveNode.health?.providers ?? 0}` : t('pending')}</strong></div>
+                </article>
+              </section>
+            )}
 
             {surface === 'studio' && (
               <nav className="studio-section-nav" aria-label={t('studioNavigation.ariaLabel')}>
-                {studioSections.map(section => {
+                {primaryStudioSections.map(section => {
                   const disabled =
                     (section.requiresNode && !nodeConnected) ||
                     (section.requiresScale && !scale);
@@ -486,14 +556,40 @@ export function App() {
                       type="button"
                       className={studioSection === section.key ? 'active' : ''}
                       disabled={disabled}
-                      onClick={() => setStudioSection(section.key)}
+                      onClick={() => openStudioSection(section.key)}
+                    >
+                      <span>{t(`studioNavigation.sections.${section.key}`)}</span>
+                      {section.key === 'prepare' && scale && (
+                        <em>{scale.songs.length}</em>
+                      )}
+                    </button>
+                  );
+                })}
+                <span className="studio-nav-divider" aria-hidden="true" />
+                <button
+                  type="button"
+                  className={`studio-system-toggle ${advancedStudioVisible ? 'active' : ''}`}
+                  onClick={() => setShowAdvancedStudio(value => !value)}
+                  aria-expanded={advancedStudioVisible}
+                >
+                  <span>{t('studioNavigation.system')}</span>
+                  <b className={providersConnected ? 'ok' : 'warn'} />
+                </button>
+                {advancedStudioVisible && advancedStudioSections.map(section => {
+                  const disabled =
+                    (section.requiresNode && !nodeConnected) ||
+                    (section.requiresScale && !scale);
+                  return (
+                    <button
+                      key={section.key}
+                      type="button"
+                      className={studioSection === section.key ? 'active' : ''}
+                      disabled={disabled}
+                      onClick={() => openStudioSection(section.key)}
                     >
                       <span>{t(`studioNavigation.sections.${section.key}`)}</span>
                       {section.key === 'diagnostics' && nodeConnected && (
                         <b className={providersConnected ? 'ok' : 'warn'} />
-                      )}
-                      {section.key === 'prepare' && scale && (
-                        <em>{scale.songs.length}</em>
                       )}
                     </button>
                   );
@@ -556,11 +652,8 @@ export function App() {
             scaleName={scale?.eventName || undefined}
             scaleSongs={scale?.songs.length || 0}
             scopeMatches={nodeScopeMatchesScale}
-            hasCachedPlan={Boolean(
-              scale &&
-              liveNode.nodeState?.state.servicePlan?.sourceMusicScaleId === scale.id
-            )}
-            onOpenSection={setStudioSection}
+            hasCachedPlan={hasCachedPlan}
+            onOpenSection={openStudioSection}
             onOpenLive={freeMode => {
               setLiveMode(freeMode ? 'free' : 'service');
               setSurface('live');
@@ -711,7 +804,7 @@ export function App() {
               <button type="button" onClick={() => setSurface('live')}>{t('now')}</button>
               <button type="button" onClick={() => setSurface('live')}>{t('timeline')}</button>
               <button type="button" onClick={() => setSurface('live')}>{t('bible')}</button>
-              <button type="button" onClick={() => setStudioSection('library')}>{t('media')}</button>
+              <button type="button" onClick={() => openStudioSection('library')}>{t('media')}</button>
               <button type="button" onClick={() => setSurface('live')}>{t('requests')}</button>
             </nav>
           </article>
