@@ -6,6 +6,7 @@ import { buildServicePlan, type PreparedSongLink } from './servicePlanBuilder';
 import { liveFeatureFlags } from './featureFlags';
 import { syncPreparedServicePlan } from './liveCloudRepository';
 import type { useLiveNode } from './useLiveNode';
+import { ProductionPreflightChecklist } from './ProductionPreflightChecklist';
 
 type Controller = ReturnType<typeof useLiveNode>;
 
@@ -154,6 +155,7 @@ export function ScalePreflight({
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [offlinePrepared, setOfflinePrepared] = useState(false);
   const [cloudSync, setCloudSync] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
+  const [systemBlocked, setSystemBlocked] = useState(false);
   const syncTimer = useRef<number | null>(null);
   const cachedSignature = useRef<string | null>(null);
   const autoCheckedSignature = useRef<string | null>(null);
@@ -530,10 +532,12 @@ export function ScalePreflight({
   const readinessState =
     running
       ? 'checking'
-      : rows.length > 0 && unresolvedCount === 0 && offlinePrepared
+      : rows.length > 0 && unresolvedCount === 0 && offlinePrepared && !systemBlocked
         ? 'ready'
-        : rows.length > 0 && unresolvedCount === 0
-          ? 'caching'
+        : rows.length > 0 && unresolvedCount === 0 && systemBlocked
+          ? 'attention'
+          : rows.length > 0 && unresolvedCount === 0
+            ? 'caching'
           : hasChecked
             ? 'attention'
             : 'idle';
@@ -578,6 +582,14 @@ export function ScalePreflight({
         </div>
       </div>
 
+      <ProductionPreflightChecklist
+        controller={controller}
+        actorId={actorId}
+        liveSessionId={`preflight:${scale.id}`}
+        scaleHasSongs={scale.songs.length > 0}
+        onBlockingChange={setSystemBlocked}
+      />
+
       <div className="preflight-actions">
         <button
           className="secondary"
@@ -601,7 +613,8 @@ export function ScalePreflight({
           <button
             type="button"
             className="primary preflight-open-live"
-            disabled={busy}
+            disabled={busy || systemBlocked}
+            title={systemBlocked ? t('productionPreflight.resolveBeforeLive') : undefined}
             onClick={onOpenLive}
           >
             {t('preflight.openLive')}

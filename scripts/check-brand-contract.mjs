@@ -11,7 +11,8 @@ const TEXT_EXTENSIONS = new Set([
 const LEGACY_PATTERNS = [
   'MillionsNest Live',
   'MillionsNestLive',
-  'millionsnest-live'
+  'millionsnest-live',
+  'MILLIONSNEST / LIVE'
 ];
 
 const LEGACY_COMPATIBILITY_ALLOWLIST = new Set([

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { resolveStudioFlow } from './studioFlow';
 
 type Destination = 'overview' | 'prepare' | 'library' | 'computers' | 'routing' | 'signal' | 'scenes' | 'diagnostics';
 
@@ -76,10 +77,17 @@ export function StudioGuidedHome({
 
   const readyCount = checks.filter(item => item.ready || item.softReady).length;
 
+  const flow = useMemo(() => resolveStudioFlow({
+    nodeConnected,
+    providersOnline,
+    hasScale,
+    scopeMatches,
+    hasCachedPlan
+  }), [hasCachedPlan, hasScale, nodeConnected, providersOnline, scopeMatches]);
+
   const nextAction = useMemo(() => {
-    if (!nodeConnected) {
+    if (flow.step === 'connectNode') {
       return {
-        key: 'node',
         title: t('guidedHome.next.connectNodeTitle'),
         description: t('guidedHome.next.connectNodeDescription'),
         action: t('guidedHome.next.connectNodeAction'),
@@ -87,9 +95,8 @@ export function StudioGuidedHome({
       };
     }
 
-    if (providersOnline < 1) {
+    if (flow.step === 'providers') {
       return {
-        key: 'providers',
         title: t('guidedHome.next.providersTitle'),
         description: t('guidedHome.next.providersDescription'),
         action: t('guidedHome.next.providersAction'),
@@ -97,9 +104,8 @@ export function StudioGuidedHome({
       };
     }
 
-    if (hasScale && !scopeMatches) {
+    if (flow.step === 'scope') {
       return {
-        key: 'scope',
         title: t('guidedHome.next.scopeTitle'),
         description: t('guidedHome.next.scopeDescription'),
         action: t('guidedHome.next.scopeAction'),
@@ -107,9 +113,8 @@ export function StudioGuidedHome({
       };
     }
 
-    if (hasScale && !hasCachedPlan) {
+    if (flow.step === 'prepare') {
       return {
-        key: 'prepare',
         title: t('guidedHome.next.prepareTitle'),
         description: t('guidedHome.next.prepareDescription'),
         action: t('guidedHome.next.prepareAction'),
@@ -117,9 +122,8 @@ export function StudioGuidedHome({
       };
     }
 
-    if (hasScale) {
+    if (flow.step === 'live') {
       return {
-        key: 'live',
         title: t('guidedHome.next.liveTitle'),
         description: t('guidedHome.next.liveDescription', {
           service: scaleName || t('guidedHome.serviceFallback')
@@ -130,24 +134,12 @@ export function StudioGuidedHome({
     }
 
     return {
-      key: 'free',
       title: t('guidedHome.next.freeTitle'),
       description: t('guidedHome.next.freeDescription'),
       action: t('guidedHome.next.freeAction'),
       run: () => onOpenLive(true)
     };
-  }, [
-    hasCachedPlan,
-    hasScale,
-    nodeConnected,
-    onOpenLive,
-    onOpenSection,
-    onResolveScope,
-    providersOnline,
-    scaleName,
-    scopeMatches,
-    t
-  ]);
+  }, [flow.step, onOpenLive, onOpenSection, onResolveScope, scaleName, t]);
 
   return (
     <section className="guided-home">

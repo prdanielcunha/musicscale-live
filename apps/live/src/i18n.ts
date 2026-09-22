@@ -200,6 +200,7 @@ const resources = {
     },
     studioNavigation: {
       ariaLabel: 'Áreas do Live Studio',
+      system: 'Sistema',
       sections: {
         overview: 'Visão geral',
         prepare: 'Preparar culto',
@@ -392,6 +393,84 @@ const resources = {
       emptyTitle: 'Nenhum item nesta visualização',
       emptyHint: 'Pesquise os providers ou envie arquivos pelo Live Drop para montar a biblioteca deste culto.',
       noProviderSearch: 'Nenhum provider conectado oferece busca de mídia; os arquivos aprovados do Live Drop continuarão aparecendo aqui.'
+    },
+    productionPreflight: {
+      kicker: 'PRÉ-FLIGHT DE PRODUÇÃO',
+      title: 'Tudo pronto para o culto?',
+      subtitle: 'O Live confere somente dependências que consegue provar: providers, rotas, itens do roteiro, computadores e outputs visuais.',
+      recheck: 'Conferir novamente',
+      ready: 'Pronto',
+      warnings: 'Atenções',
+      blocking: 'Bloqueios',
+      gate: 'INICIAR LIVE',
+      resolveBeforeLive: 'Resolver antes',
+      safeToStart: 'Pronto para iniciar',
+      noRequirements: 'Nenhuma dependência adicional detectada',
+      noRequirementsHint: 'O roteiro atual não exige integrações extras que o Live consiga validar.',
+      footer: 'A conferência é informativa e determinística. O Live não muda provider, rota ou conteúdo durante o pré-flight.',
+      status: { pass: 'OK', warning: 'Atenção', block: 'Resolver' },
+      checks: {
+        item_provider_ready: {
+          title: 'Item vinculado ao provider correto',
+          hint: '{{provider}} está disponível para este item do roteiro.'
+        },
+        item_provider_unavailable: {
+          title: 'Provider vinculado indisponível',
+          hint: '{{provider}} é o destino deste item, mas não está disponível com a capability necessária.'
+        },
+        route_ready: {
+          title: 'Rota necessária disponível',
+          hint: '{{provider}} atende {{count}} item(ns) do roteiro.'
+        },
+        configured_route_unavailable: {
+          title: 'Rota configurada está indisponível',
+          hint: '{{provider}} foi escolhido para esta rota, mas não pode atender o roteiro agora.'
+        },
+        single_provider_ready: {
+          title: 'Destino resolvido automaticamente',
+          hint: 'Há um único provider compatível: {{provider}}.'
+        },
+        route_required: {
+          title: 'Escolha uma rota antes do culto',
+          hint: 'Há mais de um provider capaz de executar {{count}} item(ns). Defina o destino no Studio.'
+        },
+        capability_unavailable: {
+          title: 'Conteúdo do roteiro sem provider',
+          hint: '{{count}} item(ns) precisam de uma capability que nenhum provider disponível oferece.'
+        },
+        manual_plan_items: {
+          title: 'Itens que continuam manuais',
+          hint: '{{count}} item(ns) do roteiro ainda não possuem execução neutra validada. Eles permanecem visíveis, sem automação simulada.'
+        },
+        offline_peers: {
+          title: 'Computador do Live fora da rede',
+          hint: '{{count}} Live Node(s) pareado(s) estão offline. Confira se algum faz parte deste culto.'
+        },
+        visual_route_ready: {
+          title: 'Cadeia visual disponível',
+          hint: '{{provider}} está pronto na rota visual configurada.'
+        },
+        visual_route_unavailable: {
+          title: 'Cadeia visual configurada indisponível',
+          hint: '{{provider}} está selecionado para visual, mas não está operacional agora.'
+        },
+        visual_outputs_checking: {
+          title: 'Conferindo saída visual',
+          hint: 'Lendo outputs disponíveis em {{provider}} sem alterar a composição.'
+        },
+        visual_outputs_ready: {
+          title: 'Saída visual detectada',
+          hint: '{{provider}} expôs {{count}} output(s) para monitoramento.'
+        },
+        visual_outputs_empty: {
+          title: 'Nenhuma saída visual detectada',
+          hint: '{{provider}} respondeu, mas não retornou outputs. Confirme a configuração do Arena.'
+        },
+        visual_outputs_unavailable: {
+          title: 'Não foi possível validar o output visual',
+          hint: '{{provider}} continua utilizável; confirme o output manualmente antes do culto.'
+        }
+      }
     },
     preflight: {
       kicker: 'PREFLIGHT',
@@ -1264,6 +1343,7 @@ const resources = {
     },
     studioNavigation: {
       ariaLabel: 'Live Studio areas',
+      system: 'System',
       sections: {
         overview: 'Overview',
         prepare: 'Prepare service',
@@ -1449,6 +1529,84 @@ const resources = {
       emptyTitle: 'No items in this view',
       emptyHint: 'Search providers or send files through Live Drop to build this service library.',
       noProviderSearch: 'No connected provider offers media search; approved Live Drop files will still appear here.'
+    },
+    productionPreflight: {
+      kicker: 'PRODUCTION PREFLIGHT',
+      title: 'Ready for service?',
+      subtitle: 'Live checks only dependencies it can prove: providers, routes, run-of-show items, computers and visual outputs.',
+      recheck: 'Check again',
+      ready: 'Ready',
+      warnings: 'Warnings',
+      blocking: 'Blocking',
+      gate: 'START LIVE',
+      resolveBeforeLive: 'Resolve first',
+      safeToStart: 'Ready to start',
+      noRequirements: 'No additional dependency detected',
+      noRequirementsHint: 'The current run of show does not require extra integrations that Live can validate.',
+      footer: 'This check is informational and deterministic. Live never changes a provider, route or content during preflight.',
+      status: { pass: 'OK', warning: 'Attention', block: 'Resolve' },
+      checks: {
+        item_provider_ready: {
+          title: 'Item is linked to the correct provider',
+          hint: '{{provider}} is available for this run-of-show item.'
+        },
+        item_provider_unavailable: {
+          title: 'Linked provider is unavailable',
+          hint: '{{provider}} is the item destination but does not currently expose the required capability.'
+        },
+        route_ready: {
+          title: 'Required route is available',
+          hint: '{{provider}} can serve {{count}} run-of-show item(s).'
+        },
+        configured_route_unavailable: {
+          title: 'Configured route is unavailable',
+          hint: '{{provider}} was selected for this route but cannot serve the run of show now.'
+        },
+        single_provider_ready: {
+          title: 'Destination resolved automatically',
+          hint: 'There is one compatible provider: {{provider}}.'
+        },
+        route_required: {
+          title: 'Choose a route before service',
+          hint: 'More than one provider can execute {{count}} item(s). Choose the destination in Studio.'
+        },
+        capability_unavailable: {
+          title: 'Run-of-show content has no provider',
+          hint: '{{count}} item(s) need a capability that no available provider exposes.'
+        },
+        manual_plan_items: {
+          title: 'Items that remain manual',
+          hint: '{{count}} run-of-show item(s) do not yet have validated neutral execution. They stay visible without simulated automation.'
+        },
+        offline_peers: {
+          title: 'Live computer is off the network',
+          hint: '{{count}} paired Live Node(s) are offline. Check whether any are part of this service.'
+        },
+        visual_route_ready: {
+          title: 'Visual chain is available',
+          hint: '{{provider}} is ready on the configured visual route.'
+        },
+        visual_route_unavailable: {
+          title: 'Configured visual chain is unavailable',
+          hint: '{{provider}} is selected for visual output but is not operational now.'
+        },
+        visual_outputs_checking: {
+          title: 'Checking visual output',
+          hint: 'Reading outputs from {{provider}} without changing the composition.'
+        },
+        visual_outputs_ready: {
+          title: 'Visual output detected',
+          hint: '{{provider}} exposed {{count}} output(s) for monitoring.'
+        },
+        visual_outputs_empty: {
+          title: 'No visual output detected',
+          hint: '{{provider}} responded but returned no outputs. Check the Arena configuration.'
+        },
+        visual_outputs_unavailable: {
+          title: 'Visual output could not be validated',
+          hint: '{{provider}} may still be usable; verify the output manually before service.'
+        }
+      }
     },
     preflight: {
       kicker: 'PREFLIGHT',
@@ -2321,6 +2479,7 @@ const resources = {
     },
     studioNavigation: {
       ariaLabel: 'Áreas de Live Studio',
+      system: 'Sistema',
       sections: {
         overview: 'Visión general',
         prepare: 'Preparar culto',
@@ -2506,6 +2665,84 @@ const resources = {
       emptyTitle: 'No hay elementos en esta vista',
       emptyHint: 'Busque en los providers o envíe archivos por Live Drop para montar la biblioteca de este culto.',
       noProviderSearch: 'Ningún provider conectado ofrece búsqueda de media; los archivos aprobados de Live Drop seguirán apareciendo aquí.'
+    },
+    productionPreflight: {
+      kicker: 'PRE-FLIGHT DE PRODUCCIÓN',
+      title: '¿Todo listo para el culto?',
+      subtitle: 'Live verifica solo dependencias que puede comprobar: providers, rutas, ítems del guion, computadoras y outputs visuales.',
+      recheck: 'Verificar nuevamente',
+      ready: 'Listo',
+      warnings: 'Atenciones',
+      blocking: 'Bloqueos',
+      gate: 'INICIAR LIVE',
+      resolveBeforeLive: 'Resolver antes',
+      safeToStart: 'Listo para iniciar',
+      noRequirements: 'No se detectaron dependencias adicionales',
+      noRequirementsHint: 'El guion actual no requiere integraciones extra que Live pueda validar.',
+      footer: 'La verificación es informativa y determinística. Live no cambia provider, ruta ni contenido durante el pre-flight.',
+      status: { pass: 'OK', warning: 'Atención', block: 'Resolver' },
+      checks: {
+        item_provider_ready: {
+          title: 'Ítem vinculado al provider correcto',
+          hint: '{{provider}} está disponible para este ítem del guion.'
+        },
+        item_provider_unavailable: {
+          title: 'Provider vinculado no disponible',
+          hint: '{{provider}} es el destino de este ítem, pero no ofrece ahora la capability necesaria.'
+        },
+        route_ready: {
+          title: 'Ruta necesaria disponible',
+          hint: '{{provider}} atiende {{count}} ítem(s) del guion.'
+        },
+        configured_route_unavailable: {
+          title: 'La ruta configurada no está disponible',
+          hint: '{{provider}} fue elegido para esta ruta, pero no puede atender el guion ahora.'
+        },
+        single_provider_ready: {
+          title: 'Destino resuelto automáticamente',
+          hint: 'Hay un único provider compatible: {{provider}}.'
+        },
+        route_required: {
+          title: 'Elija una ruta antes del culto',
+          hint: 'Hay más de un provider capaz de ejecutar {{count}} ítem(s). Defina el destino en Studio.'
+        },
+        capability_unavailable: {
+          title: 'Contenido del guion sin provider',
+          hint: '{{count}} ítem(s) necesitan una capability que ningún provider disponible ofrece.'
+        },
+        manual_plan_items: {
+          title: 'Ítems que continúan manuales',
+          hint: '{{count}} ítem(s) del guion aún no tienen ejecución neutra validada. Permanecen visibles, sin automatización simulada.'
+        },
+        offline_peers: {
+          title: 'Computadora del Live fuera de la red',
+          hint: '{{count}} Live Node(s) pareado(s) están offline. Verifique si alguno forma parte de este culto.'
+        },
+        visual_route_ready: {
+          title: 'Cadena visual disponible',
+          hint: '{{provider}} está listo en la ruta visual configurada.'
+        },
+        visual_route_unavailable: {
+          title: 'Cadena visual configurada no disponible',
+          hint: '{{provider}} está seleccionado para visual, pero no está operativo ahora.'
+        },
+        visual_outputs_checking: {
+          title: 'Verificando salida visual',
+          hint: 'Leyendo outputs disponibles en {{provider}} sin cambiar la composición.'
+        },
+        visual_outputs_ready: {
+          title: 'Salida visual detectada',
+          hint: '{{provider}} expuso {{count}} output(s) para monitoreo.'
+        },
+        visual_outputs_empty: {
+          title: 'No se detectó salida visual',
+          hint: '{{provider}} respondió, pero no devolvió outputs. Verifique la configuración de Arena.'
+        },
+        visual_outputs_unavailable: {
+          title: 'No fue posible validar el output visual',
+          hint: '{{provider}} puede seguir utilizable; confirme el output manualmente antes del culto.'
+        }
+      }
     },
     preflight: {
       kicker: 'PREFLIGHT',
