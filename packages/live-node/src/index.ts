@@ -11,6 +11,7 @@ import {
   type Capability,
   type CommandResult,
   type LiveCommand,
+  type LiveChatMessage,
   type LiveDropAsset,
   type LiveRequest,
   type PairingRequest,
@@ -38,6 +39,7 @@ import { SceneExecutor } from './sceneExecutor';
 import { PeerDiscovery } from './peerDiscovery';
 import { sanitizeObservedStateForPersistence } from './observedStateSanitizer';
 import { LiveEventLogStore } from './liveEventLogStore';
+import { LiveChatStore } from './liveChatStore';
 import {
   eventFromCommand,
   eventFromRequestCreated,
@@ -128,6 +130,7 @@ const providerRoutingStore = new ProviderRoutingStore(join(STATE_DIR, 'routing.j
 const peerNodeStore = new PeerNodeStore(join(STATE_DIR, 'peers.json'));
 const signalTopologyStore = new SignalTopologyStore(join(STATE_DIR, 'signal-topology.json'));
 const eventLogStore = new LiveEventLogStore(join(STATE_DIR, 'events.json'));
+const liveChatStore = new LiveChatStore(join(STATE_DIR, 'chat.json'));
 const liveDropStore = new LiveDropStore(
   join(STATE_DIR, 'live-drop'),
   undefined,
@@ -799,6 +802,57 @@ function validateCommand(value: unknown): LiveCommand {
     throw new Error('invalid_safety_level');
   }
   return candidate as LiveCommand;
+}
+
+function validateLiveChatMessage(value: unknown): LiveChatMessage {
+  if (!value || typeof value !== 'object') throw new Error('invalid_live_chat_message');
+  const candidate = value as Partial<LiveChatMessage>;
+  const required = [
+    candidate.id,
+    candidate.organizationId,
+    candidate.venueId,
+    candidate.liveSystemId,
+    candidate.liveSessionId,
+    candidate.actorId,
+    candidate.createdAt
+  ];
+  if (required.some(item => typeof item !== 'string' || !item)) {
+    throw new Error('invalid_live_chat_message');
+  }
+  if (!['operator','pastor','conductor','team'].includes(String(candidate.senderContext))) {
+    throw new Error('invalid_live_chat_sender');
+  }
+  if (!['team','operator','pastor','conductor','production'].includes(String(candidate.audience))) {
+    throw new Error('invalid_live_chat_audience');
+  }
+  if (typeof candidate.text !== 'string') throw new Error('invalid_live_chat_text');
+  const text = candidate.text.trim();
+  if (!text || text.length > 1200) throw new Error('invalid_live_chat_text');
+  if (candidate.replyToId !== undefined && typeof candidate.replyToId !== 'string') {
+    throw new Error('invalid_live_chat_reply');
+  }
+  if (candidate.relatedRequestId !== undefined && typeof candidate.relatedRequestId !== 'string') {
+    throw new Error('invalid_live_chat_request');
+  }
+
+  return {
+    ...(candidate as LiveChatMessage),
+    text
+  };
+}
+
+function assertLiveChatScope(
+  message: LiveChatMessage,
+  binding: Awaited<ReturnType<typeof pairingStore.authorize>>
+): void {
+  if (!binding) return;
+  if (
+    message.organizationId !== binding.organizationId ||
+    message.venueId !== binding.venueId ||
+    message.liveSystemId !== binding.liveSystemId
+  ) {
+    throw new Error('forbidden_scope');
+  }
 }
 
 function validateLiveRequest(value: unknown): LiveRequest {
@@ -2270,6 +2324,38 @@ async function start(): Promise<void> {
         scenes: scenes.length,
         stateRevision: next.revision
       });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/chat') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      if (!session.binding) return send(res, 403, { error: 'pairing_scope_required' });
+
+      const liveSessionId = String(url.searchParams.get('liveSessionId') || '').trim();
+      if (!liveSessionId) throw new Error('invalid_live_chat_session');
+      const requestedLimit = Number(url.searchParams.get('limit') || '100');
+      const limit = Number.isFinite(requestedLimit)
+        ? Math.max(1, Math.min(300, Math.floor(requestedLimit)))
+        : 100;
+
+      const messages = await liveChatStore.list({
+        organizationId: session.binding.organizationId,
+        venueId: session.binding.venueId,
+        liveSystemId: session.binding.liveSystemId,
+        liveSessionId,
+        limit
+      });
+      return send(res, 200, { messages });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/chat') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+
+      const message = validateLiveChatMessage(await readJson(req));
+      assertLiveChatScope(message, session.binding);
+      await liveChatStore.append(message);
+      return send(res, 201, { message });
     }
 
     if (req.method === 'GET' && url.pathname === '/events') {
