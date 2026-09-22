@@ -71,8 +71,7 @@ export function ProductionPreflightChecklist({
 
     const signature = [
       visualProvider.providerId,
-      visualProvider.health,
-      controller.nodeState?.state.revision || 0
+      visualProvider.health
     ].join(':');
 
     if (!force && visualProbeSignature.current === signature) return;
@@ -121,7 +120,7 @@ export function ProductionPreflightChecklist({
     void probeVisualOutputs();
     // Probe is keyed by provider/state revision and intentionally read-only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visualProvider?.providerId, visualProvider?.health, controller.nodeState?.state.revision]);
+  }, [visualProvider?.providerId, visualProvider?.health]);
 
   const checks = useMemo(
     () => visualOutputCheck
