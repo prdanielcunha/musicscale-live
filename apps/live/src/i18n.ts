@@ -1004,6 +1004,7 @@ const resources = {
       nodeRequiredDescription: 'Pastor e condutor enviam pedidos pelo caminho local do culto. Conecte este dispositivo ao Live Node primeiro.',
       send: 'Enviar pedido',
       sent: 'Pedido enviado ao operador.',
+      cancel: 'Cancelar',
       myRequests: 'Meus pedidos',
       operatorDecides: 'O operador confirma antes de colocar no ar',
       empty: 'Nenhum pedido enviado nesta sessão.',
@@ -1016,6 +1017,17 @@ const resources = {
         kicker: 'CONDUTOR',
         title: 'Condução conectada ao operador',
         description: 'Sinalize seção ou instrução sem disputar o controle do telão.'
+      },
+      conductorContext: {
+        kicker: 'MÚSICA AGORA',
+        songFallback: 'Apresentação musical atual',
+        provider: 'Sincronizado com {{provider}}',
+        safe: 'Pedido seguro',
+        now: 'Agora',
+        request: 'Seção',
+        sectionReady: 'Seção detectada no provider',
+        send: 'Pedir ao operador',
+        hint: 'Toque em uma seção para pedir exatamente este ponto da música. O Live confere se a mesma apresentação ainda está ativa antes de permitir o TAKE.'
       },
       kinds: { bible: 'Bíblia', section: 'Seção', media: 'Mídia', message: 'Mensagem' },
       placeholders: {
@@ -1071,7 +1083,11 @@ const resources = {
       bibleUnavailable: 'O provider atual não oferece apresentação bíblica. Mantenha o fluxo manual.',
       stageUnavailable: 'O provider atual não oferece mensagem de palco. Mantenha o fluxo manual.',
       actionError: 'Não consegui concluir esta ação: {{message}}',
+      sources: { pastor: 'Pastor', conductor: 'Condutor' },
       errors: {
+        section_requested_provider_unavailable: 'o provider usado pelo condutor não está mais disponível',
+        section_request_presentation_changed: 'a música/apresentação mudou desde o pedido. Peça a seção novamente para evitar um salto errado',
+        section_request_exact_marker_missing: 'a seção pedida não existe mais na apresentação atual',
         section_request_no_markers: 'a apresentação atual não expõe marcações de seção que eu possa usar com segurança',
         section_request_prepare_failed: 'não consegui ler as seções da apresentação atual',
         section_request_take_failed: 'não consegui ir para a seção preparada',
@@ -1088,6 +1104,7 @@ const resources = {
         media_open_failed: 'o provider recusou a abertura da mídia'
       },
       accept: 'Aceitar',
+      acceptPrepare: 'Aceitar e preparar',
       reject: 'Recusar',
       complete: 'Concluir',
       playlistUpdate: 'PLAYLIST ATUALIZADA',
@@ -2001,6 +2018,7 @@ const resources = {
       nodeRequiredDescription: 'Pastor and conductor requests use the local service path. Connect this device to Live Node first.',
       send: 'Send request',
       sent: 'Request sent to the operator.',
+      cancel: 'Cancel',
       myRequests: 'My requests',
       operatorDecides: 'The operator confirms before anything goes on air',
       empty: 'No requests sent in this session.',
@@ -2013,6 +2031,17 @@ const resources = {
         kicker: 'CONDUCTOR',
         title: 'Conduct with the operator',
         description: 'Signal a section or instruction without fighting for screen control.'
+      },
+      conductorContext: {
+        kicker: 'SONG NOW',
+        songFallback: 'Current song presentation',
+        provider: 'Synced with {{provider}}',
+        safe: 'Safe request',
+        now: 'Now',
+        request: 'Section',
+        sectionReady: 'Section detected on provider',
+        send: 'Request from operator',
+        hint: 'Tap a section to request that exact point in the song. Live verifies the same presentation is still active before TAKE is allowed.'
       },
       kinds: { bible: 'Bible', section: 'Section', media: 'Media', message: 'Message' },
       placeholders: {
@@ -2068,7 +2097,11 @@ const resources = {
       bibleUnavailable: 'The current provider does not expose Bible presentation. Keep the manual flow.',
       stageUnavailable: 'The current provider does not expose stage messaging. Keep the manual flow.',
       actionError: 'Could not complete this action: {{message}}',
+      sources: { pastor: 'Pastor', conductor: 'Conductor' },
       errors: {
+        section_requested_provider_unavailable: 'the provider used by the conductor is no longer available',
+        section_request_presentation_changed: 'the song/presentation changed after the request. Request the section again to avoid jumping to the wrong content',
+        section_request_exact_marker_missing: 'the requested section no longer exists in the current presentation',
         section_request_no_markers: 'the current presentation does not expose section markers that can be used safely',
         section_request_prepare_failed: 'the current presentation sections could not be read',
         section_request_take_failed: 'the prepared section could not be reached',
@@ -2085,6 +2118,7 @@ const resources = {
         media_open_failed: 'the provider rejected opening this media'
       },
       accept: 'Accept',
+      acceptPrepare: 'Accept and prepare',
       reject: 'Reject',
       complete: 'Complete',
       playlistUpdate: 'PLAYLIST UPDATED',
@@ -2998,6 +3032,7 @@ const resources = {
       nodeRequiredDescription: 'Los pedidos del pastor y del conductor usan el camino local del culto. Conecte este dispositivo al Live Node primero.',
       send: 'Enviar pedido',
       sent: 'Pedido enviado al operador.',
+      cancel: 'Cancelar',
       myRequests: 'Mis pedidos',
       operatorDecides: 'El operador confirma antes de poner algo al aire',
       empty: 'No hay pedidos enviados en esta sesión.',
@@ -3010,6 +3045,17 @@ const resources = {
         kicker: 'CONDUCTOR',
         title: 'Conducción conectada al operador',
         description: 'Señale una sección o instrucción sin disputar el control de pantalla.'
+      },
+      conductorContext: {
+        kicker: 'CANCIÓN AHORA',
+        songFallback: 'Presentación musical actual',
+        provider: 'Sincronizado con {{provider}}',
+        safe: 'Pedido seguro',
+        now: 'Ahora',
+        request: 'Sección',
+        sectionReady: 'Sección detectada en el provider',
+        send: 'Pedir al operador',
+        hint: 'Toque una sección para pedir exactamente ese punto de la canción. Live verifica que la misma presentación siga activa antes de permitir el TAKE.'
       },
       kinds: { bible: 'Biblia', section: 'Sección', media: 'Media', message: 'Mensaje' },
       placeholders: {
@@ -3065,7 +3111,11 @@ const resources = {
       bibleUnavailable: 'El provider actual no ofrece presentación bíblica. Mantenga el flujo manual.',
       stageUnavailable: 'El provider actual no ofrece mensajes de escenario. Mantenga el flujo manual.',
       actionError: 'No fue posible completar esta acción: {{message}}',
+      sources: { pastor: 'Pastor', conductor: 'Conductor' },
       errors: {
+        section_requested_provider_unavailable: 'el provider usado por el conductor ya no está disponible',
+        section_request_presentation_changed: 'la canción/presentación cambió después del pedido. Pida la sección nuevamente para evitar un salto incorrecto',
+        section_request_exact_marker_missing: 'la sección solicitada ya no existe en la presentación actual',
         section_request_no_markers: 'la presentación actual no expone marcadores de sección que se puedan usar con seguridad',
         section_request_prepare_failed: 'no fue posible leer las secciones de la presentación actual',
         section_request_take_failed: 'no fue posible ir a la sección preparada',
@@ -3082,6 +3132,7 @@ const resources = {
         media_open_failed: 'el provider rechazó la apertura de la media'
       },
       accept: 'Aceptar',
+      acceptPrepare: 'Aceptar y preparar',
       reject: 'Rechazar',
       complete: 'Completar',
       playlistUpdate: 'PLAYLIST ACTUALIZADA',
