@@ -430,7 +430,7 @@ export function App() {
             scales={scales}
             scope={organizationScope}
             now={clockNow}
-            compact={surface === 'live'}
+            compact={surface !== 'studio'}
             onScopeChange={nextScope => {
               setOrganizationScope(nextScope);
               setSelectedScaleId(null);
@@ -517,16 +517,18 @@ export function App() {
           </section>
         ) : (
           <>
-            <section className="hero">
-              <div>
-                <span className="eyebrow">{t('foundation')} · 0.1.0-alpha.1</span>
-                <h1>{surface === 'studio' ? 'Live Studio' : t(surface)}</h1>
-                <p>{context?.organizationName || t('organization')}</p>
-              </div>
-              <div className="pill-row">
-                <span>{t('lanFirst')}</span><span>{t('providerAgnostic')}</span><span>{t('offlineReady')}</span>
-              </div>
-            </section>
+            {surface === 'studio' && (
+              <section className="hero">
+                <div>
+                  <span className="eyebrow">{t('foundation')} · 0.1.0-alpha.1</span>
+                  <h1>Live Studio</h1>
+                  <p>{context?.organizationName || t('organization')}</p>
+                </div>
+                <div className="pill-row">
+                  <span>{t('lanFirst')}</span><span>{t('providerAgnostic')}</span><span>{t('offlineReady')}</span>
+                </div>
+              </section>
+            )}
 
             {surface === 'studio' && studioSection === 'overview' && (
               <section className="health-grid">
