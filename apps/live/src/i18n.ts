@@ -329,6 +329,43 @@ const resources = {
       description: 'Arraste do computador ou envie pelo tablet/celular. O arquivo chega primeiro em quarentena no Live Node e só fica disponível depois da aprovação do operador.',
       quarantineTitle: 'Quarentena local',
       quarantineHint: 'Nada é aberto no provider automaticamente.',
+      policy: {
+        label: 'Política local do Live Drop',
+        kicker: 'CICLO DE VIDA',
+        title: 'Controle o que fica armazenado',
+        description: 'Escolha um preset simples. O Live Node aplica a retenção localmente, recalcula os arquivos atuais e mantém a aprovação como decisão explícita do operador.',
+        quarantine: 'Em revisão',
+        approved: 'Aprovados',
+        rejected: 'Rejeitados',
+        hours_one: '{{count}} hora',
+        hours_other: '{{count}} horas',
+        kept: 'Mantidos localmente',
+        nodeDefault: 'Política do Node',
+        quarantineHint: 'expira se ninguém revisar',
+        approvedHint: 'continua pronto offline enquanto estiver retido',
+        rejectedHint: 'histórico curto para auditoria',
+        presetsLabel: 'Preset de armazenamento',
+        presets: {
+          service: {
+            title: 'Só este culto',
+            hint: 'Aprovados por 24 horas'
+          },
+          week: {
+            title: 'Esta semana',
+            hint: 'Aprovados por 7 dias'
+          },
+          keep: {
+            title: 'Manter aprovados',
+            hint: 'Sem expiração automática'
+          }
+        },
+        saved: {
+          service: 'Live Drop ajustado para este culto: aprovados ficam por 24 horas.',
+          week: 'Live Drop ajustado para a semana: aprovados ficam por 7 dias.',
+          keep: 'Live Drop ajustado para manter arquivos aprovados sem expiração automática.'
+        },
+        saveFailed: 'Não foi possível alterar a política do Live Drop: {{code}}'
+      },
       dropTitle: 'Solte arquivos aqui ou clique para escolher',
       dropHint: 'Imagem, vídeo, áudio ou PDF · até {{max}} por arquivo',
       uploading: 'Enviando para o Live Node…',
@@ -1465,6 +1502,43 @@ const resources = {
       description: 'Drag from a computer or send from a phone/tablet. Files land in local Live Node quarantine first and become available only after operator approval.',
       quarantineTitle: 'Local quarantine',
       quarantineHint: 'Nothing is opened on a provider automatically.',
+      policy: {
+        label: 'Local Live Drop policy',
+        kicker: 'LIFECYCLE',
+        title: 'Control what stays stored',
+        description: 'Choose a simple preset. Live Node enforces retention locally, recalculates current files and keeps approval as an explicit operator decision.',
+        quarantine: 'In review',
+        approved: 'Approved',
+        rejected: 'Rejected',
+        hours_one: '{{count}} hour',
+        hours_other: '{{count}} hours',
+        kept: 'Kept locally',
+        nodeDefault: 'Node policy',
+        quarantineHint: 'expires if nobody reviews it',
+        approvedHint: 'stays offline-ready while retained',
+        rejectedHint: 'short audit history',
+        presetsLabel: 'Storage preset',
+        presets: {
+          service: {
+            title: 'This service',
+            hint: 'Approved files for 24 hours'
+          },
+          week: {
+            title: 'This week',
+            hint: 'Approved files for 7 days'
+          },
+          keep: {
+            title: 'Keep approved',
+            hint: 'No automatic expiry'
+          }
+        },
+        saved: {
+          service: 'Live Drop is set for this service: approved files stay for 24 hours.',
+          week: 'Live Drop is set for the week: approved files stay for 7 days.',
+          keep: 'Live Drop is set to keep approved files without automatic expiry.'
+        },
+        saveFailed: 'Could not change the Live Drop policy: {{code}}'
+      },
       dropTitle: 'Drop files here or click to choose',
       dropHint: 'Image, video, audio or PDF · up to {{max}} per file',
       uploading: 'Sending to Live Node…',
@@ -2601,6 +2675,43 @@ const resources = {
       description: 'Arrastre desde la computadora o envíe desde el teléfono/tablet. El archivo llega primero a la cuarentena local del Live Node y solo queda disponible después de la aprobación del operador.',
       quarantineTitle: 'Cuarentena local',
       quarantineHint: 'Nada se abre en el provider automáticamente.',
+      policy: {
+        label: 'Política local de Live Drop',
+        kicker: 'CICLO DE VIDA',
+        title: 'Controle lo que queda almacenado',
+        description: 'Elija un preset simple. Live Node aplica la retención localmente, recalcula los archivos actuales y mantiene la aprobación como decisión explícita del operador.',
+        quarantine: 'En revisión',
+        approved: 'Aprobados',
+        rejected: 'Rechazados',
+        hours_one: '{{count}} hora',
+        hours_other: '{{count}} horas',
+        kept: 'Guardados localmente',
+        nodeDefault: 'Política del Node',
+        quarantineHint: 'vence si nadie lo revisa',
+        approvedHint: 'sigue listo offline mientras esté retenido',
+        rejectedHint: 'historial corto de auditoría',
+        presetsLabel: 'Preset de almacenamiento',
+        presets: {
+          service: {
+            title: 'Solo este culto',
+            hint: 'Aprobados por 24 horas'
+          },
+          week: {
+            title: 'Esta semana',
+            hint: 'Aprobados por 7 días'
+          },
+          keep: {
+            title: 'Mantener aprobados',
+            hint: 'Sin vencimiento automático'
+          }
+        },
+        saved: {
+          service: 'Live Drop quedó ajustado para este culto: los aprobados permanecen 24 horas.',
+          week: 'Live Drop quedó ajustado para la semana: los aprobados permanecen 7 días.',
+          keep: 'Live Drop quedó ajustado para mantener aprobados sin vencimiento automático.'
+        },
+        saveFailed: 'No fue posible cambiar la política de Live Drop: {{code}}'
+      },
       dropTitle: 'Suelte archivos aquí o haga clic para elegir',
       dropHint: 'Imagen, video, audio o PDF · hasta {{max}} por archivo',
       uploading: 'Enviando al Live Node…',
