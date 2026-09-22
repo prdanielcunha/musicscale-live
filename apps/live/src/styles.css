@@ -1323,6 +1323,92 @@ code,kbd{font-variant-ligatures:none}
   box-shadow:0 18px 60px rgba(0,0,0,.36);
 }
 
+/* Contextual team chat — informational only, never a command surface */
+.team-chat{
+  margin-top:12px;overflow:hidden;border:1px solid rgba(255,255,255,.055);border-radius:18px;
+  background:linear-gradient(150deg,rgba(88,132,255,.035),rgba(10,11,16,.97) 45%);
+}
+.team-chat.compact{margin-top:14px;border-radius:15px}
+.team-chat-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:12px 14px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+.team-chat-head>div{min-width:0}
+.team-chat-head span{
+  display:block;color:#8297db;font-size:6px;font-weight:780;letter-spacing:.12em;
+}
+.team-chat-head strong{
+  display:block;margin-top:4px;color:#dddfe7;font-size:11px;font-weight:690;
+}
+.team-chat-head small{
+  display:block;margin-top:4px;max-width:680px;color:#696f7e;font-size:7px;line-height:1.45;
+}
+.team-chat-head>em{
+  flex:none;padding:4px 7px;border:1px solid rgba(88,132,255,.12);border-radius:999px;
+  background:rgba(88,132,255,.04);color:#8498d4;font-size:6px;font-style:normal;text-transform:uppercase;
+  letter-spacing:.06em;
+}
+.team-chat-list{
+  display:flex;max-height:280px;min-height:92px;flex-direction:column;gap:6px;overflow-y:auto;padding:9px 10px;
+  overscroll-behavior:contain;scrollbar-width:thin;
+}
+.team-chat.compact .team-chat-list{max-height:230px}
+.team-chat-message{
+  align-self:flex-start;max-width:min(78%,680px);padding:8px 9px;border:1px solid rgba(255,255,255,.04);
+  border-radius:11px 11px 11px 4px;background:#101117;
+}
+.team-chat-message.own{
+  align-self:flex-end;border-color:rgba(124,92,255,.12);border-radius:11px 11px 4px 11px;
+  background:rgba(124,92,255,.065);
+}
+.team-chat-message-meta{display:flex;align-items:center;gap:6px;min-width:0}
+.team-chat-message-meta span{
+  color:#9297a7;font-size:6px;font-weight:700;text-transform:uppercase;letter-spacing:.055em;
+}
+.team-chat-message-meta b{
+  padding:2px 5px;border-radius:999px;background:rgba(255,255,255,.035);color:#6d7281;font-size:5px;font-weight:600;
+}
+.team-chat-message-meta time{margin-left:auto;color:#565b68;font-size:6px;font-variant-numeric:tabular-nums}
+.team-chat-message p{
+  margin:5px 0 0;color:#c8cad3;font-size:8px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;
+}
+.team-chat-empty{
+  display:flex;min-height:88px;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:14px;text-align:center;
+}
+.team-chat-empty strong{color:#a3a7b4;font-size:9px}
+.team-chat-empty span{max-width:520px;color:#626775;font-size:7px;line-height:1.45}
+.team-chat-empty.warning strong{color:#d0a16d}
+.team-chat-compose{
+  display:grid;grid-template-columns:minmax(112px,.32fr) minmax(0,1fr) auto;gap:7px;padding:9px 10px;
+  border-top:1px solid rgba(255,255,255,.04);background:rgba(8,9,13,.64);
+}
+.team-chat-compose select,.team-chat-compose textarea{
+  width:100%;border:1px solid rgba(255,255,255,.055);border-radius:10px;background:#101117;color:#d0d2da;outline:none;
+}
+.team-chat-compose select{min-height:42px;padding:0 9px;font-size:7px}
+.team-chat-compose textarea{min-height:42px;padding:9px 10px;resize:vertical;font-size:8px;line-height:1.4}
+.team-chat-compose select:focus,.team-chat-compose textarea:focus{
+  border-color:rgba(124,92,255,.24);box-shadow:0 0 0 2px rgba(124,92,255,.05);
+}
+.team-chat-compose button{min-width:78px;min-height:42px;font-size:8px}
+.team-chat>footer{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 11px 10px;color:#5f6472;font-size:6px;line-height:1.4;
+}
+.team-chat>footer em{color:#c69b6c;font-style:normal;white-space:nowrap}
+@media(max-width:720px){
+  .team-chat-head{flex-direction:column}
+  .team-chat-head>em{align-self:flex-start}
+  .team-chat-message{max-width:88%}
+  .team-chat-compose{grid-template-columns:1fr auto}
+  .team-chat-compose select{grid-column:1/-1}
+}
+@media(max-width:440px){
+  .team-chat-compose{grid-template-columns:1fr}
+  .team-chat-compose select,.team-chat-compose button{grid-column:auto;width:100%}
+  .team-chat-message{max-width:94%}
+  .team-chat>footer{align-items:flex-start;flex-direction:column}
+}
+
 /* Live session pulse — local operational log + planned/actual foundation */
 .live-session-pulse{
   margin-top:12px;overflow:hidden;border:1px solid rgba(255,255,255,.055);border-radius:18px;
