@@ -12,7 +12,11 @@ export class CapabilityEngine {
   }
 
   unregister(providerId: string): void {
+    const provider = this.providers.get(providerId);
     this.providers.delete(providerId);
+    if (provider?.dispose) {
+      void provider.dispose().catch(() => undefined);
+    }
   }
 
   get(providerId: string): ProviderAdapter | undefined {
