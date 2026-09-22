@@ -151,6 +151,41 @@ describe('LiveDropStore', () => {
     await expect(access(resolved.path)).rejects.toBeTruthy();
   });
 
+  it('applies, persists and reloads safe retention presets', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ms-live-drop-'));
+    const root = join(dir, 'drop');
+    const store = new LiveDropStore(root);
+
+    const asset = await store.upload({
+      ...scope,
+      nodeId: 'node_1',
+      fileName: 'culto.mp4',
+      contentType: 'video/mp4',
+      uploadedBy: 'user_1'
+    }, bytes('service-video'));
+
+    const ready = await store.review(asset.id, scope, 'ready', 'operator_1');
+    expect(ready.expiresAt).toBeNull();
+
+    const servicePolicy = await store.setRetentionPreset('service');
+    expect(servicePolicy.readyTtlMs).toBe(24 * 60 * 60 * 1000);
+
+    const relisted = await store.list(scope);
+    expect(relisted[0]?.expiresAt).not.toBeNull();
+
+    const reloaded = new LiveDropStore(root);
+    expect((await reloaded.list(scope))[0]?.expiresAt).toBe(relisted[0]?.expiresAt);
+    expect(reloaded.retention).toEqual(servicePolicy);
+
+    const keepPolicy = await reloaded.setRetentionPreset('keep');
+    expect(keepPolicy.readyTtlMs).toBeNull();
+    expect((await reloaded.list(scope))[0]?.expiresAt).toBeNull();
+
+    const state = JSON.parse(await readFile(join(root, 'index.json'), 'utf8'));
+    expect(state.version).toBe(2);
+    expect(state.retention.readyTtlMs).toBeNull();
+  });
+
   it('rejects a MIME type that conflicts with the file extension', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'ms-live-drop-'));
     const store = new LiveDropStore(join(dir, 'drop'));

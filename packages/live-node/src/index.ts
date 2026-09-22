@@ -31,7 +31,11 @@ import { ProviderRoutingStore } from './providerRoutingStore';
 import { PeerNodeStore } from './peerNodeStore';
 import { PeerFederation } from './peerFederation';
 import { SignalTopologyStore } from './signalTopologyStore';
-import { LiveDropStore, type LiveDropScope } from './liveDropStore';
+import {
+  LiveDropStore,
+  type LiveDropRetentionPreset,
+  type LiveDropScope
+} from './liveDropStore';
 import { stageAndOpenPeerLiveDrop } from './liveDropFederation';
 import { buildLiveNodeDiagnostics } from './diagnostics';
 import { isTrustedLiveWebOrigin } from './networkPolicy';
@@ -2005,6 +2009,29 @@ async function start(): Promise<void> {
         assets: await liveDropStore.list(scope),
         maxBytes: LIVE_DROP_MAX_BYTES,
         retention: liveDropStore.retention
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/live-drop/policy') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      liveDropScopeFromSession(session);
+
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_live_drop_retention_policy');
+      }
+      const preset = String((body as Record<string, unknown>).preset || '');
+      if (!['service', 'week', 'keep'].includes(preset)) {
+        throw new Error('invalid_live_drop_retention_policy');
+      }
+
+      const retention = await liveDropStore.setRetentionPreset(
+        preset as LiveDropRetentionPreset
+      );
+      return send(res, 200, {
+        retention,
+        preset
       });
     }
 

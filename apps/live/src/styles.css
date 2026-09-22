@@ -1868,3 +1868,75 @@ code,kbd{font-variant-ligatures:none}
   .top-actions .ghost{font-size:9px;padding-inline:4px}
   .studio-nav-divider{display:none}
 }
+
+
+/* Live Drop lifecycle presets — simple policy, local enforcement */
+.live-drop-policy{
+  display:grid;grid-template-columns:minmax(260px,.82fr) minmax(0,1.18fr);gap:10px;align-items:stretch;
+  margin-top:14px;padding:10px;border:1px solid rgba(255,255,255,.045);border-radius:15px;
+  background:linear-gradient(120deg,rgba(124,92,255,.04),rgba(10,11,16,.76) 42%);
+}
+.live-drop-policy-copy{padding:8px 9px;align-self:center}
+.live-drop-policy-copy>span{display:block;color:#8176c7;font-size:7px;font-weight:850;letter-spacing:.12em}
+.live-drop-policy-copy>strong{display:block;margin-top:4px;color:#e4e5eb;font-size:11px;letter-spacing:-.01em}
+.live-drop-policy-copy>small{display:block;margin-top:4px;color:#686e7d;font-size:7px;line-height:1.45}
+.live-drop-policy-presets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:10px}
+.live-drop-policy-presets button{
+  position:relative;min-width:0;min-height:50px;padding:8px 9px;text-align:left;border:1px solid rgba(255,255,255,.05);
+  border-radius:10px;background:#111219;color:#858b9b;cursor:pointer;transition:.16s ease;
+}
+.live-drop-policy-presets button:hover:not(:disabled){border-color:rgba(124,92,255,.20);background:#151622;color:#c9c6dc}
+.live-drop-policy-presets button.active{
+  border-color:rgba(124,92,255,.28);background:linear-gradient(180deg,rgba(124,92,255,.12),rgba(124,92,255,.055));
+  box-shadow:inset 0 0 0 1px rgba(124,92,255,.07)
+}
+.live-drop-policy-presets button:disabled{opacity:.58;cursor:progress}
+.live-drop-policy-presets strong{display:block;font-size:8px;color:#d2d4dc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live-drop-policy-presets small{display:block;margin-top:3px;font-size:6px;color:#646a79;line-height:1.35}
+.live-drop-policy-presets em{position:absolute;right:7px;top:7px;color:#a99bff;font-style:normal}
+.live-drop-policy-states{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.live-drop-policy-states article{
+  display:grid;grid-template-columns:8px minmax(0,1fr);gap:8px;align-items:start;padding:10px;
+  border:1px solid rgba(255,255,255,.04);border-radius:11px;background:rgba(15,16,23,.84);
+}
+.policy-dot{width:7px;height:7px;margin-top:3px;border-radius:50%;background:#707685}
+.policy-dot.quarantine{background:var(--warn);box-shadow:0 0 12px rgba(244,163,64,.18)}
+.policy-dot.ready{background:var(--ok);box-shadow:0 0 12px rgba(46,182,125,.18)}
+.policy-dot.rejected{background:#8a6670}
+.live-drop-policy-states article>div{min-width:0}
+.live-drop-policy-states small{display:block;color:#626877;font-size:6px;text-transform:uppercase;letter-spacing:.075em}
+.live-drop-policy-states strong{display:block;margin-top:3px;color:#cfd1d9;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live-drop-policy-states em{display:block;margin-top:3px;color:#5f6574;font-size:6px;font-style:normal;line-height:1.35}
+@media(max-width:900px){
+  .live-drop-policy{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+  .live-drop-policy-presets{grid-template-columns:1fr}
+  .live-drop-policy-presets button{min-height:48px}
+  .live-drop-policy-states{grid-template-columns:1fr}
+  .live-drop-policy-states article{min-height:54px}
+}
+
+
+/* Mobile navigation — app-like, thumb reachable, safe-area aware */
+@media(max-width:620px){
+  .app-shell:not(.live-focus-mode){grid-template-rows:60px 1fr}
+  .app-shell:not(.live-focus-mode)>.sidebar{
+    position:fixed;left:10px;right:10px;bottom:max(8px,env(safe-area-inset-bottom));z-index:48;
+    display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;
+    padding:5px;border:1px solid rgba(255,255,255,.075);border-radius:17px;
+    background:rgba(13,14,20,.92);backdrop-filter:blur(24px) saturate(145%);
+    box-shadow:0 18px 54px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.025);
+    overflow:visible;
+  }
+  .app-shell:not(.live-focus-mode)>.sidebar button{
+    width:100%;min-width:0;min-height:44px;margin:0;padding:7px 4px;text-align:center;
+    border-radius:12px;color:#777d8d;font-size:9px;font-weight:720;white-space:nowrap;
+  }
+  .app-shell:not(.live-focus-mode)>.sidebar button.active{
+    background:linear-gradient(180deg,rgba(124,92,255,.15),rgba(124,92,255,.07));
+    color:#eeeaff;box-shadow:inset 0 0 0 1px rgba(124,92,255,.15);
+  }
+  .app-shell:not(.live-focus-mode)>.workspace{grid-column:1;grid-row:2;padding-bottom:100px}
+  .live-surface>.sidebar button{font-size:9px}
+}
