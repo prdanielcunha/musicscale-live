@@ -9,18 +9,16 @@ import {
   type RequestMediaKind
 } from './requestMedia';
 import {
+  bibleRequestFromResults,
+  type PreparedBibleRequest
+} from './requestBible';
+import {
   currentPresentationFromResults,
   sectionCandidatesFromResults,
   type PreparedSectionCandidate
 } from './requestSection';
 
 type Controller = ReturnType<typeof useLiveNode>;
-
-interface PreparedBibleRequest {
-  reference: string;
-  ids: string[];
-  verseCount: number;
-}
 
 function stringList(value: unknown): string[] {
   return Array.isArray(value)
@@ -30,46 +28,6 @@ function stringList(value: unknown): string[] {
 
 function firstCommandFailure(results: CommandResult[]): CommandResult | null {
   return results.find(result => !result.accepted) || null;
-}
-
-function preparedBibleFromResults(
-  results: CommandResult[],
-  fallbackReference: string
-): PreparedBibleRequest {
-  for (const result of results) {
-    const rawMatches = result.observedState?.matches;
-    const matches = Array.isArray(rawMatches)
-      ? rawMatches
-      : rawMatches
-        ? [rawMatches]
-        : [];
-
-    for (const candidate of matches) {
-      if (!candidate || typeof candidate !== 'object') continue;
-      const match = candidate as Record<string, unknown>;
-      const ids = Array.isArray(match.ids)
-        ? match.ids.map(String).filter(Boolean)
-        : match.id
-          ? [String(match.id)]
-          : [];
-      const verses = Array.isArray(match.verses) ? match.verses : [];
-      const reference = String(match.reference || fallbackReference).trim();
-
-      if (reference || ids.length) {
-        return {
-          reference: reference || fallbackReference,
-          ids,
-          verseCount: Math.max(ids.length, verses.length)
-        };
-      }
-    }
-  }
-
-  return {
-    reference: fallbackReference,
-    ids: [],
-    verseCount: 0
-  };
 }
 
 export function LiveRequestInbox({
@@ -113,6 +71,30 @@ export function LiveRequestInbox({
     ),
     [providers]
   );
+
+  const biblePresentProviders = useMemo(
+    () => providers.filter(provider =>
+      (provider.health === 'online' || provider.health === 'degraded') &&
+      provider.capabilities.includes('bible.present')
+    ),
+    [providers]
+  );
+
+  const bibleSearchProviders = useMemo(
+    () => providers.filter(provider =>
+      (provider.health === 'online' || provider.health === 'degraded') &&
+      provider.capabilities.includes('bible.search')
+    ),
+    [providers]
+  );
+
+  const routedBibleProvider = useMemo(() => {
+    const configured = controller.nodeState?.routing?.bible;
+    if (configured) {
+      return biblePresentProviders.find(provider => provider.providerId === configured) || null;
+    }
+    return biblePresentProviders.length === 1 ? biblePresentProviders[0]! : null;
+  }, [controller.nodeState?.routing?.bible, biblePresentProviders]);
 
   const mediaSearchProviders = useMemo(
     () => providers.filter(provider =>
@@ -243,14 +225,52 @@ export function LiveRequestInbox({
     setBusy(busyKey);
     clearError(request.id);
     try {
-      if (!capabilitySet.has('bible.present')) {
-        throw new Error('bible_present_unavailable');
+      const requestedProviderId = String(request.payload.providerId || '').trim();
+      const requestedIds = Array.isArray(request.payload.ids)
+        ? request.payload.ids.map(String).filter(Boolean)
+        : [];
+      const requestedProvider = requestedProviderId
+        ? biblePresentProviders.find(provider => provider.providerId === requestedProviderId) || null
+        : null;
+      const targetProvider = requestedProvider || routedBibleProvider;
+
+      if (requestedProviderId && !requestedProvider) {
+        throw new Error('bible_requested_provider_unavailable');
+      }
+      if (!targetProvider) {
+        throw new Error(
+          biblePresentProviders.length > 1
+            ? 'bible_route_required'
+            : 'bible_present_unavailable'
+        );
       }
 
-      if (!capabilitySet.has('bible.search')) {
+      if (request.payload.exact === true && requestedIds.length) {
         setPreparedBible(current => ({
           ...current,
-          [request.id]: { reference, ids: [], verseCount: 0 }
+          [request.id]: {
+            reference,
+            ids: requestedIds,
+            verseCount: requestedIds.length,
+            providerId: targetProvider.providerId
+          }
+        }));
+        return;
+      }
+
+      const searchProvider =
+        bibleSearchProviders.find(provider =>
+          provider.providerId === targetProvider.providerId
+        ) || null;
+      if (!searchProvider) {
+        setPreparedBible(current => ({
+          ...current,
+          [request.id]: {
+            reference,
+            ids: [],
+            verseCount: 0,
+            providerId: targetProvider.providerId
+          }
         }));
         return;
       }
@@ -260,6 +280,7 @@ export function LiveRequestInbox({
         payload: { text: reference },
         liveSessionId,
         actorId,
+        targetProviderIds: [searchProvider.providerId],
         safetyLevel: 'normal'
       });
       const failed = firstCommandFailure(results);
@@ -267,7 +288,7 @@ export function LiveRequestInbox({
 
       setPreparedBible(current => ({
         ...current,
-        [request.id]: preparedBibleFromResults(results, reference)
+        [request.id]: bibleRequestFromResults(results, reference)
       }));
     } catch (error) {
       setRequestError(
@@ -292,11 +313,16 @@ export function LiveRequestInbox({
         ? { ids: prepared.ids }
         : { references: reference };
 
+      const targetProviderId =
+        prepared?.providerId ||
+        String(request.payload.providerId || '').trim();
+
       const results = await controller.executeCommand({
         capability: 'bible.present',
         payload,
         liveSessionId,
         actorId,
+        targetProviderIds: targetProviderId ? [targetProviderId] : undefined,
         safetyLevel: 'normal'
       });
       const failed = firstCommandFailure(results);
