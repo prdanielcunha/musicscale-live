@@ -15,8 +15,9 @@ interface StoredLiveDropAsset extends LiveDropAsset {
 }
 
 interface LiveDropStateFile {
-  version: 1;
+  version: 1 | 2;
   assets: StoredLiveDropAsset[];
+  retention?: LiveDropRetentionPolicy;
 }
 
 export interface LiveDropScope {
@@ -42,19 +43,39 @@ export interface LiveDropRetentionPolicy {
   readyTtlMs: number | null;
 }
 
+export type LiveDropRetentionPreset = 'service' | 'week' | 'keep';
+
 const DEFAULT_RETENTION_POLICY: LiveDropRetentionPolicy = {
   quarantineTtlMs: DEFAULT_QUARANTINE_TTL_MS,
   rejectedTtlMs: DEFAULT_REJECTED_TTL_MS,
   readyTtlMs: null
 };
 
-function normalizeRetentionPolicy(
-  value: Partial<LiveDropRetentionPolicy> | undefined
+export function retentionPolicyForPreset(
+  preset: LiveDropRetentionPreset
 ): LiveDropRetentionPolicy {
-  const positiveOrDefault = (candidate: number | undefined, fallback: number) =>
+  const readyTtlMs =
+    preset === 'service'
+      ? 24 * 60 * 60 * 1000
+      : preset === 'week'
+        ? 7 * 24 * 60 * 60 * 1000
+        : null;
+
+  return {
+    quarantineTtlMs: DEFAULT_QUARANTINE_TTL_MS,
+    rejectedTtlMs: DEFAULT_REJECTED_TTL_MS,
+    readyTtlMs
+  };
+}
+
+function normalizeRetentionPolicy(
+  value: Partial<LiveDropRetentionPolicy> | undefined,
+  fallback: LiveDropRetentionPolicy = DEFAULT_RETENTION_POLICY
+): LiveDropRetentionPolicy {
+  const positiveOrDefault = (candidate: number | undefined, defaultValue: number) =>
     Number.isFinite(candidate) && Number(candidate) > 0
       ? Math.floor(Number(candidate))
-      : fallback;
+      : defaultValue;
 
   const readyCandidate = value?.readyTtlMs;
   const readyTtlMs =
@@ -62,16 +83,16 @@ function normalizeRetentionPolicy(
       ? null
       : Number.isFinite(readyCandidate) && Number(readyCandidate) > 0
         ? Math.floor(Number(readyCandidate))
-        : DEFAULT_RETENTION_POLICY.readyTtlMs;
+        : fallback.readyTtlMs;
 
   return {
     quarantineTtlMs: positiveOrDefault(
       value?.quarantineTtlMs,
-      DEFAULT_RETENTION_POLICY.quarantineTtlMs
+      fallback.quarantineTtlMs
     ),
     rejectedTtlMs: positiveOrDefault(
       value?.rejectedTtlMs,
-      DEFAULT_RETENTION_POLICY.rejectedTtlMs
+      fallback.rejectedTtlMs
     ),
     readyTtlMs
   };
@@ -255,7 +276,8 @@ export class LiveDropStore {
   private loaded = false;
   private assets: StoredLiveDropAsset[] = [];
   private writeQueue: Promise<void> = Promise.resolve();
-  readonly retention: LiveDropRetentionPolicy;
+  private readonly defaultRetention: LiveDropRetentionPolicy;
+  private retentionPolicy: LiveDropRetentionPolicy;
 
   constructor(
     private readonly rootDir: string,
@@ -263,7 +285,43 @@ export class LiveDropStore {
     private readonly maxBytes = DEFAULT_MAX_BYTES,
     retention?: Partial<LiveDropRetentionPolicy>
   ) {
-    this.retention = normalizeRetentionPolicy(retention);
+    this.defaultRetention = normalizeRetentionPolicy(retention);
+    this.retentionPolicy = { ...this.defaultRetention };
+  }
+
+  get retention(): LiveDropRetentionPolicy {
+    return { ...this.retentionPolicy };
+  }
+
+  async setRetentionPreset(
+    preset: LiveDropRetentionPreset
+  ): Promise<LiveDropRetentionPolicy> {
+    return this.setRetention(retentionPolicyForPreset(preset));
+  }
+
+  async setRetention(
+    retention: LiveDropRetentionPolicy
+  ): Promise<LiveDropRetentionPolicy> {
+    const next = normalizeRetentionPolicy(retention, this.defaultRetention);
+
+    await this.mutate(() => {
+      this.retentionPolicy = next;
+      this.assets = this.assets.map(asset => {
+        const parsedBase = Date.parse(
+          asset.status === 'quarantined'
+            ? asset.uploadedAt
+            : asset.reviewedAt || asset.uploadedAt
+        );
+        const base = Number.isFinite(parsedBase) ? parsedBase : Date.now();
+        return {
+          ...asset,
+          expiresAt: expiresAtFrom(base, asset.status, next)
+        };
+      });
+    });
+
+    await this.purgeExpired();
+    return this.retention;
   }
 
   async list(scope: LiveDropScope): Promise<LiveDropAsset[]> {
@@ -272,7 +330,7 @@ export class LiveDropStore {
     return this.assets
       .filter(asset => scopeMatches(asset, scope))
       .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
-      .map(asset => publicAsset(asset, this.retention));
+      .map(asset => publicAsset(asset, this.retentionPolicy));
   }
 
   async get(id: string, scope: LiveDropScope): Promise<LiveDropAsset | null> {
@@ -280,7 +338,7 @@ export class LiveDropStore {
     const asset = this.assets.find(
       candidate => candidate.id === id && scopeMatches(candidate, scope)
     );
-    return asset ? publicAsset(asset, this.retention) : null;
+    return asset ? publicAsset(asset, this.retentionPolicy) : null;
   }
 
   async upload(
@@ -348,7 +406,7 @@ export class LiveDropStore {
       uploadedBy: input.uploadedBy,
       reviewedAt: null,
       reviewedBy: null,
-      expiresAt: expiresAtFrom(now, 'quarantined', this.retention),
+      expiresAt: expiresAtFrom(now, 'quarantined', this.retentionPolicy),
       storageName
     };
 
@@ -361,7 +419,7 @@ export class LiveDropStore {
       throw error;
     }
 
-    return publicAsset(asset, this.retention);
+    return publicAsset(asset, this.retentionPolicy);
   }
 
   async review(
@@ -403,13 +461,13 @@ export class LiveDropStore {
         status,
         reviewedAt: new Date(now).toISOString(),
         reviewedBy,
-        expiresAt: expiresAtFrom(now, status, this.retention)
+        expiresAt: expiresAtFrom(now, status, this.retentionPolicy)
       };
       this.assets[index] = next;
       result = next;
     });
 
-    return publicAsset(result, this.retention);
+    return publicAsset(result, this.retentionPolicy);
   }
 
   async resolveReadyPath(
@@ -424,7 +482,7 @@ export class LiveDropStore {
     if (asset.status !== 'ready') throw new Error('live_drop_asset_not_ready');
 
     return {
-      asset: publicAsset(asset, this.retention),
+      asset: publicAsset(asset, this.retentionPolicy),
       path: join(this.rootDir, 'cache', asset.storageName)
     };
   }
@@ -432,7 +490,7 @@ export class LiveDropStore {
   async purgeExpired(now = Date.now()): Promise<number> {
     await this.load();
     const expired = this.assets.filter(asset => {
-      const expiresAt = publicAsset(asset, this.retention).expiresAt;
+      const expiresAt = publicAsset(asset, this.retentionPolicy).expiresAt;
       if (!expiresAt) return false;
       const time = Date.parse(expiresAt);
       return Number.isFinite(time) && time <= now;
@@ -466,6 +524,12 @@ export class LiveDropStore {
             typeof asset.liveSystemId === 'string'
           )
         : [];
+      if (parsed.retention) {
+        this.retentionPolicy = normalizeRetentionPolicy(
+          parsed.retention,
+          this.defaultRetention
+        );
+      }
     } catch (error: any) {
       if (error?.code !== 'ENOENT') throw error;
       this.assets = [];
@@ -499,8 +563,9 @@ export class LiveDropStore {
     await mkdir(dirname(this.metadataPath), { recursive: true, mode: 0o700 });
     const temp = `${this.metadataPath}.tmp`;
     const payload: LiveDropStateFile = {
-      version: 1,
-      assets: this.assets
+      version: 2,
+      assets: this.assets,
+      retention: this.retentionPolicy
     };
     await writeFile(temp, JSON.stringify(payload, null, 2), { mode: 0o600 });
     await rename(temp, this.metadataPath);
