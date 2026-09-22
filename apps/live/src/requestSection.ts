@@ -10,6 +10,17 @@ export interface PreparedSectionCandidate {
   score: number;
 }
 
+export interface SectionPresentationContext {
+  providerId: string;
+  providerName: string;
+  presentationId?: string;
+  songId?: string;
+  title: string;
+  currentSlideIndex: number;
+  currentSectionId?: string;
+  sections: PreparedSectionCandidate[];
+}
+
 const STOP_WORDS = new Set([
   'a','ao','aos','as','o','os','de','da','das','do','dos','em','no','na','nos','nas',
   'para','pra','pro','por','voltar','volta','ir','vai','vamos','quero','parte','secao',
@@ -112,7 +123,7 @@ function scoreSection(query: string, label: string): number {
   return score;
 }
 
-function currentPresentationFromResults(
+export function currentPresentationFromResults(
   results: CommandResult[],
   providerId: string
 ): Record<string, unknown> | null {
@@ -124,6 +135,83 @@ function currentPresentationFromResults(
     }
   }
   return null;
+}
+
+export function sectionPresentationContext(
+  presentation: Record<string, unknown>,
+  providerId: string,
+  providerName: string
+): SectionPresentationContext | null {
+  const type = String(presentation.type || presentation.slide_type || '');
+  const songId = String(presentation.song_id || '').trim();
+  const songLike = Boolean(
+    songId ||
+    /song|music|lyric|lyrics|música|musica|letra/i.test(type)
+  );
+  if (!songLike) return null;
+
+  const rawSlides = Array.isArray(presentation.slides) ? presentation.slides : [];
+  if (!rawSlides.length) return null;
+
+  const rawSlideNumber = Number(
+    presentation.slide_number ??
+    presentation.current_slide ??
+    presentation.slideIndex
+  );
+  const currentSlideIndex =
+    Number.isFinite(rawSlideNumber) && rawSlideNumber > 0
+      ? rawSlideNumber - 1
+      : Number.isFinite(rawSlideNumber) && rawSlideNumber >= 0
+        ? rawSlideNumber
+        : -1;
+
+  const sections: PreparedSectionCandidate[] = [];
+  let previousLabel = '';
+  rawSlides.forEach((value, index) => {
+    if (!value || typeof value !== 'object') return;
+    const slide = value as Record<string, unknown>;
+    const label = sectionLabel(slide);
+    if (!label) return;
+
+    const normalizedLabel = normalize(label);
+    if (!normalizedLabel || normalizedLabel === previousLabel) return;
+    previousLabel = normalizedLabel;
+    sections.push({
+      id: `section:${providerId}:${index}`,
+      providerId,
+      providerName,
+      index,
+      label,
+      excerpt: slideExcerpt(slide),
+      score: 0
+    });
+  });
+
+  if (!sections.length) return null;
+
+  let currentSectionId: string | undefined;
+  if (currentSlideIndex >= 0) {
+    for (const section of sections) {
+      if (section.index <= currentSlideIndex) currentSectionId = section.id;
+      else break;
+    }
+  }
+
+  return {
+    providerId,
+    providerName,
+    presentationId: presentation.id ? String(presentation.id) : undefined,
+    songId: songId || undefined,
+    title: String(
+      presentation.name ||
+      presentation.title ||
+      presentation.song_title ||
+      ''
+    ).trim(),
+    currentSlideIndex,
+    currentSectionId,
+    sections
+  };
 }
 
 export function sectionCandidatesFromResults(
