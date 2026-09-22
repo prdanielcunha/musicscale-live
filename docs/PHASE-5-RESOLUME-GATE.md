@@ -13,6 +13,10 @@
 - Visual routing is a distinct route group.
 - Provider health and observed state are tracked independently.
 - Local Node console exposes configuration/health outside normal Live operator complexity.
+- WebSocket `/api/v1` transport listens for realtime Arena activity and uses it to invalidate/reconcile the authoritative REST composition state.
+- Connected clip parameters discovered in composition state are subscribed once, so manual clip changes can wake Live without high-frequency full-state polling.
+- REST remains the fallback if WebSocket is unavailable; realtime failure alone does not take the visual provider offline.
+- Provider unregister/discovery cleanup disposes realtime sockets.
 
 ### Live UX integration
 - Visual clips can be prepared/armed independently.
@@ -27,7 +31,7 @@
 - Composition/layer/column/clip state accuracy.
 - Clip trigger/open-file behavior.
 - Thumbnail and monitor snapshot behavior/performance.
-- WebSocket/state reconciliation after manual Arena changes.
+- WebSocket/state reconciliation after manual Arena changes on real hardware/network. The code path and REST fallback are implemented; production behavior still needs physical Arena verification.
 - Effects/parameters limited to officially exposed safe capabilities.
 - Arena restart/reconnect and offline degradation.
 - LAN latency under production network load.
