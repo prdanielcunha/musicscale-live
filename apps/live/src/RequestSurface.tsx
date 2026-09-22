@@ -71,6 +71,11 @@ export function RequestSurface({
     return bibleSearchProviders.length === 1 ? bibleSearchProviders[0]! : null;
   }, [bibleSearchProviders, controller.nodeState?.routing?.bible, mode]);
 
+  const bibleRouteRequired =
+    mode === 'pastor' &&
+    !controller.nodeState?.routing?.bible &&
+    bibleSearchProviders.length > 1;
+
   const conductorContext = useMemo(() => {
     if (mode !== 'conductor') return null;
     const providers = controller.nodeState?.providers || [];
@@ -318,10 +323,13 @@ export function RequestSurface({
             onChange={event => setValue(event.target.value)}
             onKeyDown={event => {
               if (event.key !== 'Enter') return;
-              if (mode === 'pastor' && kind === 'bible' && bibleSearchProvider) {
-                if (biblePreview) void submitCheckedBible();
-                else void checkBibleReference();
-                return;
+              if (mode === 'pastor' && kind === 'bible') {
+                if (bibleRouteRequired) return;
+                if (bibleSearchProvider) {
+                  if (biblePreview) void submitCheckedBible();
+                  else void checkBibleReference();
+                  return;
+                }
               }
               void submit();
             }}
@@ -338,13 +346,23 @@ export function RequestSurface({
           ) : (
             <button
               className="primary"
-              disabled={!value.trim() || sending}
+              disabled={
+                !value.trim() ||
+                sending ||
+                (mode === 'pastor' && kind === 'bible' && bibleRouteRequired)
+              }
               onClick={() => void submit()}
             >
               {sending ? '…' : t('requestsSurface.send')}
             </button>
           )}
         </div>
+
+        {mode === 'pastor' && kind === 'bible' && bibleRouteRequired && (
+          <p className="request-route-hint">
+            {t('requestsSurface.bibleRouteRequiredHint')}
+          </p>
+        )}
 
         {mode === 'pastor' && kind === 'bible' && bibleSearchProvider && (
           <div className="pastor-bible-preview-shell">
