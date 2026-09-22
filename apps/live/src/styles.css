@@ -1940,3 +1940,52 @@ code,kbd{font-variant-ligatures:none}
   .app-shell:not(.live-focus-mode)>.workspace{grid-column:1;grid-row:2;padding-bottom:100px}
   .live-surface>.sidebar button{font-size:9px}
 }
+
+
+/* Scene rehearsal — validate the plan without touching providers */
+.scene-library-actions{display:flex;align-items:center;gap:5px;flex:none!important}
+.scene-library-actions .secondary,.scene-library-actions .ghost{min-height:30px;padding:5px 8px;font-size:7px}
+.scene-library-actions .secondary.active{border-color:rgba(124,92,255,.25);background:rgba(124,92,255,.10);color:#d9d4ff}
+.scene-rehearsal{
+  margin-top:10px;overflow:hidden;border:1px solid rgba(46,182,125,.10);border-radius:15px;
+  background:linear-gradient(150deg,rgba(46,182,125,.035),rgba(10,11,16,.96) 46%);
+}
+.scene-rehearsal.blocked{border-color:rgba(232,90,104,.13);background:linear-gradient(150deg,rgba(232,90,104,.03),rgba(10,11,16,.96) 46%)}
+.scene-rehearsal>header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px;border-bottom:1px solid rgba(255,255,255,.04)}
+.scene-rehearsal>header>div:first-child{min-width:0}
+.scene-rehearsal>header span{display:block;color:#69b896;font-size:6px;font-weight:820;letter-spacing:.12em}
+.scene-rehearsal.blocked>header span{color:#c77d87}
+.scene-rehearsal>header strong{display:block;margin-top:4px;color:#dfe1e7;font-size:11px}
+.scene-rehearsal>header small{display:block;margin-top:3px;color:#686e7d;font-size:7px;line-height:1.4}
+.scene-rehearsal-gate{min-width:145px;padding:8px 10px;border:1px solid rgba(255,255,255,.045);border-radius:10px;background:#0e0f15;text-align:right}
+.scene-rehearsal-gate small{margin:0!important;color:#5f6574!important;font-size:6px!important;letter-spacing:.08em}
+.scene-rehearsal-gate strong{margin-top:3px!important;font-size:9px!important}
+.scene-rehearsal-gate.ready strong{color:#70c7a4}
+.scene-rehearsal-gate.blocked strong{color:#df7f8a}
+.scene-rehearsal-list{display:grid;padding:5px}
+.scene-rehearsal-list article{
+  display:grid;grid-template-columns:24px 8px minmax(0,1fr) auto auto;align-items:center;gap:8px;
+  min-height:52px;padding:8px 9px;border-bottom:1px solid rgba(255,255,255,.03);border-radius:9px
+}
+.scene-rehearsal-list article:last-child{border-bottom:0}
+.scene-rehearsal-list article>b{color:#525866;font-size:7px;font-variant-numeric:tabular-nums}
+.scene-rehearsal-dot{width:6px;height:6px;border-radius:50%;background:#68bc9a;box-shadow:0 0 0 3px rgba(104,188,154,.05)}
+.scene-rehearsal-list article.block .scene-rehearsal-dot{background:#df7783;box-shadow:0 0 0 3px rgba(223,119,131,.06)}
+.scene-rehearsal-list article>div{min-width:0}
+.scene-rehearsal-list article>div>strong{display:block;color:#cfd2da;font-size:8px}
+.scene-rehearsal-list article>div>small{display:block;margin-top:3px;color:#666b79;font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scene-rehearsal-meta{display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.scene-rehearsal-meta em{padding:3px 5px;border-radius:999px;background:rgba(255,255,255,.035);color:#747987;font-size:5px;font-style:normal;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.scene-rehearsal-status{padding:3px 6px;border-radius:999px;background:rgba(46,182,125,.05);color:#72c5a3!important;font-size:5px!important;letter-spacing:.06em}
+.scene-rehearsal-list article.block .scene-rehearsal-status{background:rgba(232,90,104,.05);color:#dc838d!important}
+.scene-rehearsal>footer{padding:0 13px 11px;color:#5f6473;font-size:6px;line-height:1.45}
+@media(max-width:720px){
+  .scene-library article{align-items:flex-start;flex-direction:column}
+  .scene-library-actions{width:100%;display:grid;grid-template-columns:1fr auto}
+  .scene-library-actions .secondary{width:100%}
+  .scene-rehearsal>header{align-items:flex-start;flex-direction:column}
+  .scene-rehearsal-gate{width:100%;text-align:left}
+  .scene-rehearsal-list article{grid-template-columns:20px 8px minmax(0,1fr)}
+  .scene-rehearsal-meta{grid-column:3;justify-content:flex-start}
+  .scene-rehearsal-status{grid-column:3;justify-self:start}
+}
