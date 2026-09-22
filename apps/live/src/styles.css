@@ -1859,12 +1859,12 @@ code,kbd{font-variant-ligatures:none}
 }
 @media(max-width:620px){
   .topbar{padding-inline:12px}
-  .topbar-brand .brand-kicker{display:none}
-  .topbar-brand>strong{font-size:12px;max-width:112px}
-  .top-smart-action{min-height:40px;max-width:158px;padding-inline:9px}
+  .topbar-brand{display:none}
+  .top-actions{width:100%;justify-content:flex-end}
+  .top-smart-action{min-height:40px;max-width:min(172px,50vw);padding-inline:9px}
   .top-smart-action strong{font-size:9px}
   .top-live-health{display:none}
-  .top-actions select{padding:6px;min-width:54px}
-  .top-actions .ghost{display:none}
+  .top-actions select{padding:6px;min-width:52px}
+  .top-actions .ghost{font-size:9px;padding-inline:4px}
   .studio-nav-divider{display:none}
 }
