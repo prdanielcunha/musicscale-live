@@ -391,6 +391,9 @@ export function App() {
       liveFocus.fullscreen ? 'live-focus-mode' : '',
       ...operatorViewport.classes
     ].filter(Boolean).join(' ')}>
+      <a className="skip-link" href="#main-workspace">
+        {t('accessibility.skipToContent')}
+      </a>
       <header className="topbar">
         <div className="topbar-brand">
           <div className="brand-kicker">MUSICSCALE / LIVE</div>
@@ -408,22 +411,31 @@ export function App() {
             <span>{nodeConnected ? t('node') : nodeStatus}</span>
             <b>{liveNode.health?.providersOnline ?? 0}/{liveNode.health?.providers ?? 0}</b>
           </div>
-          <select value={i18n.resolvedLanguage || 'pt'} onChange={e => i18n.changeLanguage(e.target.value)}>
+          <select
+            value={i18n.resolvedLanguage || 'pt'}
+            aria-label={t('accessibility.language')}
+            onChange={e => i18n.changeLanguage(e.target.value)}
+          >
             <option value="pt">PT</option><option value="en">EN</option><option value="es">ES</option>
           </select>
           <button className="ghost" onClick={logout}>{t('signOut')}</button>
         </div>
       </header>
 
-      <aside className="sidebar">
+      <nav className="sidebar" aria-label={t('accessibility.primaryNavigation')}>
         {(['studio','live','pastor','conductor'] as Surface[]).map(item => (
-          <button key={item} onClick={() => setSurface(item)} className={surface === item ? 'active' : ''}>
+          <button
+            key={item}
+            onClick={() => setSurface(item)}
+            className={surface === item ? 'active' : ''}
+            aria-current={surface === item ? 'page' : undefined}
+          >
             {t(item)}
           </button>
         ))}
-      </aside>
+      </nav>
 
-      <main className="workspace">
+      <main id="main-workspace" className="workspace" tabIndex={-1}>
         {context && (
           <LiveContextSwitcher
             context={context}
