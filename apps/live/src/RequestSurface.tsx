@@ -6,6 +6,7 @@ import {
   bibleRequestFromResults,
   type PreparedBibleRequest
 } from './requestBible';
+import { TeamChatPanel } from './TeamChatPanel';
 import {
   sectionPresentationContext,
   type PreparedSectionCandidate
@@ -402,6 +403,14 @@ export function RequestSurface({
 
         {sent && <p className="request-sent">{t('requestsSurface.sent')}</p>}
       </div>
+
+      <TeamChatPanel
+        controller={controller}
+        actorId={actorId}
+        liveSessionId={liveSessionId}
+        senderContext={mode}
+        compact
+      />
 
       <div className="request-history">
         <div className="request-history-head">
