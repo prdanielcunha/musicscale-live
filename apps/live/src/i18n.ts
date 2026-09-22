@@ -1008,6 +1008,7 @@ const resources = {
       bibleChecked: 'REFERÊNCIA CONFERIDA',
       bibleCheckedMeta: '{{count}} verso(s) · {{provider}}',
       bibleCheckHint: 'Confira a referência no provider antes de enviar. O Live usa os IDs reais dos versículos e não inventa conteúdo.',
+      bibleRouteRequiredHint: 'Há mais de um provider bíblico disponível. O operador precisa escolher a rota de Bíblia no Studio antes deste pedido.',
       sendCheckedBible: 'Enviar referência conferida',
       bibleErrors: {
         bible_reference_not_found: 'Não encontrei essa referência na Bíblia do provider.',
@@ -2036,6 +2037,7 @@ const resources = {
       bibleChecked: 'REFERENCE CHECKED',
       bibleCheckedMeta: '{{count}} verse(s) · {{provider}}',
       bibleCheckHint: 'Check the reference against the provider before sending it. Live uses the provider’s real verse IDs and does not invent content.',
+      bibleRouteRequiredHint: 'More than one Bible provider is available. The operator must choose the Bible route in Studio before this request.',
       sendCheckedBible: 'Send checked reference',
       bibleErrors: {
         bible_reference_not_found: 'That reference was not found in the provider Bible.',
@@ -3064,6 +3066,7 @@ const resources = {
       bibleChecked: 'REFERENCIA VERIFICADA',
       bibleCheckedMeta: '{{count}} verso(s) · {{provider}}',
       bibleCheckHint: 'Verifique la referencia en el provider antes de enviarla. Live usa los IDs reales de los versículos y no inventa contenido.',
+      bibleRouteRequiredHint: 'Hay más de un provider bíblico disponible. El operador debe elegir la ruta de Biblia en Studio antes de este pedido.',
       sendCheckedBible: 'Enviar referencia verificada',
       bibleErrors: {
         bible_reference_not_found: 'No encontré esa referencia en la Biblia del provider.',
