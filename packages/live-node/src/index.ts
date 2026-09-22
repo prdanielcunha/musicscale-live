@@ -47,7 +47,11 @@ import {
   eventFromScene
 } from './liveEventFactory';
 import { HolyricsAdapter, HolyricsHttpClient } from '@millionsnest/live-adapter-holyrics';
-import { ResolumeAdapter, ResolumeRestClient } from '@millionsnest/live-adapter-resolume';
+import {
+  ResolumeAdapter,
+  ResolumeRealtimeClient,
+  ResolumeRestClient
+} from '@millionsnest/live-adapter-resolume';
 import {
   ProPresenterAdapter,
   ProPresenterHttpClient
@@ -240,7 +244,8 @@ async function registerResolumeProvider(): Promise<{
     id: 'resolume-primary',
     nodeId,
     displayName: 'Resolume Arena',
-    api: new ResolumeRestClient({ baseUrl })
+    api: new ResolumeRestClient({ baseUrl }),
+    realtime: new ResolumeRealtimeClient({ baseUrl })
   });
 
   capabilityEngine.register(adapter);
