@@ -54,7 +54,7 @@ function sceneRehearsal(scene: Scene, controller: Controller): SceneRehearsal {
   const providers = controller.nodeState?.providers || [];
   const routing = controller.nodeState?.routing;
 
-  const healthy = (provider: typeof providers[number]) =>
+  const healthy = (provider: (typeof providers)[number]) =>
     provider.health === 'online' || provider.health === 'degraded';
 
   const actions = scene.actions.map(action => {
