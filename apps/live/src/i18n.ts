@@ -945,6 +945,34 @@ const resources = {
         returnSong: 'Não foi possível voltar para a música: {{code}}'
       }
     },
+    teamChat: {
+      kicker: 'CHAT DO CULTO',
+      title: 'Equipe ao vivo',
+      safeHint: 'Conversa contextual do culto. Mensagens informam; ações continuam pelos pedidos estruturados.',
+      informational: 'Informativo',
+      placeholder: 'Escreva para a equipe…',
+      send: 'Enviar',
+      audienceLabel: 'Destino da mensagem',
+      actionHint: 'Para Bíblia, mídia ou seção musical, use um pedido estruturado. O chat nunca executa comandos.',
+      retrying: 'Tentando reconectar…',
+      emptyTitle: 'Nenhuma mensagem nesta sessão',
+      emptyHint: 'Use este espaço para comunicação rápida sem transformar texto livre em comando de produção.',
+      unavailableTitle: 'Chat temporariamente indisponível',
+      unavailableHint: 'A operação do culto continua normalmente. O Live tentará novamente.',
+      sender: {
+        operator: 'Operador',
+        pastor: 'Pastor',
+        conductor: 'Condutor',
+        team: 'Equipe'
+      },
+      audience: {
+        team: 'Toda equipe',
+        operator: 'Operador',
+        pastor: 'Pastor',
+        conductor: 'Condutor',
+        production: 'Produção'
+      }
+    },
     sessionPulse: {
       kicker: 'REGISTRO DO CULTO',
       title: 'Pulso da sessão',
@@ -1974,6 +2002,34 @@ const resources = {
         returnSong: 'Could not return to the song: {{code}}'
       }
     },
+    teamChat: {
+      kicker: 'SERVICE CHAT',
+      title: 'Live team',
+      safeHint: 'Contextual service conversation. Messages inform; actions stay in structured requests.',
+      informational: 'Informational',
+      placeholder: 'Message the team…',
+      send: 'Send',
+      audienceLabel: 'Message audience',
+      actionHint: 'For Bible, media or song sections, use a structured request. Chat never executes commands.',
+      retrying: 'Trying to reconnect…',
+      emptyTitle: 'No messages in this session',
+      emptyHint: 'Use this space for quick coordination without turning free text into production commands.',
+      unavailableTitle: 'Chat temporarily unavailable',
+      unavailableHint: 'Service operation continues normally. Live will retry.',
+      sender: {
+        operator: 'Operator',
+        pastor: 'Pastor',
+        conductor: 'Conductor',
+        team: 'Team'
+      },
+      audience: {
+        team: 'Whole team',
+        operator: 'Operator',
+        pastor: 'Pastor',
+        conductor: 'Conductor',
+        production: 'Production'
+      }
+    },
     sessionPulse: {
       kicker: 'SERVICE LOG',
       title: 'Session pulse',
@@ -3001,6 +3057,34 @@ const resources = {
         navigateVerse: 'No fue posible navegar entre los versículos: {{code}}',
         take: 'No fue posible mostrar el pasaje: {{code}}',
         returnSong: 'No fue posible volver a la canción: {{code}}'
+      }
+    },
+    teamChat: {
+      kicker: 'CHAT DEL CULTO',
+      title: 'Equipo en vivo',
+      safeHint: 'Conversación contextual del culto. Los mensajes informan; las acciones siguen en pedidos estructurados.',
+      informational: 'Informativo',
+      placeholder: 'Escriba al equipo…',
+      send: 'Enviar',
+      audienceLabel: 'Destino del mensaje',
+      actionHint: 'Para Biblia, media o secciones musicales, use un pedido estructurado. El chat nunca ejecuta comandos.',
+      retrying: 'Intentando reconectar…',
+      emptyTitle: 'No hay mensajes en esta sesión',
+      emptyHint: 'Use este espacio para coordinación rápida sin convertir texto libre en comandos de producción.',
+      unavailableTitle: 'Chat temporalmente no disponible',
+      unavailableHint: 'La operación del culto continúa normalmente. Live volverá a intentarlo.',
+      sender: {
+        operator: 'Operador',
+        pastor: 'Pastor',
+        conductor: 'Conductor',
+        team: 'Equipo'
+      },
+      audience: {
+        team: 'Todo el equipo',
+        operator: 'Operador',
+        pastor: 'Pastor',
+        conductor: 'Conductor',
+        production: 'Producción'
       }
     },
     sessionPulse: {
