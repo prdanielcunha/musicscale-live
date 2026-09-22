@@ -53,12 +53,15 @@ import {
   revokeNodePairing,
   reviewNodeLiveDrop,
   saveNodeSignalTopology,
+  setNodeLiveDropRetentionPreset,
   setNodeProviderRoute,
   submitNodeChatMessage,
   submitNodeLiveRequest,
   uploadNodeLiveDrop,
   updateNodeLiveRequestStatus,
   type DiscoveredLiveNode,
+  type LiveDropRetentionPolicy,
+  type LiveDropRetentionPreset,
   type LiveNodeApiError,
   type LiveNodeStateResponse,
   type PeerNodePairingChallenge
@@ -517,10 +520,24 @@ export function useLiveNode() {
   const listLiveDrop = useCallback(async (): Promise<{
     assets: LiveDropAsset[];
     maxBytes: number;
+    retention?: LiveDropRetentionPolicy;
   }> => {
     if (!credential) throw new Error('node_not_paired');
     return listNodeLiveDrop(credential.baseUrl, credential.token);
   }, [credential]);
+
+  const setLiveDropRetentionPreset = useCallback(async (
+    preset: LiveDropRetentionPreset
+  ): Promise<LiveDropRetentionPolicy> => {
+    if (!credential) throw new Error('node_not_paired');
+    const response = await setNodeLiveDropRetentionPreset(
+      credential.baseUrl,
+      credential.token,
+      preset
+    );
+    await refreshState();
+    return response.retention;
+  }, [credential, refreshState]);
 
   const uploadLiveDrop = useCallback(async (
     file: File,
@@ -677,6 +694,7 @@ export function useLiveNode() {
     executeCommand,
     executeScene,
     listLiveDrop,
+    setLiveDropRetentionPreset,
     uploadLiveDrop,
     reviewLiveDrop,
     openLiveDrop,
