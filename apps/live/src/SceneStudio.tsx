@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Capability, Scene, SceneAction } from '@millionsnest/live-domain';
+import {
+  routeGroupForCapability,
+  type Capability,
+  type Scene,
+  type SceneAction
+} from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
 import { createClientId } from './clientId';
 import { liveFeatureFlags } from './featureFlags';
@@ -26,6 +31,110 @@ function parameterValue(value: unknown): unknown {
     return (value as Record<string, unknown>).value;
   }
   return value;
+}
+
+type RehearsalLevel = 'ready' | 'block';
+
+interface RehearsalAction {
+  actionId: string;
+  capability: Capability;
+  level: RehearsalLevel;
+  reason: 'explicit' | 'route' | 'single' | 'ambiguous' | 'missing';
+  providerNames: string[];
+  offsetMs: number;
+  safetyLevel: SceneAction['safetyLevel'];
+}
+
+interface SceneRehearsal {
+  ready: boolean;
+  actions: RehearsalAction[];
+}
+
+function sceneRehearsal(scene: Scene, controller: Controller): SceneRehearsal {
+  const providers = controller.nodeState?.providers || [];
+  const routing = controller.nodeState?.routing;
+
+  const healthy = (provider: typeof providers[number]) =>
+    provider.health === 'online' || provider.health === 'degraded';
+
+  const actions = scene.actions.map(action => {
+    const candidates = providers.filter(provider =>
+      healthy(provider) &&
+      provider.capabilities.includes(action.capability)
+    );
+
+    if (action.targetProviderIds.length) {
+      const explicit = action.targetProviderIds.map(id =>
+        providers.find(provider => provider.providerId === id)
+      );
+      const ready =
+        explicit.length === action.targetProviderIds.length &&
+        explicit.every(provider =>
+          Boolean(provider) &&
+          healthy(provider!) &&
+          provider!.capabilities.includes(action.capability)
+        );
+
+      return {
+        actionId: action.id,
+        capability: action.capability,
+        level: ready ? 'ready' : 'block',
+        reason: 'explicit',
+        providerNames: explicit
+          .filter(Boolean)
+          .map(provider => provider!.displayName || provider!.providerKey || provider!.providerId),
+        offsetMs: Math.max(0, Math.round(action.offsetMs || 0)),
+        safetyLevel: action.safetyLevel
+      } satisfies RehearsalAction;
+    }
+
+    const group = routeGroupForCapability(action.capability);
+    const routedId = routing?.[group];
+    if (routedId) {
+      const provider = candidates.find(item => item.providerId === routedId);
+      return {
+        actionId: action.id,
+        capability: action.capability,
+        level: provider ? 'ready' : 'block',
+        reason: 'route',
+        providerNames: provider
+          ? [provider.displayName || provider.providerKey || provider.providerId]
+          : [],
+        offsetMs: Math.max(0, Math.round(action.offsetMs || 0)),
+        safetyLevel: action.safetyLevel
+      } satisfies RehearsalAction;
+    }
+
+    if (candidates.length === 1) {
+      const provider = candidates[0]!;
+      return {
+        actionId: action.id,
+        capability: action.capability,
+        level: 'ready',
+        reason: 'single',
+        providerNames: [provider.displayName || provider.providerKey || provider.providerId],
+        offsetMs: Math.max(0, Math.round(action.offsetMs || 0)),
+        safetyLevel: action.safetyLevel
+      } satisfies RehearsalAction;
+    }
+
+    return {
+      actionId: action.id,
+      capability: action.capability,
+      level: 'block',
+      reason: candidates.length > 1 ? 'ambiguous' : 'missing',
+      providerNames: candidates.map(provider =>
+        provider.displayName || provider.providerKey || provider.providerId
+      ),
+      offsetMs: Math.max(0, Math.round(action.offsetMs || 0)),
+      safetyLevel: action.safetyLevel
+    } satisfies RehearsalAction;
+  });
+
+  return {
+    ready: actions.every(action => action.level === 'ready'),
+    actions
+  };
 }
 
 function visualClips(controller: Controller): VisualClipOption[] {
@@ -79,6 +188,7 @@ export function SceneStudio({
   const [stageText, setStageText] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [rehearsalSceneId, setRehearsalSceneId] = useState<string | null>(null);
 
   const scenes = controller.nodeState?.state.scenes || [];
   const clips = useMemo(() => visualClips(controller), [controller.nodeState]);
@@ -89,6 +199,11 @@ export function SceneStudio({
         .flatMap(provider => provider.capabilities)
     ),
     [controller.nodeState]
+  );
+  const rehearsalScene = scenes.find(scene => scene.id === rehearsalSceneId) || null;
+  const rehearsal = useMemo(
+    () => rehearsalScene ? sceneRehearsal(rehearsalScene, controller) : null,
+    [controller.nodeState, rehearsalScene]
   );
 
   useEffect(() => {
@@ -309,9 +424,20 @@ export function SceneStudio({
                 ).join(' · ')}
               </small>
             </div>
-            <button className="ghost" disabled={busy} onClick={() => void remove(scene)}>
-              {t('sceneStudio.remove')}
-            </button>
+            <div className="scene-library-actions">
+              <button
+                className={rehearsalSceneId === scene.id ? 'secondary active' : 'secondary'}
+                disabled={busy}
+                onClick={() => setRehearsalSceneId(current => current === scene.id ? null : scene.id)}
+              >
+                {rehearsalSceneId === scene.id
+                  ? t('sceneStudio.rehearsal.close')
+                  : t('sceneStudio.rehearsal.open')}
+              </button>
+              <button className="ghost" disabled={busy} onClick={() => void remove(scene)}>
+                {t('sceneStudio.remove')}
+              </button>
+            </div>
           </article>
         )) : (
           <div className="scene-empty">
@@ -320,6 +446,62 @@ export function SceneStudio({
           </div>
         )}
       </div>
+
+      {rehearsalScene && rehearsal && (
+        <section className={`scene-rehearsal ${rehearsal.ready ? 'ready' : 'blocked'}`}>
+          <header>
+            <div>
+              <span>{t('sceneStudio.rehearsal.kicker')}</span>
+              <strong>{rehearsalScene.name}</strong>
+              <small>
+                {rehearsal.ready
+                  ? t('sceneStudio.rehearsal.ready')
+                  : t('sceneStudio.rehearsal.blocked')}
+              </small>
+            </div>
+            <div className={`scene-rehearsal-gate ${rehearsal.ready ? 'ready' : 'blocked'}`}>
+              <small>{t('sceneStudio.rehearsal.gate')}</small>
+              <strong>
+                {rehearsal.ready
+                  ? t('sceneStudio.rehearsal.safe')
+                  : t('sceneStudio.rehearsal.resolve')}
+              </strong>
+            </div>
+          </header>
+
+          <div className="scene-rehearsal-list">
+            {rehearsal.actions.map((action, index) => (
+              <article key={action.actionId} className={action.level}>
+                <b>{String(index + 1).padStart(2, '0')}</b>
+                <span className="scene-rehearsal-dot" aria-hidden="true" />
+                <div>
+                  <strong>
+                    {t(`sceneStudio.capabilities.${action.capability}`, {
+                      defaultValue: action.capability
+                    })}
+                  </strong>
+                  <small>
+                    {action.providerNames.length
+                      ? action.providerNames.join(' · ')
+                      : t(`sceneStudio.rehearsal.reasons.${action.reason}`)}
+                  </small>
+                </div>
+                <span className="scene-rehearsal-meta">
+                  {action.offsetMs > 0 && <em>+{action.offsetMs}ms</em>}
+                  <em>{t(`sceneStudio.rehearsal.safety.${action.safetyLevel}`)}</em>
+                </span>
+                <strong className="scene-rehearsal-status">
+                  {action.level === 'ready'
+                    ? t('sceneStudio.rehearsal.status.ready')
+                    : t('sceneStudio.rehearsal.status.blocked')}
+                </strong>
+              </article>
+            ))}
+          </div>
+
+          <footer>{t('sceneStudio.rehearsal.footer')}</footer>
+        </section>
+      )}
     </section>
   );
 }
