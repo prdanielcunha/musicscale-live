@@ -484,6 +484,34 @@ export interface LiveDropAsset {
   expiresAt?: string | null;
 }
 
+export type LiveChatSenderContext =
+  | 'operator'
+  | 'pastor'
+  | 'conductor'
+  | 'team';
+
+export type LiveChatAudience =
+  | 'team'
+  | 'operator'
+  | 'pastor'
+  | 'conductor'
+  | 'production';
+
+export interface LiveChatMessage {
+  id: EntityId;
+  organizationId: EntityId;
+  venueId: EntityId;
+  liveSystemId: EntityId;
+  liveSessionId: EntityId;
+  actorId: EntityId;
+  senderContext: LiveChatSenderContext;
+  audience: LiveChatAudience;
+  text: string;
+  createdAt: string;
+  replyToId?: EntityId;
+  relatedRequestId?: EntityId;
+}
+
 export type RequestKind = 'bible' | 'section' | 'media' | 'message';
 
 export interface LiveRequest {

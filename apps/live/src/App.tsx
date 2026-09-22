@@ -30,6 +30,7 @@ import { useOperatorViewport } from './useOperatorViewport';
 import { RequestSurface } from './RequestSurface';
 import { LiveRequestInbox } from './LiveRequestInbox';
 import { LiveSessionPulse } from './LiveSessionPulse';
+import { TeamChatPanel } from './TeamChatPanel';
 import { SceneStudio } from './SceneStudio';
 import { LiveSceneBar } from './LiveSceneBar';
 import { PlaylistSyncAutomation } from './PlaylistSyncAutomation';
@@ -651,6 +652,12 @@ export function App() {
               controller={liveNode}
               actorId={user.uid}
               liveSessionId={liveSessionId}
+            />
+            <TeamChatPanel
+              controller={liveNode}
+              actorId={user.uid}
+              liveSessionId={liveSessionId}
+              senderContext="operator"
             />
             <LiveSessionPulse
               controller={liveNode}

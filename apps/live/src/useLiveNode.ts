@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   Capability,
   CommandOrigin,
+  LiveChatAudience,
+  LiveChatMessage,
+  LiveChatSenderContext,
   CommandResult,
   LiveDropAsset,
   LiveNodeConnectionState,
@@ -38,6 +41,7 @@ import {
   fetchProviderClipThumbnail,
   fetchProviderOutputSnapshot,
   heartbeatNode,
+  listNodeChatMessages,
   listNodeEvents,
   listNodeLiveDrop,
   loadNodeState,
@@ -50,6 +54,7 @@ import {
   reviewNodeLiveDrop,
   saveNodeSignalTopology,
   setNodeProviderRoute,
+  submitNodeChatMessage,
   submitNodeLiveRequest,
   uploadNodeLiveDrop,
   updateNodeLiveRequestStatus,
@@ -330,6 +335,54 @@ export function useLiveNode() {
       liveSessionId,
       limit
     );
+  }, [credential]);
+
+  const listChatMessages = useCallback(async (
+    liveSessionId: string,
+    limit = 100
+  ): Promise<LiveChatMessage[]> => {
+    if (!credential) throw new Error('node_not_paired');
+    const response = await listNodeChatMessages(
+      credential.baseUrl,
+      credential.token,
+      liveSessionId,
+      limit
+    );
+    return response.messages;
+  }, [credential]);
+
+  const sendChatMessage = useCallback(async (input: {
+    id?: string;
+    liveSessionId: string;
+    actorId: string;
+    senderContext: LiveChatSenderContext;
+    audience: LiveChatAudience;
+    text: string;
+    replyToId?: string;
+    relatedRequestId?: string;
+  }): Promise<LiveChatMessage> => {
+    if (!credential) throw new Error('node_not_paired');
+    const message: LiveChatMessage = {
+      id: input.id || createClientId(),
+      organizationId: credential.binding.organizationId,
+      venueId: credential.binding.venueId,
+      liveSystemId: credential.binding.liveSystemId,
+      liveSessionId: input.liveSessionId,
+      actorId: input.actorId,
+      senderContext: input.senderContext,
+      audience: input.audience,
+      text: input.text.trim(),
+      createdAt: new Date().toISOString(),
+      ...(input.replyToId ? { replyToId: input.replyToId } : {}),
+      ...(input.relatedRequestId ? { relatedRequestId: input.relatedRequestId } : {})
+    };
+
+    const response = await submitNodeChatMessage(
+      credential.baseUrl,
+      credential.token,
+      message
+    );
+    return response.message;
   }, [credential]);
 
   const submitRequest = useCallback(async (input: {
@@ -619,6 +672,8 @@ export function useLiveNode() {
     setProviderRoute,
     saveSignalTopology,
     listEvents,
+    listChatMessages,
+    sendChatMessage,
     executeCommand,
     executeScene,
     listLiveDrop,
