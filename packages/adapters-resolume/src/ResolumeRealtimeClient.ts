@@ -112,10 +112,11 @@ export class ResolumeRealtimeClient {
     this.connecting = new Promise<boolean>(resolve => {
       let settled = false;
       let socket: WebSocketLike;
+      let timeout: ReturnType<typeof setTimeout> | undefined;
       const settle = (value: boolean) => {
         if (settled) return;
         settled = true;
-        clearTimeout(timeout);
+        if (timeout) clearTimeout(timeout);
         this.connecting = null;
         resolve(value);
       };
@@ -130,7 +131,7 @@ export class ResolumeRealtimeClient {
       }
 
       this.socket = socket;
-      const timeout = setTimeout(() => {
+      timeout = setTimeout(() => {
         if (generation !== this.generation) return;
         try {
           socket.close(1000, 'connect_timeout');
