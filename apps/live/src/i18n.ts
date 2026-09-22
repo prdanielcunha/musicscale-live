@@ -329,6 +329,43 @@ const resources = {
       description: 'Arraste do computador ou envie pelo tablet/celular. O arquivo chega primeiro em quarentena no Live Node e só fica disponível depois da aprovação do operador.',
       quarantineTitle: 'Quarentena local',
       quarantineHint: 'Nada é aberto no provider automaticamente.',
+      policy: {
+        label: 'Política local do Live Drop',
+        kicker: 'CICLO DE VIDA',
+        title: 'Controle o que fica armazenado',
+        description: 'Escolha um preset simples. O Live Node aplica a retenção localmente, recalcula os arquivos atuais e mantém a aprovação como decisão explícita do operador.',
+        quarantine: 'Em revisão',
+        approved: 'Aprovados',
+        rejected: 'Rejeitados',
+        hours_one: '{{count}} hora',
+        hours_other: '{{count}} horas',
+        kept: 'Mantidos localmente',
+        nodeDefault: 'Política do Node',
+        quarantineHint: 'expira se ninguém revisar',
+        approvedHint: 'continua pronto offline enquanto estiver retido',
+        rejectedHint: 'histórico curto para auditoria',
+        presetsLabel: 'Preset de armazenamento',
+        presets: {
+          service: {
+            title: 'Só este culto',
+            hint: 'Aprovados por 24 horas'
+          },
+          week: {
+            title: 'Esta semana',
+            hint: 'Aprovados por 7 dias'
+          },
+          keep: {
+            title: 'Manter aprovados',
+            hint: 'Sem expiração automática'
+          }
+        },
+        saved: {
+          service: 'Live Drop ajustado para este culto: aprovados ficam por 24 horas.',
+          week: 'Live Drop ajustado para a semana: aprovados ficam por 7 dias.',
+          keep: 'Live Drop ajustado para manter arquivos aprovados sem expiração automática.'
+        },
+        saveFailed: 'Não foi possível alterar a política do Live Drop: {{code}}'
+      },
       dropTitle: 'Solte arquivos aqui ou clique para escolher',
       dropHint: 'Imagem, vídeo, áudio ou PDF · até {{max}} por arquivo',
       uploading: 'Enviando para o Live Node…',
@@ -1257,6 +1294,33 @@ const resources = {
       saved: 'Cena salva e enviada ao Live Node.',
       cloudPending: 'Cena salva localmente. A sincronização com a nuvem ficou pendente.',
       actionRequired: 'Escolha pelo menos uma ação para a cena.',
+      rehearsal: {
+        open: 'Ensaiar',
+        close: 'Fechar ensaio',
+        kicker: 'ENSAIO SEGURO',
+        ready: 'Todos os destinos estão disponíveis. Nenhum comando foi executado.',
+        blocked: 'Há dependências que precisam ser resolvidas antes desta cena entrar no ar.',
+        gate: 'STATUS DA CENA',
+        safe: 'Pronta para operar',
+        resolve: 'Resolver dependências',
+        reasons: {
+          explicit: 'Destino explícito indisponível',
+          route: 'A rota configurada não está disponível',
+          single: 'Destino único resolvido',
+          ambiguous: 'Mais de um provider pode executar esta ação; defina a rota',
+          missing: 'Nenhum provider disponível oferece esta capacidade'
+        },
+        safety: {
+          normal: 'normal',
+          guarded: 'protegida',
+          critical: 'crítica'
+        },
+        status: {
+          ready: 'PRONTO',
+          blocked: 'RESOLVER'
+        },
+        footer: 'Modo ensaio é somente leitura: valida rotas, providers, capacidades e tempos sem enviar nenhum comando.'
+      },
       emptyTitle: 'Nenhuma cena criada',
       emptyDescription: 'Crie uma cena simples acima. Ela fica disponível no Live mesmo sem internet.',
       capabilities: {
@@ -1465,6 +1529,43 @@ const resources = {
       description: 'Drag from a computer or send from a phone/tablet. Files land in local Live Node quarantine first and become available only after operator approval.',
       quarantineTitle: 'Local quarantine',
       quarantineHint: 'Nothing is opened on a provider automatically.',
+      policy: {
+        label: 'Local Live Drop policy',
+        kicker: 'LIFECYCLE',
+        title: 'Control what stays stored',
+        description: 'Choose a simple preset. Live Node enforces retention locally, recalculates current files and keeps approval as an explicit operator decision.',
+        quarantine: 'In review',
+        approved: 'Approved',
+        rejected: 'Rejected',
+        hours_one: '{{count}} hour',
+        hours_other: '{{count}} hours',
+        kept: 'Kept locally',
+        nodeDefault: 'Node policy',
+        quarantineHint: 'expires if nobody reviews it',
+        approvedHint: 'stays offline-ready while retained',
+        rejectedHint: 'short audit history',
+        presetsLabel: 'Storage preset',
+        presets: {
+          service: {
+            title: 'This service',
+            hint: 'Approved files for 24 hours'
+          },
+          week: {
+            title: 'This week',
+            hint: 'Approved files for 7 days'
+          },
+          keep: {
+            title: 'Keep approved',
+            hint: 'No automatic expiry'
+          }
+        },
+        saved: {
+          service: 'Live Drop is set for this service: approved files stay for 24 hours.',
+          week: 'Live Drop is set for the week: approved files stay for 7 days.',
+          keep: 'Live Drop is set to keep approved files without automatic expiry.'
+        },
+        saveFailed: 'Could not change the Live Drop policy: {{code}}'
+      },
       dropTitle: 'Drop files here or click to choose',
       dropHint: 'Image, video, audio or PDF · up to {{max}} per file',
       uploading: 'Sending to Live Node…',
@@ -2393,6 +2494,33 @@ const resources = {
       saved: 'Scene saved and sent to Live Node.',
       cloudPending: 'Scene saved locally. Cloud sync is pending.',
       actionRequired: 'Choose at least one action for the scene.',
+      rehearsal: {
+        open: 'Rehearse',
+        close: 'Close rehearsal',
+        kicker: 'SAFE REHEARSAL',
+        ready: 'Every destination is available. No command was executed.',
+        blocked: 'Some dependencies must be resolved before this scene can go live.',
+        gate: 'SCENE STATUS',
+        safe: 'Ready to operate',
+        resolve: 'Resolve dependencies',
+        reasons: {
+          explicit: 'Explicit destination is unavailable',
+          route: 'The configured route is unavailable',
+          single: 'Single destination resolved',
+          ambiguous: 'More than one provider can run this action; choose a route',
+          missing: 'No available provider exposes this capability'
+        },
+        safety: {
+          normal: 'normal',
+          guarded: 'guarded',
+          critical: 'critical'
+        },
+        status: {
+          ready: 'READY',
+          blocked: 'RESOLVE'
+        },
+        footer: 'Rehearsal is read-only: it validates routes, providers, capabilities and timing without sending any command.'
+      },
       emptyTitle: 'No scenes yet',
       emptyDescription: 'Create a simple scene above. It remains available in Live without internet.',
       capabilities: {
@@ -2601,6 +2729,43 @@ const resources = {
       description: 'Arrastre desde la computadora o envíe desde el teléfono/tablet. El archivo llega primero a la cuarentena local del Live Node y solo queda disponible después de la aprobación del operador.',
       quarantineTitle: 'Cuarentena local',
       quarantineHint: 'Nada se abre en el provider automáticamente.',
+      policy: {
+        label: 'Política local de Live Drop',
+        kicker: 'CICLO DE VIDA',
+        title: 'Controle lo que queda almacenado',
+        description: 'Elija un preset simple. Live Node aplica la retención localmente, recalcula los archivos actuales y mantiene la aprobación como decisión explícita del operador.',
+        quarantine: 'En revisión',
+        approved: 'Aprobados',
+        rejected: 'Rechazados',
+        hours_one: '{{count}} hora',
+        hours_other: '{{count}} horas',
+        kept: 'Guardados localmente',
+        nodeDefault: 'Política del Node',
+        quarantineHint: 'vence si nadie lo revisa',
+        approvedHint: 'sigue listo offline mientras esté retenido',
+        rejectedHint: 'historial corto de auditoría',
+        presetsLabel: 'Preset de almacenamiento',
+        presets: {
+          service: {
+            title: 'Solo este culto',
+            hint: 'Aprobados por 24 horas'
+          },
+          week: {
+            title: 'Esta semana',
+            hint: 'Aprobados por 7 días'
+          },
+          keep: {
+            title: 'Mantener aprobados',
+            hint: 'Sin vencimiento automático'
+          }
+        },
+        saved: {
+          service: 'Live Drop quedó ajustado para este culto: los aprobados permanecen 24 horas.',
+          week: 'Live Drop quedó ajustado para la semana: los aprobados permanecen 7 días.',
+          keep: 'Live Drop quedó ajustado para mantener aprobados sin vencimiento automático.'
+        },
+        saveFailed: 'No fue posible cambiar la política de Live Drop: {{code}}'
+      },
       dropTitle: 'Suelte archivos aquí o haga clic para elegir',
       dropHint: 'Imagen, video, audio o PDF · hasta {{max}} por archivo',
       uploading: 'Enviando al Live Node…',
@@ -3529,6 +3694,33 @@ const resources = {
       saved: 'Escena guardada y enviada al Live Node.',
       cloudPending: 'Escena guardada localmente. La sincronización con la nube quedó pendiente.',
       actionRequired: 'Elija al menos una acción para la escena.',
+      rehearsal: {
+        open: 'Ensayar',
+        close: 'Cerrar ensayo',
+        kicker: 'ENSAYO SEGURO',
+        ready: 'Todos los destinos están disponibles. No se ejecutó ningún comando.',
+        blocked: 'Hay dependencias que deben resolverse antes de llevar esta escena al vivo.',
+        gate: 'ESTADO DE LA ESCENA',
+        safe: 'Lista para operar',
+        resolve: 'Resolver dependencias',
+        reasons: {
+          explicit: 'El destino explícito no está disponible',
+          route: 'La ruta configurada no está disponible',
+          single: 'Destino único resuelto',
+          ambiguous: 'Más de un provider puede ejecutar esta acción; defina la ruta',
+          missing: 'Ningún provider disponible ofrece esta capacidad'
+        },
+        safety: {
+          normal: 'normal',
+          guarded: 'protegida',
+          critical: 'crítica'
+        },
+        status: {
+          ready: 'LISTO',
+          blocked: 'RESOLVER'
+        },
+        footer: 'El modo ensayo es solo lectura: valida rutas, providers, capacidades y tiempos sin enviar ningún comando.'
+      },
       emptyTitle: 'No hay escenas creadas',
       emptyDescription: 'Cree una escena simple arriba. Permanecerá disponible en Live sin internet.',
       capabilities: {
