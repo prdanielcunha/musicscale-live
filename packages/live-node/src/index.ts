@@ -7,6 +7,7 @@ import { dirname, extname, join, resolve, sep } from 'node:path';
 import {
   CAPABILITIES,
   CapabilityEngine,
+  transitionLiveRequest,
   routeGroupForCapability,
   type Capability,
   type CommandResult,
@@ -14,6 +15,7 @@ import {
   type LiveChatMessage,
   type LiveDropAsset,
   type LiveRequest,
+  type LiveRequestStatus,
   type PairingRequest,
   type ProviderAssetRequest,
   type ProviderLink,
@@ -862,6 +864,9 @@ function validateLiveChatMessage(value: unknown): LiveChatMessage {
   if (candidate.relatedRequestId !== undefined && typeof candidate.relatedRequestId !== 'string') {
     throw new Error('invalid_live_chat_request');
   }
+  if (candidate.relatedServiceItemId !== undefined && typeof candidate.relatedServiceItemId !== 'string') {
+    throw new Error('invalid_live_chat_service_item');
+  }
 
   return {
     ...(candidate as LiveChatMessage),
@@ -897,10 +902,13 @@ function validateLiveRequest(value: unknown): LiveRequest {
   if (required.some(item => typeof item !== 'string' || !item)) {
     throw new Error('invalid_live_request');
   }
-  if (!['bible','section','media','message'].includes(String(candidate.kind))) {
+  if (!['bible','song','section','media','message'].includes(String(candidate.kind))) {
     throw new Error('invalid_live_request_kind');
   }
-  if (candidate.status !== 'pending') throw new Error('invalid_live_request_status');
+  if (candidate.status !== 'sent') throw new Error('invalid_live_request_status');
+  if (candidate.priority !== undefined && !['normal','urgent'].includes(String(candidate.priority))) {
+    throw new Error('invalid_live_request_priority');
+  }
   if (!candidate.payload || typeof candidate.payload !== 'object' || Array.isArray(candidate.payload)) {
     throw new Error('invalid_live_request_payload');
   }
@@ -2624,8 +2632,8 @@ async function start(): Promise<void> {
       const body = await readJson(req);
       if (!body || typeof body !== 'object') throw new Error('invalid_live_request_status');
       const candidate = body as Record<string, unknown>;
-      const status = String(candidate.status || '');
-      if (!['accepted','rejected','completed'].includes(status)) {
+      const status = String(candidate.status || '') as LiveRequestStatus;
+      if (!['seen','accepted','prepared','executed','rejected'].includes(status)) {
         throw new Error('invalid_live_request_status');
       }
       const resolvedBy = String(candidate.resolvedBy || '');
@@ -2637,16 +2645,15 @@ async function start(): Promise<void> {
       assertLiveRequestScope(current, session.binding);
 
       const now = new Date().toISOString();
+      let transitioned: LiveRequest;
+      try {
+        transitioned = transitionLiveRequest(current, status, resolvedBy, now);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : 'invalid_live_request_transition';
+        return send(res, 409, { error: code });
+      }
       const requests = state.requests.map(item =>
-        item.id === requestId
-          ? {
-              ...item,
-              status: status as LiveRequest['status'],
-              updatedAt: now,
-              resolvedAt: status === 'accepted' ? item.resolvedAt : now,
-              resolvedBy
-            }
-          : item
+        item.id === requestId ? transitioned : item
       );
       const next = await runtimeState.patch({ requests });
       const updatedRequest = requests.find(item => item.id === requestId);
