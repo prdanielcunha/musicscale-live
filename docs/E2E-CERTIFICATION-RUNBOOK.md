@@ -21,6 +21,12 @@ Para cada execução, registrar:
 
 Não incluir tokens, senhas ou credenciais no relatório.
 
+### Relatório automático do Node
+
+No computador do Live Node, o console local oferece **Relatório de certificação**. O JSON registra somente evidências que o software consegue medir com segurança: versão/Node, ServicePlan em cache, ProviderLinks, providers operacionais, rotas, eventos/erros e baseline de latência dos comandos aos providers.
+
+O arquivo **não declara PASS físico automaticamente**. Ele lista explicitamente as evidências que continuam dependendo de teste humano/hardware: matriz de dispositivos, corte de Internet preservando a LAN, versões reais dos providers, saída final, latência completa comando → estado observado, confiança da assinatura do instalador e teste com voluntário. Anexe esse JSON ao resultado preenchido deste runbook.
+
 ## 2. Pré-flight comum
 
 Antes de cada cenário:
