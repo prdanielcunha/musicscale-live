@@ -410,7 +410,7 @@ export function useLiveNode() {
       actorId: input.actorId,
       kind: input.kind,
       payload: input.payload,
-      status: 'pending',
+      status: 'sent',
       createdAt: new Date().toISOString()
     };
 
@@ -426,7 +426,7 @@ export function useLiveNode() {
 
   const updateRequestStatus = useCallback(async (
     requestId: string,
-    status: 'accepted' | 'rejected' | 'completed',
+    status: LiveRequest['status'],
     resolvedBy: string
   ) => {
     if (!credential) throw new Error('node_not_paired');
