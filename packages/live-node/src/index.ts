@@ -129,8 +129,18 @@ const nodeId = liveEnv('NODE_ID') ||
   `node_${createHash('sha256').update(`${hostname()}|musicscale-live`).digest('hex').slice(0, 16)}`;
 
 const capabilityEngine = new CapabilityEngine();
-const idempotency = new IdempotencyStore<CommandResult[]>();
-const sceneIdempotency = new IdempotencyStore<SceneExecutionResult>();
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+const IDEMPOTENCY_MAX_ENTRIES = 5000;
+const idempotency = new IdempotencyStore<CommandResult[]>(
+  IDEMPOTENCY_TTL_MS,
+  IDEMPOTENCY_MAX_ENTRIES,
+  join(STATE_DIR, 'idempotency-commands.json')
+);
+const sceneIdempotency = new IdempotencyStore<SceneExecutionResult>(
+  IDEMPOTENCY_TTL_MS,
+  IDEMPOTENCY_MAX_ENTRIES,
+  join(STATE_DIR, 'idempotency-scenes.json')
+);
 const pairingStore = new PairingStore(join(STATE_DIR, 'pairings.json'), nodeId);
 const runtimeState = new RuntimeStateStore(join(STATE_DIR, 'runtime.json'), nodeId);
 const providerConfigStore = new ProviderConfigStore(join(STATE_DIR, 'providers.json'));
@@ -991,7 +1001,6 @@ async function finalizeCommand(
   command: LiveCommand,
   results: CommandResult[]
 ): Promise<CommandResult[]> {
-  idempotency.set(command.idempotencyKey, results);
   await eventLogStore.append(eventFromCommand(command, results)).catch(error => {
     console.error(JSON.stringify({
       event: 'live_event_log_append_failed',
@@ -1002,10 +1011,7 @@ async function finalizeCommand(
   return results;
 }
 
-async function execute(command: LiveCommand): Promise<CommandResult[]> {
-  const cached = idempotency.get(command.idempotencyKey);
-  if (cached) return cached;
-
+async function executeUncached(command: LiveCommand): Promise<CommandResult[]> {
   let targets = command.targetProviderIds.length
     ? command.targetProviderIds
         .map(id => capabilityEngine.get(id))
@@ -1110,6 +1116,13 @@ async function execute(command: LiveCommand): Promise<CommandResult[]> {
   });
 
   return finalizeCommand(command, results);
+}
+
+async function execute(command: LiveCommand): Promise<CommandResult[]> {
+  return idempotency.run(
+    command.idempotencyKey,
+    () => executeUncached(command)
+  );
 }
 
 const sceneExecutor = new SceneExecutor({ executeCommand: execute });
@@ -1461,6 +1474,8 @@ refresh();refreshProvider();setInterval(refresh,1000);
 }
 
 async function start(): Promise<void> {
+  await idempotency.load();
+  await sceneIdempotency.load();
   await pairingStore.load();
   await runtimeState.load();
   await providerConfigStore.load();
@@ -2530,11 +2545,16 @@ async function start(): Promise<void> {
         return send(res, 409, { error: 'guarded_action_confirmation_required' });
       }
 
-      const result = await sceneExecutor.execute(sceneRequest);
-      sceneIdempotency.set(sceneRequest.idempotencyKey, result);
-      await eventLogStore
-        .append(eventFromScene(sceneRequest, result))
-        .catch(() => undefined);
+      const result = await sceneIdempotency.run(
+        sceneRequest.idempotencyKey,
+        async () => {
+          const execution = await sceneExecutor.execute(sceneRequest);
+          await eventLogStore
+            .append(eventFromScene(sceneRequest, execution))
+            .catch(() => undefined);
+          return execution;
+        }
+      );
       return send(res, 200, result);
     }
 
