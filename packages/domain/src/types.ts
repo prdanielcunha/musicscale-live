@@ -517,9 +517,20 @@ export interface LiveChatMessage {
   createdAt: string;
   replyToId?: EntityId;
   relatedRequestId?: EntityId;
+  relatedServiceItemId?: EntityId;
 }
 
-export type RequestKind = 'bible' | 'section' | 'media' | 'message';
+export type RequestKind = 'bible' | 'song' | 'section' | 'media' | 'message';
+
+export type LiveRequestStatus =
+  | 'sent'
+  | 'seen'
+  | 'accepted'
+  | 'prepared'
+  | 'executed'
+  | 'rejected';
+
+export type LiveRequestPriority = 'normal' | 'urgent';
 
 export interface LiveRequest {
   id: EntityId;
@@ -529,11 +540,50 @@ export interface LiveRequest {
   actorId: EntityId;
   kind: RequestKind;
   payload: Record<string, unknown>;
-  status: 'pending' | 'accepted' | 'rejected' | 'completed';
+  status: LiveRequestStatus;
+  priority?: LiveRequestPriority;
   createdAt: string;
   updatedAt?: string;
+  seenAt?: string;
+  acceptedAt?: string;
+  preparedAt?: string;
+  executedAt?: string;
+  rejectedAt?: string;
   resolvedAt?: string;
   resolvedBy?: EntityId;
+}
+
+export type LiveCollaborationRole = 'pastor' | 'conductor' | 'viewer';
+
+export interface LiveCollaborationInvite {
+  id: EntityId;
+  organizationId: EntityId;
+  venueId: EntityId;
+  liveSystemId: EntityId;
+  liveSessionId: EntityId;
+  role: LiveCollaborationRole;
+  createdBy: EntityId;
+  createdAt: string;
+  expiresAt: string;
+  maxUses: number;
+  uses: number;
+  revokedAt?: string;
+}
+
+export interface LiveCollaborationGrant {
+  inviteId: EntityId;
+  liveSessionId: EntityId;
+  role: LiveCollaborationRole;
+  expiresAt: string;
+  permissions: Array<
+    | 'request.bible'
+    | 'request.song'
+    | 'request.section'
+    | 'request.media'
+    | 'request.message'
+    | 'presence.write'
+    | 'chat.write'
+  >;
 }
 
 
