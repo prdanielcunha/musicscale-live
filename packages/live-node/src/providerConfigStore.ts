@@ -132,6 +132,10 @@ export class ProviderConfigStore {
 
   async clearHolyrics(): Promise<void> {
     await this.load();
+    const token = this.file.holyrics?.token;
+    if (token) {
+      await this.secretProtector.delete(token, 'holyrics.token');
+    }
     delete this.file.holyrics;
     await this.persist();
   }
