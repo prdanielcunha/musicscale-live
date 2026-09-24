@@ -672,7 +672,13 @@ const resources = {
       createWaiting: 'Ainda não detectei “{{title}}” no provider. Salve/conclua a criação e execute a verificação novamente.',
       createFailed: 'Não foi possível criar “{{title}}”: {{code}}',
       createNeedsLyrics: '“{{title}}” ainda não possui letra no MusicScale. Adicione a letra antes de criar no app de apresentação.',
-      createUnavailable: 'Este provider não oferece criação de música por uma integração oficial disponível ao Live.'
+      createUnavailable: 'Este provider não oferece criação de música por uma integração oficial disponível ao Live.',
+      exceptionsRemaining: '{{count}} exceção(ões) para resolver',
+      noExceptions: 'Nenhuma exceção — o repertório está coerente',
+      readyCollapsed: '{{count}} item(ns) pronto(s) recolhido(s) para você focar só no que importa.',
+      showingAll: 'Mostrando os {{count}} itens da escala.',
+      showReady: 'Mostrar {{count}} pronto(s)',
+      hideReady: 'Ocultar itens prontos'
     },
     peerNodes: {
       kicker: 'COMPUTADORES DO AMBIENTE',
@@ -1981,7 +1987,13 @@ const resources = {
       createWaiting: '“{{title}}” has not appeared on the provider yet. Save/finish creating it and run the check again.',
       createFailed: 'Could not create “{{title}}”: {{code}}',
       createNeedsLyrics: '“{{title}}” does not have lyrics in MusicScale yet. Add lyrics before creating it in the presentation app.',
-      createUnavailable: 'This provider does not expose song creation through an official integration available to Live.'
+      createUnavailable: 'This provider does not expose song creation through an official integration available to Live.',
+      exceptionsRemaining: '{{count}} exception(s) to resolve',
+      noExceptions: 'No exceptions — the repertoire is coherent',
+      readyCollapsed: '{{count}} ready item(s) collapsed so you can focus on exceptions.',
+      showingAll: 'Showing all {{count}} schedule items.',
+      showReady: 'Show {{count}} ready',
+      hideReady: 'Hide ready items'
     },
     peerNodes: {
       kicker: 'ENVIRONMENT COMPUTERS',
@@ -3290,7 +3302,13 @@ const resources = {
       createWaiting: 'Todavía no detecté “{{title}}” en el provider. Guarde/finalice la creación y ejecute la verificación nuevamente.',
       createFailed: 'No fue posible crear “{{title}}”: {{code}}',
       createNeedsLyrics: '“{{title}}” todavía no tiene letra en MusicScale. Añada la letra antes de crearla en la app de presentación.',
-      createUnavailable: 'Este provider no ofrece creación de canciones mediante una integración oficial disponible para Live.'
+      createUnavailable: 'Este provider no ofrece creación de canciones mediante una integración oficial disponible para Live.',
+      exceptionsRemaining: '{{count}} excepción(es) por resolver',
+      noExceptions: 'Sin excepciones — el repertorio está coherente',
+      readyCollapsed: '{{count}} elemento(s) listo(s) ocultos para enfocarse solo en las excepciones.',
+      showingAll: 'Mostrando los {{count}} elementos de la escala.',
+      showReady: 'Mostrar {{count}} listo(s)',
+      hideReady: 'Ocultar elementos listos'
     },
     peerNodes: {
       kicker: 'COMPUTADORAS DEL ENTORNO',

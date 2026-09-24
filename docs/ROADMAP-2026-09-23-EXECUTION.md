@@ -156,11 +156,11 @@ Gate: untrained user completes first pairing in ≤ 5 minutes without terminal, 
 
 # Phase 4 — Exception-based preparation
 
-**Status:** BLOCKED BY PHASE 3 GATE.
+**Status:** CODE FOUNDATION IMPLEMENTED; physical timing acceptance remains behind the Phase 3 gate.
 
-Reconcile plan/playlist in background. Collapse healthy items. Match songs by normalized title/artist/version/lyrics/fingerprint/history. Explain confidence and allow safe batch confirmation. Validate media, Bible, tone/BPM metadata, routes, outputs and offline cache.
+Preparation now collapses healthy song rows by default and leaves exceptions visible. Song matching is deterministic and explainable: normalized title/artist, arrangement/version, optional lyrics fingerprint and locally confirmed history contribute to a bounded confidence score. Automatic linking is reserved for high-confidence, clearly separated candidates; uncertain candidates remain explicit operator choices with score visibility. Key/BPM continue into the prepared ServicePlan, while ProductionPreflight validates provider/routes/output/cache readiness.
 
-Gate: normal service with no exceptions prepared in ≤ 2 minutes.
+Gate remains open until a normal no-exception service is physically prepared in ≤ 2 minutes on the certified provider matrix.
 
 ---
 
