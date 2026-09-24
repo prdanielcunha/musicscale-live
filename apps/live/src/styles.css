@@ -2422,3 +2422,24 @@ img,video,canvas,svg{max-width:100%}
   .node-tutorial-progress span{margin-left:0;width:100%}
   .node-tutorial-actions button{flex:1}
 }
+
+
+/* Roadmap Phase 4 — exception-based preparation */
+.preflight-exception-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:12px 0 8px;
+  padding:11px 12px;
+  border:1px solid rgba(255,255,255,.055);
+  border-radius:12px;
+  background:rgba(255,255,255,.02);
+}
+.preflight-exception-bar strong{display:block;font-size:14px}
+.preflight-exception-bar small{display:block;margin-top:3px;color:#747989}
+.preflight-exception-bar button{flex:none}
+@media(max-width:640px){
+  .preflight-exception-bar{align-items:stretch;flex-direction:column}
+  .preflight-exception-bar button{width:100%}
+}
