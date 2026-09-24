@@ -8,7 +8,12 @@ import type {
 } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
 import { useLiveCueCoordinator } from './LiveCueCoordinator';
-import { useLiveOperatorShortcuts } from './useLiveOperatorShortcuts';
+import {
+  loadLiveShortcutBindings,
+  saveLiveShortcutBindings,
+  useLiveOperatorShortcuts,
+  type LiveShortcutBindings
+} from './useLiveOperatorShortcuts';
 import { createClientId } from './clientId';
 import { BibleWorkspace } from './BibleWorkspace';
 import {
@@ -337,6 +342,9 @@ export function LiveControlPanel({
   const [preparedSearchHit, setPreparedSearchHit] = useState<UniversalSearchHit | null>(null);
   const [bibleCommand, setBibleCommand] = useState<{ text: string; nonce: number } | null>(null);
   const [followLive, setFollowLive] = useState(true);
+  const [shortcutBindings, setShortcutBindings] = useState<LiveShortcutBindings>(
+    () => loadLiveShortcutBindings()
+  );
   const [mediaKind, setMediaKind] = useState<'video' | 'image' | 'audio'>('video');
   const [mediaQuery, setMediaQuery] = useState('');
   const [mediaResults, setMediaResults] = useState<SearchMediaResult[]>([]);
@@ -1651,14 +1659,31 @@ export function LiveControlPanel({
   }
 
   useLiveOperatorShortcuts({
-    enabled: can('presentation.navigation') && busy === null && !clearArmed,
+    enabled: busy === null && !clearArmed,
+    bindings: shortcutBindings,
     onPrevious: () => {
-      void navigatePresentation('previous');
+      if (can('presentation.navigation')) void navigatePresentation('previous');
     },
     onNext: () => {
-      void navigatePresentation('next');
+      if (can('presentation.navigation')) void navigatePresentation('next');
+    },
+    onTake: () => {
+      void takePrimaryNext();
     }
   });
+
+  function updateShortcut(
+    key: keyof LiveShortcutBindings,
+    value: string
+  ) {
+    const next = { ...shortcutBindings, [key]: value };
+    // Do not allow one key to invoke more than one live action.
+    for (const candidate of Object.keys(next) as Array<keyof LiveShortcutBindings>) {
+      if (candidate !== key && value && next[candidate] === value) next[candidate] = '';
+    }
+    setShortcutBindings(next);
+    saveLiveShortcutBindings(next);
+  }
 
   useEffect(() => {
     const handleUniversalShortcut = (event: KeyboardEvent) => {
@@ -1777,6 +1802,33 @@ export function LiveControlPanel({
             </button>
           ))}
         </div>
+        <details className="live-shortcut-settings">
+          <summary>{t('liveControls.shortcutSettings')}</summary>
+          <div className="live-shortcut-grid">
+            {([
+              ['previous', t('liveControls.shortcutPrevious')],
+              ['next', t('liveControls.shortcutNext')],
+              ['take', 'TAKE']
+            ] as Array<[keyof LiveShortcutBindings, string]>).map(([key, label]) => (
+              <label key={key}>
+                <span>{label}</span>
+                <select
+                  value={shortcutBindings[key]}
+                  onChange={event => updateShortcut(key, event.target.value)}
+                >
+                  <option value="">{t('liveControls.shortcutNone')}</option>
+                  <option value="ArrowLeft">←</option>
+                  <option value="ArrowRight">→</option>
+                  <option value="PageUp">Page Up</option>
+                  <option value="PageDown">Page Down</option>
+                  <option value="[">[</option>
+                  <option value="]">]</option>
+                </select>
+              </label>
+            ))}
+          </div>
+          <small>{t('liveControls.shortcutHint')}</small>
+        </details>
       </div>
 
       {localSearchHits.length > 0 && (
