@@ -47,6 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           npm run check:brand
+          npm run check:ui
           npm run typecheck
           npm test
           npm run build --workspace=@millionsnest/live-web
