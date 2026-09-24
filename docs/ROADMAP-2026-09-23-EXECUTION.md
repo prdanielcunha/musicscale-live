@@ -208,11 +208,13 @@ Forbidden: AI executing TAKE, authorizing users, or asserting what is on air.
 
 # Phase 9 — Smart rehearsal
 
-**Status:** BLOCKED BY PHASE 8 GATE.
+**Status:** DETERMINISTIC ZERO-WRITE FOUNDATION IMPLEMENTED BEHIND FEATURE FLAG; activation remains BLOCKED BY PHASE 8 GATE.
 
-Simulate the full plan without provider writes, validate dependencies/cache/routes/output/permissions, then offer a separately armed safe-output rehearsal.
+The full prepared ServicePlan can now be simulated in pure domain code without calling any provider. The simulator validates item identity, offline provider links, provider health/capabilities, route ambiguity/invalid targets, cached scenes, scene action targets and output declarations. Studio can surface the report behind `VITE_LIVE_SMART_REHEARSAL`, and the report contract explicitly records `simulatedCommands: 0`.
 
-Gate: every detectable blocker appears before Live and simulation emits zero real commands.
+A later, separately armed safe-output rehearsal may be added only after the preceding gates are certified. It must remain distinct from this zero-write simulation.
+
+Gate remains open: every detectable blocker appears before Live and simulation emits zero real commands.
 
 ---
 
