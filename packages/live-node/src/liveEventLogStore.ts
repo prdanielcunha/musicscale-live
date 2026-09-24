@@ -5,6 +5,39 @@ import type {
   LiveSessionEventSummary
 } from '@millionsnest/live-domain';
 
+function percentile(values: number[], quantile: number): number | undefined {
+  if (!values.length) return undefined;
+  const sorted = values.slice().sort((a, b) => a - b);
+  const index = Math.min(
+    sorted.length - 1,
+    Math.max(0, Math.ceil(quantile * sorted.length) - 1)
+  );
+  return sorted[index];
+}
+
+function providerResultsFromEvent(event: LiveSessionEvent): Array<{
+  accepted: boolean;
+  latencyMs: number;
+}> {
+  const payload = event.payload && typeof event.payload === 'object'
+    ? event.payload as Record<string, unknown>
+    : {};
+  const providers = Array.isArray(payload.providers) ? payload.providers : [];
+
+  return providers.flatMap(item => {
+    if (!item || typeof item !== 'object') return [];
+    const candidate = item as Record<string, unknown>;
+    if (typeof candidate.accepted !== 'boolean') return [];
+    if (typeof candidate.latencyMs !== 'number' || !Number.isFinite(candidate.latencyMs)) {
+      return [];
+    }
+    return [{
+      accepted: candidate.accepted,
+      latencyMs: Math.max(0, candidate.latencyMs)
+    }];
+  });
+}
+
 export interface LiveEventQuery {
   organizationId: string;
   venueId: string;
@@ -79,6 +112,10 @@ export class LiveEventLogStore {
     let errors = 0;
     let plannedActions = 0;
     let adHocActions = 0;
+    let providerCommandResults = 0;
+    let providerCommandAccepted = 0;
+    let providerCommandRejected = 0;
+    const providerLatencies: number[] = [];
 
     for (const event of matched) {
       byType[event.type] = (byType[event.type] || 0) + 1;
@@ -95,6 +132,13 @@ export class LiveEventLogStore {
         ? event.payload as Record<string, unknown>
         : {};
       if (payload.adHoc === true && event.level !== 'error') adHocActions += 1;
+
+      for (const result of providerResultsFromEvent(event)) {
+        providerCommandResults += 1;
+        if (result.accepted) providerCommandAccepted += 1;
+        else providerCommandRejected += 1;
+        providerLatencies.push(result.latencyMs);
+      }
     }
 
     const chronological = matched
@@ -110,6 +154,15 @@ export class LiveEventLogStore {
       plannedServiceItems: plannedItems.size,
       adHocActions,
       byType,
+      providerCommandResults,
+      providerCommandAccepted,
+      providerCommandRejected,
+      providerLatencySamples: providerLatencies.length,
+      providerLatencyP50Ms: percentile(providerLatencies, 0.5),
+      providerLatencyP95Ms: percentile(providerLatencies, 0.95),
+      providerLatencyMaxMs: providerLatencies.length
+        ? Math.max(...providerLatencies)
+        : undefined,
       startedAt: chronological[0]?.occurredAt,
       lastEventAt: chronological[chronological.length - 1]?.occurredAt
     };

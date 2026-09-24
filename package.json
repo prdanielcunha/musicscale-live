@@ -14,6 +14,7 @@
     "build": "npm run build --workspace=@millionsnest/live-web && npm run build --workspace=@millionsnest/live-node",
     "typecheck": "npm run typecheck --workspace=@millionsnest/live-domain && npm run typecheck --workspace=@millionsnest/live-adapter-holyrics && npm run typecheck --workspace=@millionsnest/live-adapter-resolume && npm run typecheck --workspace=@millionsnest/live-adapter-propresenter && npm run typecheck --workspace=@millionsnest/live-node && npm run typecheck --workspace=@millionsnest/live-web",
     "test": "npm run test --workspace=@millionsnest/live-domain && npm run test --workspace=@millionsnest/live-adapter-holyrics && npm run test --workspace=@millionsnest/live-adapter-resolume && npm run test --workspace=@millionsnest/live-adapter-propresenter && npm run test --workspace=@millionsnest/live-node",
+    "test:reliability": "npm run test:reliability --workspace=@millionsnest/live-node",
     "test:firestore-rules": "npm run test --workspace=@millionsnest/live-firestore-rules-test"
   },
   "engines": {

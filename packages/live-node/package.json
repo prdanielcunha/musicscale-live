@@ -9,7 +9,8 @@
     "build": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node24 --outfile=dist/index.cjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --config vitest.config.ts",
-    "package:sea": "npm run build && node scripts/build-sea.mjs"
+    "package:sea": "npm run build && node scripts/build-sea.mjs",
+    "test:reliability": "vitest run --config vitest.config.ts test/idempotencyStore.test.ts test/runtimeStateStore.test.ts test/liveEventLogStore.test.ts test/pairingStore.test.ts test/providerConfigStore.test.ts test/secretProtector.test.ts"
   },
   "dependencies": {
     "@millionsnest/live-domain": "0.0.1",

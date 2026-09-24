@@ -3,6 +3,24 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ProviderConfigStore } from '../src/providerConfigStore';
+import type { SecretProtector } from '../src/secretProtector';
+
+class TestSecretProtector implements SecretProtector {
+  readonly kind = 'windows-dpapi' as const;
+
+  isProtected(value: string): boolean {
+    return value.startsWith('test:v1:');
+  }
+
+  async protect(value: string): Promise<string> {
+    return `test:v1:${Buffer.from(value, 'utf8').toString('base64')}`;
+  }
+
+  async unprotect(value: string): Promise<string> {
+    if (!this.isProtected(value)) return value;
+    return Buffer.from(value.slice('test:v1:'.length), 'base64').toString('utf8');
+  }
+}
 
 describe('ProviderConfigStore', () => {
   it('stores Holyrics configuration only in the local Node state directory', async () => {
@@ -18,6 +36,43 @@ describe('ProviderConfigStore', () => {
     const restored = new ProviderConfigStore(path);
     expect((await restored.getHolyrics())?.token).toBe('local-token');
     expect(await readFile(path, 'utf8')).toContain('local-token');
+  });
+
+  it('keeps the Holyrics token out of plaintext provider config when protection is available', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ms-live-provider-'));
+    const path = join(dir, 'providers.json');
+    const store = new ProviderConfigStore(path, new TestSecretProtector());
+
+    await store.setHolyrics({
+      baseUrl: 'http://127.0.0.1:8091',
+      token: 'super-secret-token'
+    });
+
+    const raw = await readFile(path, 'utf8');
+    expect(raw).not.toContain('super-secret-token');
+    expect(raw).toContain('test:v1:');
+
+    const restored = new ProviderConfigStore(path, new TestSecretProtector());
+    expect((await restored.getHolyrics())?.token).toBe('super-secret-token');
+  });
+
+  it('migrates a legacy plaintext Holyrics token when a protected backend becomes available', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ms-live-provider-'));
+    const path = join(dir, 'providers.json');
+
+    const legacy = new ProviderConfigStore(path);
+    await legacy.setHolyrics({
+      baseUrl: 'http://127.0.0.1:8091',
+      token: 'legacy-token'
+    });
+    expect(await readFile(path, 'utf8')).toContain('legacy-token');
+
+    const protectedStore = new ProviderConfigStore(path, new TestSecretProtector());
+    expect((await protectedStore.getHolyrics())?.token).toBe('legacy-token');
+
+    const migrated = await readFile(path, 'utf8');
+    expect(migrated).not.toContain('legacy-token');
+    expect(migrated).toContain('test:v1:');
   });
 
   it('stores a local Resolume Webserver endpoint without a cloud secret', async () => {

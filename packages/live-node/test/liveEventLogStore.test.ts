@@ -66,6 +66,43 @@ describe('LiveEventLogStore', () => {
     });
   });
 
+  it('calculates provider acceptance and p95 latency from command events', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ms-live-events-'));
+    const path = join(dir, 'events.json');
+    const store = new LiveEventLogStore(path);
+
+    for (let index = 1; index <= 20; index += 1) {
+      await store.append(event(
+        `command-${index}`,
+        `2026-09-21T10:00:${String(index).padStart(2, '0')}.000Z`,
+        {
+          payload: {
+            providers: [{
+              providerId: 'holyrics-primary',
+              accepted: index !== 20,
+              latencyMs: index * 10
+            }]
+          }
+        }
+      ));
+    }
+
+    const summary = await store.summarize({
+      organizationId: 'org_1',
+      venueId: 'venue_1',
+      liveSystemId: 'system_1',
+      liveSessionId: 'session_1'
+    });
+
+    expect(summary.providerCommandResults).toBe(20);
+    expect(summary.providerCommandAccepted).toBe(19);
+    expect(summary.providerCommandRejected).toBe(1);
+    expect(summary.providerLatencySamples).toBe(20);
+    expect(summary.providerLatencyP50Ms).toBe(100);
+    expect(summary.providerLatencyP95Ms).toBe(190);
+    expect(summary.providerLatencyMaxMs).toBe(200);
+  });
+
   it('deduplicates IDs and bounds local retention', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'ms-live-events-'));
     const path = join(dir, 'events.json');

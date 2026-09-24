@@ -1,5 +1,9 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import {
+  PlaintextAlphaSecretProtector,
+  type SecretProtector
+} from './secretProtector';
 
 export interface HolyricsLocalConfig {
   baseUrl: string;
@@ -55,7 +59,10 @@ export class ProviderConfigStore {
   private loaded = false;
   private file: ProviderConfigFile = { version: 1 };
 
-  constructor(private readonly filePath: string) {}
+  constructor(
+    private readonly filePath: string,
+    private readonly secretProtector: SecretProtector = new PlaintextAlphaSecretProtector()
+  ) {}
 
   async load(): Promise<void> {
     if (this.loaded) return;
@@ -67,12 +74,33 @@ export class ProviderConfigStore {
       if (error?.code !== 'ENOENT') throw error;
       this.file = { version: 1 };
     }
+
+    if (
+      this.file.holyrics?.token &&
+      this.secretProtector.kind !== 'plaintext-alpha' &&
+      !this.secretProtector.isProtected(this.file.holyrics.token)
+    ) {
+      this.file.holyrics.token = await this.secretProtector.protect(
+        this.file.holyrics.token,
+        'holyrics.token'
+      );
+      await this.persist();
+    }
+
     this.loaded = true;
   }
 
   async getHolyrics(): Promise<HolyricsLocalConfig | null> {
     await this.load();
-    return this.file.holyrics ? structuredClone(this.file.holyrics) : null;
+    if (!this.file.holyrics) return null;
+
+    return {
+      ...structuredClone(this.file.holyrics),
+      token: await this.secretProtector.unprotect(
+        this.file.holyrics.token,
+        'holyrics.token'
+      )
+    };
   }
 
   async setHolyrics(input: {
@@ -85,14 +113,21 @@ export class ProviderConfigStore {
     if (!baseUrl) throw new Error('holyrics_url_required');
     if (!token) throw new Error('holyrics_token_required');
 
-    const value: HolyricsLocalConfig = {
-      baseUrl: normalizeLocalHttpUrl(baseUrl, 'holyrics_url_must_be_local'),
+    const protectedToken = await this.secretProtector.protect(
       token,
+      'holyrics.token'
+    );
+    const storedValue: HolyricsLocalConfig = {
+      baseUrl: normalizeLocalHttpUrl(baseUrl, 'holyrics_url_must_be_local'),
+      token: protectedToken,
       updatedAt: new Date().toISOString()
     };
-    this.file.holyrics = value;
+    this.file.holyrics = storedValue;
     await this.persist();
-    return structuredClone(value);
+    return {
+      ...structuredClone(storedValue),
+      token
+    };
   }
 
   async clearHolyrics(): Promise<void> {
