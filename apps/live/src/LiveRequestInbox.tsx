@@ -228,6 +228,21 @@ export function LiveRequestInbox({
     }
   }
 
+  async function acknowledgeInformationalRequest(request: LiveRequest) {
+    try {
+      if (request.status === 'sent' || request.status === 'seen') {
+        await controller.updateRequestStatus(request.id, 'accepted', actorId);
+      }
+      await controller.updateRequestStatus(request.id, 'prepared', actorId);
+      await controller.updateRequestStatus(request.id, 'executed', actorId);
+    } catch (error) {
+      setRequestError(
+        request.id,
+        error instanceof Error ? error.message : 'request_status_failed'
+      );
+    }
+  }
+
   async function acceptAndPrepare(request: LiveRequest) {
     const accepted = await setStatus(request.id, 'accepted');
     if (!accepted) return;
@@ -865,7 +880,7 @@ export function LiveRequestInbox({
                   <button
                     className="primary"
                     disabled={busy !== null}
-                    onClick={() => void setStatus(request.id, 'completed')}
+                    onClick={() => void acknowledgeInformationalRequest(request)}
                   >
                     {busy === `${request.id}:status` ? '…' : t('requestInbox.acknowledge')}
                   </button>
@@ -876,16 +891,21 @@ export function LiveRequestInbox({
 
           const label =
             request.kind === 'bible' ? request.payload.reference :
+            request.kind === 'song' ? request.payload.query :
             request.kind === 'section' ? request.payload.section :
             request.kind === 'media' ? request.payload.query :
             request.payload.text;
           const prepared = preparedBible[request.id];
+          const songCandidates = preparedSongs[request.id] || [];
+          const selectedSongId = selectedSong[request.id];
           const sectionCandidates = preparedSections[request.id] || [];
           const selectedSectionId = selectedSection[request.id];
           const mediaCandidates = preparedMedia[request.id] || [];
           const selectedMediaId = selectedMedia[request.id];
           const canPrepareBible =
             request.kind === 'bible' && capabilitySet.has('bible.present');
+          const canPrepareSong =
+            request.kind === 'song' && songProviders.length > 0;
           const requestedSectionProviderId =
             request.kind === 'section'
               ? String(request.payload.providerId || '').trim()
@@ -919,13 +939,18 @@ export function LiveRequestInbox({
                 'live-request',
                 `kind-${request.kind}`,
                 `status-${request.status}`,
-                prepared || selectedSectionId || selectedMediaId ? 'is-prepared' : ''
+                request.status === 'prepared' || prepared || selectedSongId || selectedSectionId || selectedMediaId ? 'is-prepared' : ''
               ].filter(Boolean).join(' ')}
             >
               <div className="live-request-copy">
                 <div className="live-request-label-row">
                   <small>{t(`requestsSurface.kinds.${request.kind}`)}</small>
                   <div className="request-label-badges">
+                    {request.priority === 'urgent' && (
+                      <em className="request-source-chip urgent">
+                        {t('requestInbox.urgent')}
+                      </em>
+                    )}
                     {Boolean(request.payload.sourceSurface) && (
                       <em className="request-source-chip">
                         {t(`requestInbox.sources.${String(request.payload.sourceSurface)}`, {
@@ -940,18 +965,18 @@ export function LiveRequestInbox({
                 </div>
                 <strong>{String(label || '')}</strong>
                 <span>
-                  {request.status === 'accepted'
-                    ? prepared || selectedSectionId || selectedMediaId
-                      ? t('requestInbox.preparedHint')
-                      : t('requestInbox.acceptedHint')
-                    : t('requestInbox.pendingHint')}
+                  {request.status === 'prepared'
+                    ? t('requestInbox.preparedHint')
+                    : request.status === 'accepted'
+                      ? t('requestInbox.acceptedHint')
+                      : t('requestInbox.pendingHint')}
                 </span>
 
-                {request.status === 'accepted' && (
+                {(request.status === 'accepted' || request.status === 'prepared') && (
                   <div className="request-execution-flow" aria-label={t('requestInbox.flowLabel')}>
                     <span className="done">{t('requestInbox.flow.requested')}</span>
                     <i />
-                    <span className={prepared || selectedSectionId || selectedMediaId || canSendStage ? 'active' : ''}>
+                    <span className={request.status === 'prepared' ? 'done' : 'active'}>
                       {t('requestInbox.flow.prepared')}
                     </span>
                     <i />
@@ -968,6 +993,50 @@ export function LiveRequestInbox({
                         ? ` · ${t('requestInbox.verseCount', { count: prepared.verseCount })}`
                         : ''}
                     </span>
+                  </div>
+                )}
+
+                {request.kind === 'song' && songCandidates.length > 0 && (
+                  <div className="request-section-prepared">
+                    <div className="request-section-prepared-head">
+                      <div>
+                        <b>{t('requestInbox.songPrepared')}</b>
+                        <span>{t('requestInbox.songPreparedHint', { count: songCandidates.length })}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="ghost"
+                        disabled={requestBusy}
+                        onClick={() => void prepareSongRequest(request)}
+                      >
+                        {t('requestInbox.songSearchAgain')}
+                      </button>
+                    </div>
+                    <div className="request-section-candidates" role="listbox" aria-label={t('requestInbox.songResultsLabel')}>
+                      {songCandidates.map(candidate => {
+                        const key = `${candidate.id}@${candidate.providerId}`;
+                        const active = selectedSongId === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            role="option"
+                            aria-selected={active}
+                            className={active ? 'active' : ''}
+                            onClick={() => setSelectedSong(current => ({
+                              ...current,
+                              [request.id]: key
+                            }))}
+                          >
+                            <span className="request-section-copy">
+                              <strong>{candidate.title}</strong>
+                              <small>{candidate.artist || candidate.providerId}</small>
+                            </span>
+                            <em>{active ? t('requestInbox.selected') : t('requestInbox.select')}</em>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
@@ -1114,7 +1183,7 @@ export function LiveRequestInbox({
               </div>
 
               <div className="live-request-actions">
-                {request.status === 'pending' ? (
+                {(request.status === 'sent' || request.status === 'seen') ? (
                   <>
                     <button
                       className="secondary"
@@ -1150,7 +1219,7 @@ export function LiveRequestInbox({
                     ) : (
                       <button
                         className="primary request-take-action"
-                        disabled={requestBusy}
+                        disabled={requestBusy || request.status !== 'prepared'}
                         onClick={() => void takeBibleRequest(request)}
                       >
                         {busy === `${request.id}:take`
@@ -1161,9 +1230,40 @@ export function LiveRequestInbox({
                     <button
                       className="ghost"
                       disabled={requestBusy}
-                      onClick={() => void setStatus(request.id, 'completed')}
+                      onClick={() => void setStatus(request.id, 'rejected')}
                     >
-                      {t('requestInbox.complete')}
+                      {t('requestInbox.reject')}
+                    </button>
+                  </>
+                ) : request.kind === 'song' && canPrepareSong ? (
+                  <>
+                    {songCandidates.length === 0 ? (
+                      <button
+                        className="secondary request-prepare-action"
+                        disabled={requestBusy}
+                        onClick={() => void prepareSongRequest(request)}
+                      >
+                        {busy === `${request.id}:song-prepare`
+                          ? t('requestInbox.preparing')
+                          : t('requestInbox.prepareSong')}
+                      </button>
+                    ) : (
+                      <button
+                        className="primary request-take-action"
+                        disabled={requestBusy || !selectedSongId || request.status !== 'prepared'}
+                        onClick={() => void takeSongRequest(request)}
+                      >
+                        {busy === `${request.id}:song-take`
+                          ? t('requestInbox.taking')
+                          : t('requestInbox.takeSong')}
+                      </button>
+                    )}
+                    <button
+                      className="ghost"
+                      disabled={requestBusy}
+                      onClick={() => void setStatus(request.id, 'rejected')}
+                    >
+                      {t('requestInbox.reject')}
                     </button>
                   </>
                 ) : request.kind === 'section' && canPrepareSection ? (
@@ -1181,7 +1281,7 @@ export function LiveRequestInbox({
                     ) : (
                       <button
                         className="primary request-take-action"
-                        disabled={requestBusy || !selectedSectionId}
+                        disabled={requestBusy || !selectedSectionId || request.status !== 'prepared'}
                         onClick={() => void takeSectionRequest(request)}
                       >
                         {busy === `${request.id}:section-take`
@@ -1192,9 +1292,9 @@ export function LiveRequestInbox({
                     <button
                       className="ghost"
                       disabled={requestBusy}
-                      onClick={() => void setStatus(request.id, 'completed')}
+                      onClick={() => void setStatus(request.id, 'rejected')}
                     >
-                      {t('requestInbox.complete')}
+                      {t('requestInbox.reject')}
                     </button>
                   </>
                 ) : request.kind === 'media' && canPrepareMedia ? (
@@ -1212,7 +1312,7 @@ export function LiveRequestInbox({
                     ) : (
                       <button
                         className="primary request-take-action"
-                        disabled={requestBusy || !selectedMediaId}
+                        disabled={requestBusy || !selectedMediaId || request.status !== 'prepared'}
                         onClick={() => void takeMediaRequest(request)}
                       >
                         {busy === `${request.id}:media-take`
@@ -1223,16 +1323,16 @@ export function LiveRequestInbox({
                     <button
                       className="ghost"
                       disabled={requestBusy}
-                      onClick={() => void setStatus(request.id, 'completed')}
+                      onClick={() => void setStatus(request.id, 'rejected')}
                     >
-                      {t('requestInbox.complete')}
+                      {t('requestInbox.reject')}
                     </button>
                   </>
                 ) : request.kind === 'message' && canSendStage ? (
                   <>
                     <button
                       className="primary request-stage-action"
-                      disabled={requestBusy}
+                      disabled={requestBusy || request.status !== 'prepared'}
                       onClick={() => void sendStageMessage(request)}
                     >
                       {busy === `${request.id}:stage`
@@ -1242,16 +1342,16 @@ export function LiveRequestInbox({
                     <button
                       className="ghost"
                       disabled={requestBusy}
-                      onClick={() => void setStatus(request.id, 'completed')}
+                      onClick={() => void setStatus(request.id, 'rejected')}
                     >
-                      {t('requestInbox.complete')}
+                      {t('requestInbox.reject')}
                     </button>
                   </>
                 ) : (
                   <button
                     className="primary"
                     disabled={requestBusy}
-                    onClick={() => void setStatus(request.id, 'completed')}
+                    onClick={() => void setStatus(request.id, 'rejected')}
                   >
                     {busy === `${request.id}:status` ? '…' : t('requestInbox.complete')}
                   </button>
