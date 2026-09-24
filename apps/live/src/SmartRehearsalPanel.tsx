@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  CAPABILITIES,
   rehearseServicePlan,
+  type Capability,
   type CapabilitySnapshot,
   type ProviderRouteGroup
 } from '@millionsnest/live-domain';
@@ -23,7 +25,10 @@ export function SmartRehearsalPanel({
 
     const providers: CapabilitySnapshot[] = controller.nodeState.providers.map(provider => ({
       providerId: provider.providerId,
-      capabilities: provider.capabilities,
+      capabilities: provider.capabilities.filter(
+        (capability): capability is Capability =>
+          (CAPABILITIES as readonly string[]).includes(capability)
+      ),
       health: provider.health as CapabilitySnapshot['health'],
       observed: provider.observed
     }));
