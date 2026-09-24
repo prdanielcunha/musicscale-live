@@ -166,21 +166,21 @@ Gate remains open until a normal no-exception service is physically prepared in 
 
 # Phase 5 — Definitive Live cockpit
 
-**Status:** BLOCKED BY PHASE 4 GATE.
+**Status:** CODE FOUNDATION IMPLEMENTED; physical operator acceptance remains behind the Phase 4 gate.
 
-First fold: NOW, NEXT, TAKE, timeline, universal search entry and compact health. Selecting always prepares NEXT; only TAKE executes. Provider observed state is the only source of NOW truth.
+The cockpit keeps NOW/NEXT/TAKE/timeline/search/health in the primary flow. Provider-observed state remains NOW truth. Selection prepares; TAKE executes. Critical TAKE paths now use a short duplicate-action fence and progressive haptic feedback where supported. Previous/Next/TAKE shortcuts are locally configurable, collision-safe and route through the same visible guarded actions.
 
-Gate: ≥ 90% normal actions require one click/key after NEXT selection; TAKE stays in the same location across supported breakpoints.
+Gate remains open: ≥ 90% normal actions require one click/key after NEXT selection; TAKE stays in the same location across supported breakpoints.
 
 ---
 
 # Phase 6 — Universal search and commands
 
-**Status:** BLOCKED BY PHASE 5 GATE.
+**Status:** LOCAL-FIRST FOUNDATION IMPLEMENTED; performance/device acceptance remains behind the Phase 5 gate.
 
-Local index first for prepared/offline content. Federate songs, Bible, media, scenes, text and deterministic commands. Search may understand aliases/typos; results never execute directly.
+A persistent browser-local index now seeds from the prepared ServicePlan, ProviderLinks, cached Scenes, approved Live Drop assets, deterministic commands and recent/frequent selections. Matching is accent-insensitive, typo-tolerant, alias-aware and boosts prepared/recent content. Local hits appear before provider/network search. Enter prepares a strong local hit; selection never executes directly. A separate TAKE executes the prepared hit, including cached scenes and deterministic commands.
 
-Gate: local-index response < 150 ms and search works with Internet unavailable.
+Gate remains open for measured p95: local-index response < 150 ms and search works with Internet unavailable.
 
 ---
 
