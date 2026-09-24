@@ -19,7 +19,9 @@ Open: final cloud RBAC + Firestore Rules before broader Live writes; public cont
 
 Implemented: Live Node runtime; scoped pairing/revocation/rate limiting; LAN + same-origin Local Recovery; cache/crash recovery/reconnect; provider routing; diagnostics; SEA packaging/alpha installers; offline ServicePlan/ProviderLinks; QR handoff; human-first zero-config onboarding; best-effort LAN peer discovery with PIN trust; manual IP/port moved to Advanced fallback; completed command/scene idempotency is now persisted locally with TTL and atomic writes, and concurrent retries with the same key are coalesced so a Node restart or retry does not replay an already-finished provider action.
 
-Open: native packaging certification; Windows/macOS/iPad/Android physical matrix; physical verification of multicast discovery across common church routers/APs; guest-network/client-isolation diagnostics; internet-cut test; signing/notarization; signed auto-update; OS credential vault; branch protection enforcement at repository policy level.
+Implemented additionally in the active reliability branch: Windows provider-token protection uses CurrentUser DPAPI before the token is persisted, including migration of legacy plaintext Holyrics tokens; Windows CI exercises a real protect/unprotect round trip. This avoids adding a fragile native addon to the current SEA package.
+
+Open: native packaging certification; Windows/macOS/iPad/Android physical matrix; physical verification of multicast discovery across common church routers/APs; guest-network/client-isolation diagnostics; internet-cut test; signing/notarization; signed auto-update; macOS Keychain backend / final cross-platform OS credential-vault certification; branch protection enforcement at repository policy level.
 
 ## Phase 2 — Holyrics Deep Provider
 **Status: partial; deep adapter implemented, hardware gate open**
