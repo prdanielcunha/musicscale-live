@@ -64,6 +64,9 @@ No pacote alpha atual, o fallback técnico ainda usa `install.command`. Antes de
 - O pareamento usa PIN temporário exibido fisicamente no computador alvo.
 - Credenciais de pareamento são armazenadas como hash no Node.
 - Configuração sensível de providers permanece local ao computador.
+- No Windows, o token do Holyrics é protegido com DPAPI `CurrentUser`.
+- No macOS, o token do Holyrics fica no Keychain e o arquivo local guarda apenas uma referência.
+- Ao remover a configuração do Holyrics, o segredo externo também é removido do Keychain quando aplicável.
 - O modo remoto/cloud-relay continua desabilitado nesta distribuição alpha.
 
 ## Estado desta distribuição
@@ -75,7 +78,17 @@ Antes de distribuição pública ainda são obrigatórios:
 - assinatura Authenticode do instalador/binário Windows;
 - Developer ID + notarização no macOS;
 - atualização automática assinada/verificada;
-- credential vault do sistema operacional;
+- certificação física final do credential vault nos computadores-alvo;
 - certificação física Windows + iPad, Windows + Android e multi-PC;
 - teste de queda de internet durante sessão ativa;
 - validação de descoberta automática em roteadores/APs reais e diagnóstico de Guest Wi‑Fi/client isolation.
+
+
+## Canal de release assinado
+
+O repositório possui um workflow separado de release pública que só produz artefatos quando as credenciais de assinatura estiverem configuradas:
+
+- Windows: binário e `MusicScaleLiveSetup.exe` assinados com Authenticode + timestamp e verificação pós-assinatura.
+- macOS: binário assinado com Developer ID Application, pacote gráfico `.pkg` assinado com Developer ID Installer, notarizado e stapled pela Apple.
+
+Certificados e senhas nunca entram no repositório. O workflow falha fechado quando qualquer credencial obrigatória de assinatura estiver ausente.
