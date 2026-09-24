@@ -166,7 +166,7 @@ async function resolveSong(
         source,
         status: 'matched',
         matched: decision.candidate,
-        candidates: externalSongs
+        candidates: [decision.candidate]
       };
     }
 
