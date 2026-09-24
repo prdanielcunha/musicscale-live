@@ -53,6 +53,27 @@ describe('IdempotencyStore', () => {
     expect(executions).toBe(1);
   });
 
+  it('fails closed after restart when a previous provider outcome is uncertain', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ms-live-idempotency-'));
+    const path = join(dir, 'commands.json');
+    let executions = 0;
+
+    const first = new IdempotencyStore<string>(60_000, 100, path);
+    await expect(first.run('uncertain-take', async () => {
+      executions += 1;
+      throw new Error('provider_connection_lost_after_send');
+    })).rejects.toThrow('provider_connection_lost_after_send');
+
+    const restarted = new IdempotencyStore<string>(60_000, 100, path);
+    await expect(restarted.run('uncertain-take', async () => {
+      executions += 1;
+      return 'must-not-run';
+    })).rejects.toThrow('idempotency_previous_attempt_uncertain');
+
+    expect(restarted.isUncertain('uncertain-take')).toBe(true);
+    expect(executions).toBe(1);
+  });
+
   it('does not replay a completed provider action after process restart', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'ms-live-idempotency-'));
     const path = join(dir, 'commands.json');
