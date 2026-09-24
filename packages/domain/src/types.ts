@@ -609,3 +609,23 @@ export interface CloudVersionEnvelope<TPayload = Record<string, unknown>> {
     updatedAt: string;
   };
 }
+
+
+export type LivePresenceRole =
+  | 'operator'
+  | 'pastor'
+  | 'conductor'
+  | 'viewer';
+
+export interface LivePresence {
+  id: EntityId;
+  organizationId: EntityId;
+  venueId: EntityId;
+  liveSystemId?: EntityId;
+  liveSessionId: EntityId;
+  actorId: EntityId;
+  role: LivePresenceRole;
+  deviceName?: string;
+  active: boolean;
+  lastSeenAt: string;
+}
