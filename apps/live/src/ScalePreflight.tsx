@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { matchExternalSong, type SongIdentity } from '@millionsnest/live-domain';
+import {
+  matchExternalSong,
+  type SongIdentity,
+  type SongMatchCandidate
+} from '@millionsnest/live-domain';
 import type { SharedScale } from './musicScaleBridge';
 import { buildServicePlan, type PreparedSongLink } from './servicePlanBuilder';
 import { liveFeatureFlags } from './featureFlags';
@@ -28,8 +32,8 @@ type RowStatus =
 interface PreflightRow {
   source: SharedScale['songs'][number];
   status: RowStatus;
-  matched?: ExternalSong;
-  candidates: ExternalSong[];
+  matched?: SongMatchCandidate;
+  candidates: SongMatchCandidate[];
   error?: string;
 }
 
@@ -194,7 +198,7 @@ function toPreparedLinks(
   providerId: string
 ): PreparedSongLink[] {
   return rows
-    .filter((row): row is PreflightRow & { matched: ExternalSong } =>
+    .filter((row): row is PreflightRow & { matched: SongMatchCandidate } =>
       row.status === 'matched' && Boolean(row.matched)
     )
     .map(row => ({
