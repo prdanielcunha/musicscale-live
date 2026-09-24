@@ -2245,3 +2245,113 @@ img,video,canvas,svg{max-width:100%}
   .smart-rehearsal-state{min-width:0;width:100%;text-align:left}
   .smart-rehearsal-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+
+/* Phase 10 spike — factual local service review */
+.service-review-panel{
+  margin:16px 0;
+  padding:18px;
+  border:1px solid rgba(255,255,255,.065);
+  border-radius:18px;
+  background:
+    radial-gradient(circle at 92% 0,rgba(74,141,255,.08),transparent 32%),
+    linear-gradient(155deg,rgba(17,18,25,.98),rgba(10,11,16,.98));
+}
+.service-review-panel>header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+}
+.service-review-panel h2{margin:5px 0 4px;font-size:20px;letter-spacing:-.025em}
+.service-review-panel p{margin:0;max-width:760px;color:#858a99;line-height:1.5}
+.service-review-metrics{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:7px;
+  margin-top:14px;
+}
+.service-review-metrics article{
+  min-width:0;
+  padding:11px 12px;
+  border:1px solid rgba(255,255,255,.055);
+  border-radius:12px;
+  background:rgba(255,255,255,.022);
+}
+.service-review-metrics small{display:block;color:#737989}
+.service-review-metrics strong{display:block;margin-top:3px;font-size:18px}
+.service-review-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);
+  gap:10px;
+  margin-top:10px;
+}
+.service-review-block{
+  min-width:0;
+  padding:13px;
+  border:1px solid rgba(255,255,255,.055);
+  border-radius:14px;
+  background:#0d0e14;
+}
+.service-review-block-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:9px;
+}
+.service-review-block-head small{display:block;color:#716a9c}
+.service-review-block-head strong{display:block;margin-top:3px}
+.service-review-block-head>span{max-width:220px;color:#686e7d;text-align:right}
+.service-review-items,.service-review-attention{display:grid;gap:6px}
+.service-review-items>div,.service-review-attention>div{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-height:52px;
+  padding:8px 10px;
+  border:1px solid rgba(255,255,255,.045);
+  border-radius:10px;
+  background:rgba(255,255,255,.018);
+}
+.service-review-items strong,.service-review-attention strong{display:block}
+.service-review-items small,.service-review-attention small{
+  display:block;
+  margin-top:2px;
+  color:#686e7d;
+}
+.service-review-items>div>span{flex:none;color:#8d92a2}
+.service-review-items .status-executed>span{color:#72d7ad}
+.service-review-items .status-skipped>span{color:#e4a65c}
+.service-review-attention>div{display:block}
+.service-review-attention .failure{border-color:rgba(228,103,114,.16)}
+.service-review-attention .adhoc{border-color:rgba(124,92,255,.14)}
+.service-review-attention span{display:block;margin-top:3px;color:#737989}
+.service-review-empty,.service-review-loading,.service-review-error{
+  padding:13px 14px;
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:11px;
+  background:rgba(255,255,255,.018);
+}
+.service-review-error{margin-top:10px;border-color:rgba(228,103,114,.18)}
+.service-review-error strong,.service-review-error span{display:block}
+.service-review-error span{margin-top:3px;color:#888d9b}
+.service-review-facts{
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid rgba(255,255,255,.045);
+  color:#686e7d;
+  line-height:1.5;
+}
+@media(max-width:980px){
+  .service-review-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .service-review-grid{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .service-review-panel>header{flex-direction:column}
+  .service-review-panel>header button{width:100%}
+  .service-review-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .service-review-block-head{flex-direction:column}
+  .service-review-block-head>span{max-width:none;text-align:left}
+}
