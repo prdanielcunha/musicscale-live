@@ -57,6 +57,9 @@ jobs:
       - name: Brand contract
         run: npm run check:brand
 
+      - name: UI accessibility contract
+        run: npm run check:ui
+
       - name: Typecheck
         run: npm run typecheck
 
