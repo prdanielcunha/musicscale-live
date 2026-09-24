@@ -21,7 +21,9 @@ Implemented: Live Node runtime; scoped pairing/revocation/rate limiting; LAN + s
 
 Implemented additionally: Windows provider-token protection uses CurrentUser DPAPI before the token is persisted, including migration of legacy plaintext Holyrics tokens; Windows CI exercises a real protect/unprotect round trip. macOS now stores the Holyrics token in Keychain and persists only a reference, with delete-on-clear behavior and a real macOS CI round trip. A fail-closed signed-release workflow now requires Authenticode credentials for Windows and Developer ID + notarization credentials for macOS, producing a graphical signed/notarized .pkg on macOS when credentials are present.
 
-Open: native packaging certification on target church computers; Windows/macOS/iPad/Android physical matrix; physical verification of multicast discovery across common church routers/APs; guest-network/client-isolation diagnostics; internet-cut test; production signing credentials/certificate execution; signed auto-update delivery; branch protection enforcement at repository policy level.
+Implemented additionally for certification: the local Node console can export a secret-free factual certification report from runtime/event data, including cached-plan/link state, provider health, routing, event/error counts and measured provider-command latency baseline. The report explicitly lists hardware-only evidence it cannot prove, so it cannot accidentally convert a software check into a physical PASS.
+
+Open: native packaging certification on target church computers; Windows/macOS/iPad/Android physical matrix; physical verification of multicast discovery across common church routers/APs; guest-network/client-isolation diagnostics; internet-cut test; true command→observed-state p95; production signing credentials/certificate execution; signed auto-update delivery; branch protection enforcement at repository policy level.
 
 ## Phase 2 — Holyrics Deep Provider
 **Status: partial; deep adapter implemented, hardware gate open**
