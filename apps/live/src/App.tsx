@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import { auth } from './firebase';
-import { LiveControlPanel } from './LiveControlPanel';
 import { LocalRecoveryView } from './LocalRecoveryView';
 import { LiveNodeSetup } from './LiveNodeSetup';
 import { liveFeatureFlags } from './featureFlags';
@@ -15,12 +14,6 @@ import {
   type SharedContext,
   type SharedScale
 } from './musicScaleBridge';
-import { ScalePreflight } from './ScalePreflight';
-import { SystemTopologyPanel } from './SystemTopologyPanel';
-import { SignalTopologyStudio } from './SignalTopologyStudio';
-import { DiagnosticsPanel } from './DiagnosticsPanel';
-import { PeerNodeStudio } from './PeerNodeStudio';
-import { VisualControlPanel } from './VisualControlPanel';
 import { LiveCueCoordinatorProvider } from './LiveCueCoordinator';
 import { detectSameOriginLiveNode } from './liveNodeClient';
 import { markLiveMetric } from './telemetry';
@@ -28,20 +21,56 @@ import { useLiveNode } from './useLiveNode';
 import { useLiveFocus } from './useLiveFocus';
 import { useOperatorViewport } from './useOperatorViewport';
 import { useLiveSyncSummary } from './useLiveSync';
-import { SyncStatusPanel } from './SyncStatusPanel';
-import { RequestSurface } from './RequestSurface';
-import { LiveRequestInbox } from './LiveRequestInbox';
 import { LiveSessionPulse } from './LiveSessionPulse';
 import { TeamChatPanel } from './TeamChatPanel';
-import { SceneStudio } from './SceneStudio';
 import { LiveSceneBar } from './LiveSceneBar';
 import { PlaylistSyncAutomation } from './PlaylistSyncAutomation';
-import { LiveDropPanel } from './LiveDropPanel';
-import { UniversalMediaLibrary } from './UniversalMediaLibrary';
 import { LiveContextSwitcher } from './LiveContextSwitcher';
 import { buildServicePlan, type PreparedSongLink } from './servicePlanBuilder';
-import { StudioGuidedHome } from './StudioGuidedHome';
 import { resolveStudioFlow } from './studioFlow';
+
+const LiveControlPanel = lazy(() =>
+  import('./LiveControlPanel').then(module => ({ default: module.LiveControlPanel }))
+);
+const ScalePreflight = lazy(() =>
+  import('./ScalePreflight').then(module => ({ default: module.ScalePreflight }))
+);
+const SystemTopologyPanel = lazy(() =>
+  import('./SystemTopologyPanel').then(module => ({ default: module.SystemTopologyPanel }))
+);
+const SignalTopologyStudio = lazy(() =>
+  import('./SignalTopologyStudio').then(module => ({ default: module.SignalTopologyStudio }))
+);
+const DiagnosticsPanel = lazy(() =>
+  import('./DiagnosticsPanel').then(module => ({ default: module.DiagnosticsPanel }))
+);
+const PeerNodeStudio = lazy(() =>
+  import('./PeerNodeStudio').then(module => ({ default: module.PeerNodeStudio }))
+);
+const VisualControlPanel = lazy(() =>
+  import('./VisualControlPanel').then(module => ({ default: module.VisualControlPanel }))
+);
+const SyncStatusPanel = lazy(() =>
+  import('./SyncStatusPanel').then(module => ({ default: module.SyncStatusPanel }))
+);
+const RequestSurface = lazy(() =>
+  import('./RequestSurface').then(module => ({ default: module.RequestSurface }))
+);
+const LiveRequestInbox = lazy(() =>
+  import('./LiveRequestInbox').then(module => ({ default: module.LiveRequestInbox }))
+);
+const SceneStudio = lazy(() =>
+  import('./SceneStudio').then(module => ({ default: module.SceneStudio }))
+);
+const LiveDropPanel = lazy(() =>
+  import('./LiveDropPanel').then(module => ({ default: module.LiveDropPanel }))
+);
+const UniversalMediaLibrary = lazy(() =>
+  import('./UniversalMediaLibrary').then(module => ({ default: module.UniversalMediaLibrary }))
+);
+const StudioGuidedHome = lazy(() =>
+  import('./StudioGuidedHome').then(module => ({ default: module.StudioGuidedHome }))
+);
 
 type Surface = 'live' | 'studio' | 'pastor' | 'conductor';
 type LiveSessionMode = 'service' | 'free';
@@ -439,6 +468,11 @@ export function App() {
       </nav>
 
       <main id="main-workspace" className="workspace" tabIndex={-1}>
+        <Suspense fallback={
+          <section className="surface-loading" role="status" aria-live="polite">
+            {t('loading')}
+          </section>
+        }>
         {context && (
           <LiveContextSwitcher
             context={context}
@@ -834,6 +868,7 @@ export function App() {
             </nav>
           </article>
         </section>}
+        </Suspense>
       </main>
     </div>
   );
