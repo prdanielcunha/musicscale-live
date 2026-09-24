@@ -601,7 +601,7 @@ export interface EntitySyncState {
 
 export interface CloudVersionEnvelope<TPayload = Record<string, unknown>> {
   data: TPayload;
-  sync: {
+  _sync: {
     version: string;
     mutationId: EntityId;
     actorId: EntityId;
