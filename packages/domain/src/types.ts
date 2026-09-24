@@ -133,6 +133,13 @@ export interface LiveSessionEventSummary {
   plannedServiceItems: number;
   adHocActions: number;
   byType: Record<string, number>;
+  providerCommandResults: number;
+  providerCommandAccepted: number;
+  providerCommandRejected: number;
+  providerLatencySamples: number;
+  providerLatencyP50Ms?: number;
+  providerLatencyP95Ms?: number;
+  providerLatencyMaxMs?: number;
   startedAt?: string;
   lastEventAt?: string;
 }
