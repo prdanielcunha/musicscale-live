@@ -72,6 +72,10 @@ const StudioGuidedHome = lazy(() =>
   import('./StudioGuidedHome').then(module => ({ default: module.StudioGuidedHome }))
 );
 
+const SmartRehearsalPanel = lazy(() =>
+  import('./SmartRehearsalPanel').then(module => ({ default: module.SmartRehearsalPanel }))
+);
+
 type Surface = 'live' | 'studio' | 'pastor' | 'conductor';
 type LiveSessionMode = 'service' | 'free';
 type StudioSection =
@@ -775,6 +779,10 @@ export function App() {
               setSurface('live');
             }}
           />
+        )}
+
+        {surface === 'studio' && studioSection === 'prepare' && liveNode.state === 'connected' && nodeScopeMatchesScale && liveFeatureFlags.smartRehearsal && (
+          <SmartRehearsalPanel controller={liveNode} />
         )}
 
         {surface === 'studio' && studioSection === 'scenes' && liveNode.state === 'connected' && (

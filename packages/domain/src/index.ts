@@ -6,3 +6,5 @@ export * from './errors';
 export * from './transport';
 export * from './songMatching';
 export * from './routing';
+
+export * from './rehearsal';
