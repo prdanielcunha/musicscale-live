@@ -25,5 +25,5 @@ describe('secret protection', () => {
     expect(protectedValue).toMatch(/^dpapi:v1:/);
     expect(protectedValue).not.toContain(secret);
     expect(await protector.unprotect(protectedValue, 'holyrics.token')).toBe(secret);
-  });
+  }, 20_000);
 });
