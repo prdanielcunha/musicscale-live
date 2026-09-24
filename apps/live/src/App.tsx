@@ -76,6 +76,10 @@ const SmartRehearsalPanel = lazy(() =>
   import('./SmartRehearsalPanel').then(module => ({ default: module.SmartRehearsalPanel }))
 );
 
+const ServiceReviewPanel = lazy(() =>
+  import('./ServiceReviewPanel').then(module => ({ default: module.ServiceReviewPanel }))
+);
+
 type Surface = 'live' | 'studio' | 'pastor' | 'conductor';
 type LiveSessionMode = 'service' | 'free';
 type StudioSection =
@@ -734,6 +738,13 @@ export function App() {
           <LiveNodeSetup
             controller={liveNode}
             organizationId={effectiveOrganizationId || context.organizationId}
+          />
+        )}
+
+        {surface === 'studio' && studioSection === 'overview' && liveNode.state === 'connected' && nodeScopeMatchesScale && liveFeatureFlags.serviceReview && (
+          <ServiceReviewPanel
+            controller={liveNode}
+            liveSessionId={liveSessionId}
           />
         )}
 
