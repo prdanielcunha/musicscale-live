@@ -14,7 +14,7 @@ A experiência normal é simples: **instalar no computador de produção, abrir 
    - instala o Live Node e a interface local;
    - configura inicialização automática;
    - libera apenas TCP 4317 e UDP 4318 no perfil de rede **Privada**;
-   - remove regras antigas do MillionsNest Live Node;
+   - remove regras antigas da instalação anterior do Live Node;
    - inicia o Node;
    - abre `http://127.0.0.1:4317/node`.
 4. No tablet/celular, use o QR exibido no computador.
