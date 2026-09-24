@@ -33,6 +33,68 @@ interface PreflightRow {
   error?: string;
 }
 
+function lyricsFingerprint(value?: string): string | undefined {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+  if (!normalized) return undefined;
+
+  let hash = 2166136261;
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash ^= normalized.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function matchHistoryKey(
+  providerId: string,
+  sourceId: string,
+  externalId: string
+): string {
+  return `musicscale-live:match:${providerId}:${sourceId}:${externalId}`;
+}
+
+function matchHistoryWeight(
+  providerId: string,
+  sourceId: string,
+  externalId: string
+): number {
+  try {
+    const raw = window.localStorage.getItem(
+      matchHistoryKey(providerId, sourceId, externalId)
+    );
+    if (!raw) return 0;
+    const parsed = JSON.parse(raw) as { confirmations?: number };
+    return Math.max(0, Math.min(10, Number(parsed.confirmations || 0) * 2));
+  } catch {
+    return 0;
+  }
+}
+
+function rememberMatch(
+  providerId: string,
+  sourceId: string,
+  externalId: string
+): void {
+  try {
+    const key = matchHistoryKey(providerId, sourceId, externalId);
+    const raw = window.localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) as { confirmations?: number } : {};
+    window.localStorage.setItem(key, JSON.stringify({
+      confirmations: Math.min(5, Number(parsed.confirmations || 0) + 1),
+      lastConfirmedAt: new Date().toISOString()
+    }));
+  } catch {
+    // History is a ranking hint only; preparation remains functional without it.
+  }
+}
+
 function extractExternalSongs(
   results: Awaited<ReturnType<Controller['executeCommand']>>
 ): ExternalSong[] {
@@ -48,6 +110,10 @@ function extractExternalSongs(
         id: String(item.id || ''),
         title: String(item.title || ''),
         artist: item.artist ? String(item.artist) : undefined,
+        version: item.version ? String(item.version) : undefined,
+        lyricsFingerprint: lyricsFingerprint(
+          typeof item.lyrics === 'string' ? item.lyrics : undefined
+        ),
         key: item.key ? String(item.key) : undefined,
         bpm: typeof item.bpm === 'number' ? item.bpm : undefined
       };
@@ -69,7 +135,7 @@ async function resolveSong(
         text: source.title,
         title: true,
         artist: true,
-        fields: 'id,title,artist,key,bpm'
+        fields: 'id,title,artist,version,lyrics,key,bpm'
       },
       liveSessionId: `preflight:${scaleId}`,
       actorId,
@@ -77,9 +143,18 @@ async function resolveSong(
     });
 
     const externalSongs = extractExternalSongs(results);
+    const rankedSongs = externalSongs.map(song => ({
+      ...song,
+      historyWeight: matchHistoryWeight(providerId, source.id, song.id)
+    }));
     const decision = matchExternalSong(
-      { title: source.title, artist: source.artist },
-      externalSongs
+      {
+        title: source.title,
+        artist: source.artist,
+        version: source.version,
+        lyricsFingerprint: lyricsFingerprint(source.lyrics)
+      },
+      rankedSongs
     );
 
     if (decision.status === 'matched') {
@@ -337,9 +412,11 @@ export function ScalePreflight({
       const next = current.map(row => {
         if (row.source.id !== sourceId) return row;
         const matched = row.candidates.find(candidate => candidate.id === externalId);
-        return matched
-          ? { ...row, status: 'matched' as const, matched }
-          : { ...row, status: 'ambiguous' as const, matched: undefined };
+        if (matched) {
+          if (provider) rememberMatch(provider.providerId, sourceId, matched.id);
+          return { ...row, status: 'matched' as const, matched };
+        }
+        return { ...row, status: 'ambiguous' as const, matched: undefined };
       });
       rowsRef.current = next;
       return next;
@@ -634,8 +711,19 @@ export function ScalePreflight({
               {row.status === 'checking' && t('preflight.checking')}
               {row.status === 'creating' && t('preflight.creating')}
               {row.status === 'matched' && row.matched && (
-                <span title={row.matched.id}>
+                <span title={[
+                  row.matched.id,
+                  typeof row.matched.score === 'number'
+                    ? `${row.matched.score}%`
+                    : '',
+                  Array.isArray(row.matched.reasons)
+                    ? row.matched.reasons.join(', ')
+                    : ''
+                ].filter(Boolean).join(' · ')}>
                   {t('preflight.matched')} · {row.matched.title}
+                  {typeof row.matched.score === 'number'
+                    ? ` · ${row.matched.score}%`
+                    : ''}
                 </span>
               )}
               {row.status === 'missing' && (
@@ -668,7 +756,7 @@ export function ScalePreflight({
                   <option value="">{t('preflight.choose')}</option>
                   {row.candidates.map(candidate => (
                     <option value={candidate.id} key={candidate.id}>
-                      {candidate.title}{candidate.artist ? ` — ${candidate.artist}` : ''}
+                      {candidate.title}{candidate.artist ? ` — ${candidate.artist}` : ''}{typeof candidate.score === 'number' ? ` · ${candidate.score}%` : ''}
                     </option>
                   ))}
                 </select>
