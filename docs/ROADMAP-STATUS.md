@@ -72,6 +72,10 @@ Foundation: capability/routing model already carries audio/output abstractions a
 
 Open: OS device enumeration; human aliases; Audio Profiles; safety lock; output diagnostics; media/control path latency.
 
+## 2026-09-24 roadmap sync foundation
+
+The newer 2026-09-23 roadmap's Cloud/Realtime phase now has a central durable browser Outbox, optimistic version metadata, conflict/retry states, Firestore transaction transport, realtime listeners for collaborative entities, presence contract, append-only change history and a dedicated RBAC emulator gate. Cloud writes remain disabled by default until the Phase 0 reliability/security gates and production Rules rollout are approved.
+
 ## Phase 9 — Intelligence, Analytics & Platform
 **Status: not started as a production feature**
 
