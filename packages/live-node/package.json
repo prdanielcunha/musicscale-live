@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --config vitest.config.ts",
     "package:sea": "npm run build && node scripts/build-sea.mjs",
-    "test:reliability": "vitest run --config vitest.config.ts test/idempotencyStore.test.ts test/runtimeStateStore.test.ts test/pairingStore.test.ts"
+    "test:reliability": "vitest run --config vitest.config.ts test/idempotencyStore.test.ts test/runtimeStateStore.test.ts test/liveEventLogStore.test.ts test/pairingStore.test.ts"
   },
   "dependencies": {
     "@millionsnest/live-domain": "0.0.1",
