@@ -61,7 +61,7 @@ The critical path must work without cloud, AI, or Internet after the service is 
 | Search/music/Bible/playlist/black/create/reconnect/restart | Implemented substantially | Run full matrix on real providers |
 | Internet-cut continuity | Local Recovery + cached plan exist | Physical WAN-cut proof open |
 | Windows+iPad / Windows+Android / two-PC matrix | Packaging exists | Physical execution open |
-| Latency/error measurement | Command results/events carry latency/error | Add gate report + collect physical p95 |
+| Latency/error measurement | Command results/events carry latency/error; local certification JSON report implemented | Collect physical command→observed p95 and attach report |
 | CI before merge | CI exists | Keep Phase 0 reliability gate mandatory |
 | main/production protection | CI exists; repository policy is not enforced in code | Enable repository ruleset/branch protection |
 | Signed installer/update | Alpha installer exists | Certificates/notarization/update signing open |
@@ -69,6 +69,8 @@ The critical path must work without cloud, AI, or Internet after the service is 
 | No duplicate command after reconnect/restart | **Persistent idempotency implemented in this branch** | CI + physical restart proof |
 
 ## Acceptance evidence
+
+A secret-free local certification report can now be exported from the Live Node console to capture software-measurable evidence without pretending to certify hardware-only conditions.
 
 Phase 0 is not closed until all are recorded:
 
@@ -247,10 +249,9 @@ Gate: new adapters require no vendor conditionals in core domain; failover keeps
 
 ## Current next actions
 
-1. Finish persistent idempotency wiring and pass CI.
-2. Add Phase 0 reliability report generation from command/event data.
-3. Build SecretStore abstraction and platform spike for Windows/macOS.
-4. Prepare signing/notarization workflow inputs without committing secrets.
-5. Enforce repository branch/ruleset protection.
-6. Execute the physical E2E matrix using the existing certification runbook.
-7. Close Phase 0 only with measured evidence, then start the Sync Engine/Outbox work.
+1. Execute the physical E2E matrix using the existing certification runbook and attach the new local certification JSON.
+2. Collect the true command → observed-state p95 on the certified topology.
+3. Validate signed installers/notarization on target Windows/macOS machines with production certificates.
+4. Enforce repository branch/ruleset protection at repository-admin level.
+5. Run three complete simulated services and one accompanied real service with recorded evidence.
+6. Keep cloud writes and later-phase flags off in general production until the active gates are certified.
