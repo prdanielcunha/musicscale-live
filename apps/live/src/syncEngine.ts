@@ -461,6 +461,35 @@ export class SyncEngine {
     }
   }
 
+  async retry(
+    entityKind: SyncEntityKind,
+    entityId: string
+  ): Promise<void> {
+    await this.initialize();
+    const mutation = (await this.options.store.listMutations()).find(item =>
+      item.entityKind === entityKind && item.entityId === entityId
+    );
+    if (!mutation) return;
+
+    const reset: SyncMutation = {
+      ...mutation,
+      attempt: 0,
+      nextAttemptAt: undefined
+    };
+    await this.options.store.putMutation(reset);
+    await this.setState(
+      reset,
+      !this.options.enabled()
+        ? 'local'
+        : this.online()
+          ? 'pending'
+          : 'offline'
+    );
+    if (this.options.enabled() && this.online()) {
+      await this.flush();
+    }
+  }
+
   async resolveConflict(
     entityKind: SyncEntityKind,
     entityId: string,
