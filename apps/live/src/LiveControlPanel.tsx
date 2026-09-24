@@ -8,9 +8,18 @@ import type {
 } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
 import { useLiveCueCoordinator } from './LiveCueCoordinator';
-import { useLiveOperatorShortcuts } from './useLiveOperatorShortcuts';
+import {
+  loadLiveShortcutBindings,
+  saveLiveShortcutBindings,
+  useLiveOperatorShortcuts,
+  type LiveShortcutBindings
+} from './useLiveOperatorShortcuts';
 import { createClientId } from './clientId';
 import { BibleWorkspace } from './BibleWorkspace';
+import {
+  UniversalSearchIndex,
+  type UniversalSearchHit
+} from './universalSearchIndex';
 
 type Controller = ReturnType<typeof useLiveNode>;
 type ToolMode = 'song' | 'bible' | 'media' | 'text' | 'stage';
@@ -329,8 +338,13 @@ export function LiveControlPanel({
   const [universalQuery, setUniversalQuery] = useState('');
   const universalInputRef = useRef<HTMLInputElement | null>(null);
   const [universalScope, setUniversalScope] = useState<'auto' | 'song' | 'bible' | 'media' | 'text'>('auto');
+  const [localSearchHits, setLocalSearchHits] = useState<UniversalSearchHit[]>([]);
+  const [preparedSearchHit, setPreparedSearchHit] = useState<UniversalSearchHit | null>(null);
   const [bibleCommand, setBibleCommand] = useState<{ text: string; nonce: number } | null>(null);
   const [followLive, setFollowLive] = useState(true);
+  const [shortcutBindings, setShortcutBindings] = useState<LiveShortcutBindings>(
+    () => loadLiveShortcutBindings()
+  );
   const [mediaKind, setMediaKind] = useState<'video' | 'image' | 'audio'>('video');
   const [mediaQuery, setMediaQuery] = useState('');
   const [mediaResults, setMediaResults] = useState<SearchMediaResult[]>([]);
@@ -356,6 +370,7 @@ export function LiveControlPanel({
   const sectionRailRef = useRef<HTMLDivElement | null>(null);
   const previousFrameSignature = useRef('');
   const tapTarget = useRef<{ key: string; at: number } | null>(null);
+  const criticalActionAt = useRef<{ key: string; at: number } | null>(null);
 
   const providers = controller.nodeState?.providers || [];
   const servicePlan = servicePlanEnabled
@@ -365,6 +380,17 @@ export function LiveControlPanel({
     ? controller.nodeState?.state.providerLinks || []
     : [];
   const activeServiceItemId = controller.nodeState?.state.activeServiceItemId || null;
+  const universalIndex = useMemo(() => {
+    const binding = controller.credential?.binding;
+    const scope = binding
+      ? `${binding.organizationId}:${binding.venueId}:${binding.liveSystemId}`
+      : 'unpaired';
+    return new UniversalSearchIndex(`musicscale-live:universal-search:${scope}`);
+  }, [
+    controller.credential?.binding.organizationId,
+    controller.credential?.binding.venueId,
+    controller.credential?.binding.liveSystemId
+  ]);
   const capabilitySet = useMemo(
     () => new Set(
       providers
@@ -1151,15 +1177,33 @@ export function LiveControlPanel({
     };
   }
 
+  function haptic(pattern: number | number[] = 8) {
+    try {
+      if ('vibrate' in navigator) navigator.vibrate(pattern);
+    } catch {
+      // Haptics are progressive enhancement only.
+    }
+  }
+
+  function allowCriticalAction(key: string, windowMs = 450): boolean {
+    const now = performance.now();
+    const previous = criticalActionAt.current;
+    if (previous?.key === key && now - previous.at < windowMs) return false;
+    criticalActionAt.current = { key, at: now };
+    return true;
+  }
+
   function activateTarget(key: string, prepare: () => void, execute: () => void) {
     const now = performance.now();
     const previous = tapTarget.current;
     if (previous?.key === key && now - previous.at <= 380) {
       tapTarget.current = null;
+      haptic(18);
       execute();
       return;
     }
     tapTarget.current = { key, at: now };
+    haptic(7);
     prepare();
   }
 
@@ -1202,6 +1246,8 @@ export function LiveControlPanel({
   async function takePreparedCue(cueOverride?: PreparedProgramCue) {
     const cue = cueOverride || preparedCue;
     if (!cue) return;
+    if (!allowCriticalAction(`take:${cue.id}`)) return;
+    haptic(18);
 
     const armedVisual = cueCoordinator?.armedVisualCue || null;
     const credential = controller.credential;
@@ -1336,6 +1382,10 @@ export function LiveControlPanel({
   }
 
   async function takePrimaryNext() {
+    if (preparedSearchHit) {
+      await takePreparedSearchHit();
+      return;
+    }
     if (preparedCue) {
       await takePreparedCue();
       return;
@@ -1347,9 +1397,94 @@ export function LiveControlPanel({
     await navigatePresentation('next');
   }
 
+  useEffect(() => {
+    universalIndex.seedPrepared(
+      servicePlan,
+      providerLinks,
+      controller.nodeState?.state.scenes || [],
+      controller.nodeState?.liveDrop || []
+    );
+  }, [
+    controller.nodeState?.liveDrop,
+    controller.nodeState?.state.scenes,
+    providerLinks,
+    servicePlan,
+    universalIndex
+  ]);
+
+  useEffect(() => {
+    const query = universalQuery.trim();
+    if (!query) {
+      setLocalSearchHits([]);
+      return;
+    }
+    const kinds =
+      universalScope === 'auto'
+        ? undefined
+        : [universalScope] as Array<'song' | 'bible' | 'media' | 'text'>;
+    setLocalSearchHits(universalIndex.search(query, kinds, 8));
+  }, [universalIndex, universalQuery, universalScope]);
+
+  function prepareLocalSearchHit(hit: UniversalSearchHit) {
+    setPreparedSearchHit(hit);
+    haptic(7);
+    universalIndex.remember(hit);
+  }
+
+  async function takePreparedSearchHit() {
+    const hit = preparedSearchHit;
+    if (!hit || !allowCriticalAction(`search-take:${hit.id}`)) return;
+    haptic(18);
+    setBusy('universal-local-take');
+    setMessage(null);
+    try {
+      if (hit.kind === 'scene') {
+        const sceneId = String(hit.payload?.sceneId || hit.id.replace(/^scene:/, ''));
+        const scene = controller.nodeState?.state.scenes.find(item => item.id === sceneId);
+        if (!scene) throw new Error('scene_not_cached');
+        await controller.executeScene({
+          liveSessionId,
+          actorId,
+          scene,
+          confirmed: true
+        });
+      } else if (hit.source === 'live-drop') {
+        const assetId = String(hit.payload?.assetId || hit.id.replace(/^live-drop:/, ''));
+        await controller.openLiveDrop(assetId, { actorId, liveSessionId });
+      } else {
+        if (!hit.capability || !hit.payload) throw new Error('search_result_not_preparable');
+        const results = await controller.executeCommand({
+          capability: hit.capability,
+          payload: hit.payload,
+          liveSessionId,
+          actorId,
+          serviceItemId: hit.serviceItemId,
+          targetProviderIds: hit.targetProviderIds,
+          safetyLevel: hit.capability === 'presentation.clear' ? 'guarded' : 'normal',
+          confirmed: true
+        });
+        const failure = results.find(result => !result.accepted);
+        if (failure) throw new Error(failure.errorCode || 'provider_error');
+      }
+      setPreparedSearchHit(null);
+      setFollowLive(true);
+      await controller.refreshState();
+    } catch (error) {
+      setMessage(commandFailure(error instanceof Error ? error.message : 'unknown'));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function runUniversalSearch() {
     const raw = universalQuery.trim();
     if (!raw || busy !== null) return;
+
+    const localTop = localSearchHits[0];
+    if (localTop && localTop.score >= 70) {
+      prepareLocalSearchHit(localTop);
+      return;
+    }
 
     const prefix = raw.match(/^(b(?:íblia|iblia)?|bible|song|música|musica|media|mídia|midia|text|texto|aviso|announcement)\s*:\s*(.+)$/i);
     const requested = prefix?.[1]?.toLocaleLowerCase();
@@ -1524,14 +1659,31 @@ export function LiveControlPanel({
   }
 
   useLiveOperatorShortcuts({
-    enabled: can('presentation.navigation') && busy === null && !clearArmed,
+    enabled: busy === null && !clearArmed,
+    bindings: shortcutBindings,
     onPrevious: () => {
-      void navigatePresentation('previous');
+      if (can('presentation.navigation')) void navigatePresentation('previous');
     },
     onNext: () => {
-      void navigatePresentation('next');
+      if (can('presentation.navigation')) void navigatePresentation('next');
+    },
+    onTake: () => {
+      void takePrimaryNext();
     }
   });
+
+  function updateShortcut(
+    key: keyof LiveShortcutBindings,
+    value: string
+  ) {
+    const next = { ...shortcutBindings, [key]: value };
+    // Do not allow one key to invoke more than one live action.
+    for (const candidate of Object.keys(next) as Array<keyof LiveShortcutBindings>) {
+      if (candidate !== key && value && next[candidate] === value) next[candidate] = '';
+    }
+    setShortcutBindings(next);
+    saveLiveShortcutBindings(next);
+  }
 
   useEffect(() => {
     const handleUniversalShortcut = (event: KeyboardEvent) => {
@@ -1650,7 +1802,76 @@ export function LiveControlPanel({
             </button>
           ))}
         </div>
+        <details className="live-shortcut-settings">
+          <summary>{t('liveControls.shortcutSettings')}</summary>
+          <div className="live-shortcut-grid">
+            {([
+              ['previous', t('liveControls.shortcutPrevious')],
+              ['next', t('liveControls.shortcutNext')],
+              ['take', 'TAKE']
+            ] as Array<[keyof LiveShortcutBindings, string]>).map(([key, label]) => (
+              <label key={key}>
+                <span>{label}</span>
+                <select
+                  value={shortcutBindings[key]}
+                  onChange={event => updateShortcut(key, event.target.value)}
+                >
+                  <option value="">{t('liveControls.shortcutNone')}</option>
+                  <option value="ArrowLeft">←</option>
+                  <option value="ArrowRight">→</option>
+                  <option value="PageUp">Page Up</option>
+                  <option value="PageDown">Page Down</option>
+                  <option value="[">[</option>
+                  <option value="]">]</option>
+                </select>
+              </label>
+            ))}
+          </div>
+          <small>{t('liveControls.shortcutHint')}</small>
+        </details>
       </div>
+
+      {localSearchHits.length > 0 && (
+        <div className="universal-local-results" aria-label={t('liveControls.localResults')}>
+          <div className="universal-local-results-head">
+            <strong>{t('liveControls.localResults')}</strong>
+            <span>{t('liveControls.localResultsHint')}</span>
+          </div>
+          {localSearchHits.map(hit => (
+            <button
+              key={hit.id}
+              type="button"
+              className={preparedSearchHit?.id === hit.id ? 'prepared' : ''}
+              onClick={() => prepareLocalSearchHit(hit)}
+            >
+              <span>
+                <strong>{hit.title}</strong>
+                <small>{hit.subtitle || t(`liveControls.localKinds.${hit.kind}`)}</small>
+              </span>
+              <em>{preparedSearchHit?.id === hit.id
+                ? t('liveControls.prepared')
+                : t('liveControls.prepare')}</em>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {preparedSearchHit && (
+        <div className="universal-prepared-next">
+          <div>
+            <small>{t('liveControls.nextPrepared')}</small>
+            <strong>{preparedSearchHit.title}</strong>
+          </div>
+          <button
+            type="button"
+            className="primary"
+            disabled={busy !== null}
+            onClick={() => void takePreparedSearchHit()}
+          >
+            TAKE
+          </button>
+        </div>
+      )}
 
       {presentationRouteMissing && (
         <div className="live-route-warning" role="status">
