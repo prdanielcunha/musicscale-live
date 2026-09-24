@@ -21,6 +21,7 @@ import type {
   SyncEntityKind,
   SyncMutation
 } from '@millionsnest/live-domain';
+import { transitionLiveRequest } from '@millionsnest/live-domain';
 import { db } from './firebase';
 import { LIVE_COLLECTIONS } from './liveCollections';
 import {
@@ -282,22 +283,20 @@ export async function createCloudLiveRequest(request: LiveRequest): Promise<void
 
 export async function resolveCloudLiveRequest(input: {
   request: LiveRequest;
-  status: 'accepted' | 'rejected' | 'completed';
+  status: LiveRequest['status'];
   actorId: string;
 }): Promise<void> {
-  const now = new Date().toISOString();
+  const transitioned = transitionLiveRequest(
+    input.request,
+    input.status,
+    input.actorId
+  );
   await queueLiveSync({
-    organizationId: input.request.organizationId,
-    venueId: input.request.venueId,
+    organizationId: transitioned.organizationId,
+    venueId: transitioned.venueId,
     entityKind: 'request',
-    entityId: input.request.id,
-    payload: {
-      ...input.request,
-      status: input.status,
-      updatedAt: now,
-      resolvedAt: input.status === 'accepted' ? null : now,
-      resolvedBy: input.actorId
-    },
+    entityId: transitioned.id,
+    payload: { ...transitioned },
     origin: 'live-ui',
     actorId: input.actorId,
     conflictPolicy: 'manual'
