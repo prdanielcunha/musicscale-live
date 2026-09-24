@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const cssPath = new URL('../apps/live/src/styles.css', import.meta.url);
 const css = await readFile(cssPath, 'utf8');
@@ -36,8 +37,8 @@ async function walk(dir) {
   return files;
 }
 
-const srcRoot = new URL('../apps/live/src/', import.meta.url);
-const sourceFiles = await walk(srcRoot.pathname);
+const srcRoot = fileURLToPath(new URL('../apps/live/src/', import.meta.url));
+const sourceFiles = await walk(srcRoot);
 const tinyInline = [];
 
 for (const file of sourceFiles) {

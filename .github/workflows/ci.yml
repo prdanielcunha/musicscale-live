@@ -60,6 +60,9 @@ jobs:
       - name: UI accessibility contract
         run: npm run check:ui
 
+      - name: Release/install contract
+        run: npm run check:release
+
       - name: Typecheck
         run: npm run typecheck
 
