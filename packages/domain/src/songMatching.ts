@@ -85,7 +85,10 @@ function candidateFor(
     score += Math.round(58 * titleSimilarity);
     reasons.push('title_close');
   } else if (titleSimilarity >= 0.65) {
-    score += Math.round(48 * titleSimilarity);
+    // A close-but-incomplete title should remain visible for human review.
+    // Keep the score below auto-match territory while allowing corroborating
+    // artist evidence to lift the candidate above the review threshold.
+    score += Math.round(54 * titleSimilarity);
     reasons.push('title_partial');
   }
 
