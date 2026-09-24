@@ -16,6 +16,7 @@ import {
   type LiveDropAsset,
   type LiveRequest,
   type LiveRequestStatus,
+  type LiveCollaborationRole,
   type PairingRequest,
   type ProviderAssetRequest,
   type ProviderLink,
@@ -27,6 +28,7 @@ import {
 } from '@millionsnest/live-domain';
 import { IdempotencyStore } from './idempotencyStore';
 import { PairingStore } from './pairingStore';
+import { CollaborationInviteStore } from './collaborationInviteStore';
 import { RuntimeStateStore } from './runtimeStateStore';
 import { ProviderConfigStore } from './providerConfigStore';
 import { createPlatformSecretProtector } from './secretProtector';
@@ -147,6 +149,10 @@ const sceneIdempotency = new IdempotencyStore<SceneExecutionResult>(
   join(STATE_DIR, 'idempotency-scenes.json')
 );
 const pairingStore = new PairingStore(join(STATE_DIR, 'pairings.json'), nodeId);
+const collaborationInviteStore = new CollaborationInviteStore(
+  join(STATE_DIR, 'collaboration.json'),
+  nodeId
+);
 const runtimeState = new RuntimeStateStore(join(STATE_DIR, 'runtime.json'), nodeId);
 const secretProtector = createPlatformSecretProtector();
 const providerConfigStore = new ProviderConfigStore(
@@ -931,10 +937,50 @@ function assertLiveRequestScope(
 async function authorize(req: IncomingMessage) {
   const token = bearerToken(req);
   if (DEV_TOKEN && token === DEV_TOKEN) {
-    return { dev: true as const, token, binding: null };
+    return { dev: true as const, token, binding: null, collaboration: null };
   }
   const binding = await pairingStore.authorize(token);
-  return binding ? { dev: false as const, token, binding } : null;
+  if (binding) {
+    return { dev: false as const, token, binding, collaboration: null };
+  }
+  const collaboration = await collaborationInviteStore.authorize(token);
+  return collaboration
+    ? {
+        dev: false as const,
+        token,
+        binding: collaboration.binding,
+        collaboration: collaboration.grant
+      }
+    : null;
+}
+
+function collaborationRouteAllowed(
+  method: string | undefined,
+  pathname: string
+): boolean {
+  if (method === 'GET' && ['/health', '/state', '/capabilities', '/chat', '/requests'].includes(pathname)) {
+    return true;
+  }
+  if (method === 'POST' && ['/chat', '/requests', '/commands'].includes(pathname)) {
+    return true;
+  }
+  return Boolean(
+    method === 'POST' &&
+    pathname.startsWith('/requests/') &&
+    pathname.endsWith('/status')
+  );
+}
+
+function collaborationCanRequest(
+  grant: NonNullable<Awaited<ReturnType<typeof authorize>>>['collaboration'],
+  request: LiveRequest
+): boolean {
+  if (!grant) return true;
+  if (request.liveSessionId !== grant.liveSessionId || request.actorId !== grant.actorId) {
+    return false;
+  }
+  const permission = `request.${request.kind}`;
+  return grant.permissions.includes(permission as (typeof grant.permissions)[number]);
 }
 
 function liveDropScopeFromSession(
@@ -1543,6 +1589,7 @@ async function start(): Promise<void> {
   await idempotency.load();
   await sceneIdempotency.load();
   await pairingStore.load();
+  await collaborationInviteStore.load();
   await runtimeState.load();
   await providerConfigStore.load();
   await providerRoutingStore.load();
