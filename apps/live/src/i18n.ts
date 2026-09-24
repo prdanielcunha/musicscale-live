@@ -182,6 +182,36 @@ const resources = {
         info: 'Pronto'
       }
     },
+    serviceReview: {
+      kicker: 'REVISÃO DO CULTO',
+      title: 'O que realmente aconteceu',
+      description: 'Compara o plano com os eventos registrados pelo Live Node. Mostra fatos observados, sem inventar o que não foi registrado.',
+      refresh: 'Atualizar revisão',
+      refreshing: 'Atualizando…',
+      loading: 'Lendo os eventos locais do culto…',
+      errorTitle: 'Não foi possível ler a revisão',
+      executed: 'Planejados executados',
+      skipped: 'Marcados como pulados',
+      adHoc: 'Ações fora do plano',
+      failures: 'Erros registrados',
+      requests: 'Pedidos recebidos',
+      p95: 'Latência provider p95',
+      planComparisonKicker: 'PLANO × REAL',
+      planComparison: 'Itens planejados',
+      notObservedNeutral: '“Não observado” não significa “pulado”',
+      attentionKicker: 'ATENÇÃO',
+      attention: 'Desvios e fatos relevantes',
+      noAttention: 'Nenhum desvio registrado',
+      noAttentionHint: 'Não há erro nem ação fora do plano nos eventos carregados.',
+      failure: 'Falha',
+      adHocAction: 'Fora do plano',
+      factsOnly: 'Esta revisão usa apenas eventos factuais do Live Node. Ela não infere intenção, causa ou responsabilidade.',
+      itemStatus: {
+        executed: 'Executado',
+        skipped: 'Pulado',
+        'not-observed': 'Não observado'
+      }
+    },
     readOnlyBridge: 'Bridge MusicScale em modo leitura',
     loading: 'Carregando contexto...',
     accessibility: {
@@ -1437,6 +1467,36 @@ const resources = {
         info: 'Ready'
       }
     },
+    serviceReview: {
+      kicker: 'SERVICE REVIEW',
+      title: 'What actually happened',
+      description: 'Compares the plan with events recorded by the Live Node. It shows observed facts without inventing what was not recorded.',
+      refresh: 'Refresh review',
+      refreshing: 'Refreshing…',
+      loading: 'Reading local service events…',
+      errorTitle: 'The review could not be loaded',
+      executed: 'Planned executed',
+      skipped: 'Marked skipped',
+      adHoc: 'Off-plan actions',
+      failures: 'Recorded errors',
+      requests: 'Requests received',
+      p95: 'Provider latency p95',
+      planComparisonKicker: 'PLAN × ACTUAL',
+      planComparison: 'Planned items',
+      notObservedNeutral: '“Not observed” does not mean “skipped”',
+      attentionKicker: 'ATTENTION',
+      attention: 'Deviations and relevant facts',
+      noAttention: 'No deviation recorded',
+      noAttentionHint: 'There is no error or off-plan action in the loaded events.',
+      failure: 'Failure',
+      adHocAction: 'Off plan',
+      factsOnly: 'This review uses factual Live Node events only. It does not infer intent, cause or responsibility.',
+      itemStatus: {
+        executed: 'Executed',
+        skipped: 'Skipped',
+        'not-observed': 'Not observed'
+      }
+    },
     loading: 'Loading context...',
     accessibility: {
       skipToContent: 'Skip to content',
@@ -2682,6 +2742,36 @@ const resources = {
         blocker: 'Bloqueo',
         warning: 'Aviso',
         info: 'Listo'
+      }
+    },
+    serviceReview: {
+      kicker: 'REVISIÓN DEL CULTO',
+      title: 'Lo que realmente ocurrió',
+      description: 'Compara el plan con los eventos registrados por el Live Node. Muestra hechos observados sin inventar lo que no fue registrado.',
+      refresh: 'Actualizar revisión',
+      refreshing: 'Actualizando…',
+      loading: 'Leyendo los eventos locales del culto…',
+      errorTitle: 'No se pudo cargar la revisión',
+      executed: 'Planificados ejecutados',
+      skipped: 'Marcados como omitidos',
+      adHoc: 'Acciones fuera del plan',
+      failures: 'Errores registrados',
+      requests: 'Solicitudes recibidas',
+      p95: 'Latencia provider p95',
+      planComparisonKicker: 'PLAN × REAL',
+      planComparison: 'Elementos planificados',
+      notObservedNeutral: '“No observado” no significa “omitido”',
+      attentionKicker: 'ATENCIÓN',
+      attention: 'Desvíos y hechos relevantes',
+      noAttention: 'No se registraron desvíos',
+      noAttentionHint: 'No hay errores ni acciones fuera del plan en los eventos cargados.',
+      failure: 'Fallo',
+      adHocAction: 'Fuera del plan',
+      factsOnly: 'Esta revisión usa únicamente eventos factuales del Live Node. No infiere intención, causa ni responsabilidad.',
+      itemStatus: {
+        executed: 'Ejecutado',
+        skipped: 'Omitido',
+        'not-observed': 'No observado'
       }
     },
     loading: 'Cargando contexto...',
