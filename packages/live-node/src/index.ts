@@ -39,6 +39,7 @@ import {
 } from './liveDropStore';
 import { stageAndOpenPeerLiveDrop } from './liveDropFederation';
 import { buildLiveNodeDiagnostics } from './diagnostics';
+import { buildCertificationReport } from './certificationReport';
 import { isTrustedLiveWebOrigin } from './networkPolicy';
 import { SceneExecutor } from './sceneExecutor';
 import { PeerDiscovery } from './peerDiscovery';
@@ -1275,7 +1276,8 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 <small>DIAGNÓSTICO LOCAL</small>
 <div class="row">
 <button class="btn secondary" onclick="downloadDiagnostics()">Baixar diagnóstico</button>
-<span class="muted" style="font-size:11px">O arquivo não inclui token do Holyrics nem credenciais de pareamento.</span>
+<button class="btn secondary" onclick="downloadCertificationReport()">Relatório de certificação</button>
+<span class="muted" style="font-size:11px">Os arquivos não incluem token do Holyrics nem credenciais de pareamento.</span>
 </div>
 </div>
 <details class="box advanced"><summary>Detalhes técnicos da rede</summary><div class="tech-list"><p>Use estes endereços somente para diagnóstico ou fallback manual.</p><ul>${addresses || '<li>Nenhum IPv4 LAN detectado</li>'}</ul></div></details>
@@ -1404,6 +1406,24 @@ async function refreshProvider(){
     el.textContent='Não foi possível ler a configuração.';
     document.getElementById('resolume-status').textContent='Não foi possível ler a configuração.';
     document.getElementById('propresenter-status').textContent='Não foi possível ler a configuração.';
+  }
+}
+async function downloadCertificationReport(){
+  try{
+    const r=await fetch('/local/certification-report',{cache:'no-store'});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error||'certification_report_failed');
+    const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='musicscale-live-certification-report.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }catch(error){
+    alert('Não foi possível gerar o relatório de certificação.');
   }
 }
 async function downloadDiagnostics(){
@@ -1547,6 +1567,63 @@ async function start(): Promise<void> {
           nearbyNodes: peerDiscovery.list().length
         }
       });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/local/certification-report') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+
+      const [runtime, pairedDevices, routing] = await Promise.all([
+        runtimeState.load(),
+        pairingStore.activePairingCount(),
+        providerRoutingStore.all()
+      ]);
+      const providers = capabilityEngine.quickSnapshot();
+      const requestedSessionId = String(
+        url.searchParams.get('liveSessionId') ||
+        runtime.activeLiveSessionId ||
+        ''
+      ).trim();
+
+      const eventSummary = runtime.servicePlan
+        ? await eventLogStore.summarize({
+            organizationId: runtime.servicePlan.organizationId,
+            venueId: runtime.servicePlan.venueId,
+            liveSystemId: runtime.servicePlan.liveSystemId,
+            ...(requestedSessionId ? { liveSessionId: requestedSessionId } : {})
+          })
+        : {
+            total: 0,
+            info: 0,
+            warnings: 0,
+            errors: 0,
+            plannedActions: 0,
+            plannedServiceItems: 0,
+            adHocActions: 0,
+            byType: {},
+            providerCommandResults: 0,
+            providerCommandAccepted: 0,
+            providerCommandRejected: 0,
+            providerLatencySamples: 0
+          };
+
+      return send(res, 200, buildCertificationReport({
+        nodeId,
+        version: VERSION,
+        hostname: hostname(),
+        platform: process.platform,
+        arch: process.arch,
+        runtime,
+        providers,
+        routing,
+        pairedDevices,
+        discovery: {
+          status: peerDiscovery.status(),
+          nearbyNodes: peerDiscovery.list().length
+        },
+        peerCount: peerFederation.publicStatus().length,
+        ...(requestedSessionId ? { liveSessionId: requestedSessionId } : {}),
+        eventSummary
+      }));
     }
 
     if (req.method === 'GET' && url.pathname === '/local/diagnostics') {
