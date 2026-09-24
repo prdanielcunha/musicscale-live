@@ -1,0 +1,21 @@
+#!/bin/zsh
+set -eu
+
+LABEL="com.millionsnest.musicscale-live-node"
+PLIST="/Library/LaunchAgents/${LABEL}.plist"
+APP_DIR="/Library/Application Support/MusicScaleLive"
+EXE="${APP_DIR}/MusicScaleLiveNode"
+
+chmod 755 "${EXE}"
+chown -R root:wheel "${APP_DIR}" "${PLIST}"
+chmod 644 "${PLIST}"
+
+console_user="$(stat -f '%Su' /dev/console 2>/dev/null || true)"
+if [[ -n "${console_user}" && "${console_user}" != "root" && "${console_user}" != "loginwindow" ]]; then
+  uid="$(id -u "${console_user}")"
+  launchctl bootout "gui/${uid}" "${PLIST}" >/dev/null 2>&1 || true
+  launchctl bootstrap "gui/${uid}" "${PLIST}" >/dev/null 2>&1 || true
+  launchctl kickstart -k "gui/${uid}/${LABEL}" >/dev/null 2>&1 || true
+fi
+
+exit 0
