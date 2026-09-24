@@ -316,6 +316,7 @@ export class SyncEngine {
   private readonly online: () => boolean;
   private readonly maxAttempts: number;
   private flushPromise: Promise<void> | null = null;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private initialized = false;
 
   constructor(private readonly options: SyncEngineOptions) {
@@ -330,7 +331,6 @@ export class SyncEngine {
 
   async initialize(): Promise<void> {
     if (this.initialized) return;
-    this.initialized = true;
 
     const pending = await this.options.store.listMutations();
     if (!this.online()) {
@@ -338,6 +338,8 @@ export class SyncEngine {
         await this.setState(mutation, 'offline');
       }
     }
+
+    this.initialized = true;
 
     if (this.options.enabled() && this.online() && pending.length) {
       void this.flush();
@@ -395,12 +397,13 @@ export class SyncEngine {
 
     await this.options.store.putMutation(mutation);
     await this.options.store.deleteConflict(key);
+    const enabled = this.options.enabled();
     const state = await this.setState(
       mutation,
-      this.online() && this.options.enabled() ? 'pending' : 'offline'
+      !enabled ? 'local' : this.online() ? 'pending' : 'offline'
     );
 
-    if (this.online() && this.options.enabled()) void this.flush();
+    if (this.online() && enabled) void this.flush();
     return state;
   }
 
@@ -580,6 +583,31 @@ export class SyncEngine {
         );
       }
     }
+
+    await this.scheduleNextRetry();
+  }
+
+  private async scheduleNextRetry(): Promise<void> {
+    if (
+      typeof window === 'undefined' ||
+      !this.options.enabled() ||
+      !this.online()
+    ) {
+      return;
+    }
+
+    const pending = await this.options.store.listMutations();
+    const dueTimes = pending
+      .map(item => item.nextAttemptAt ? Date.parse(item.nextAttemptAt) : this.now())
+      .filter(value => Number.isFinite(value));
+    if (!dueTimes.length) return;
+
+    const delay = Math.max(50, Math.min(...dueTimes) - this.now());
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      void this.flush();
+    }, delay);
   }
 
   private async setState(
