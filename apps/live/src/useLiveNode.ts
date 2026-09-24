@@ -68,6 +68,11 @@ import {
 } from './liveNodeClient';
 import { transportBroker } from './transportBroker';
 import { createClientId } from './clientId';
+import { liveFeatureFlags } from './featureFlags';
+import {
+  createCloudLiveRequest,
+  resolveCloudLiveRequest
+} from './liveCloudRepository';
 
 interface PendingPairing {
   baseUrl: string;
@@ -411,6 +416,11 @@ export function useLiveNode() {
 
     await submitNodeLiveRequest(credential.baseUrl, credential.token, request);
     await refreshState();
+
+    if (liveFeatureFlags.servicePlanWrites) {
+      await createCloudLiveRequest(request).catch(() => undefined);
+    }
+
     return request;
   }, [credential, refreshState]);
 
@@ -428,6 +438,15 @@ export function useLiveNode() {
       resolvedBy
     );
     await refreshState();
+
+    if (liveFeatureFlags.servicePlanWrites) {
+      await resolveCloudLiveRequest({
+        request: response.request,
+        status,
+        actorId: resolvedBy
+      }).catch(() => undefined);
+    }
+
     return response.request;
   }, [credential, refreshState]);
 
