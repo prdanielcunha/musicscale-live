@@ -1353,7 +1353,7 @@ export function LiveRequestInbox({
                     disabled={requestBusy}
                     onClick={() => void setStatus(request.id, 'rejected')}
                   >
-                    {busy === `${request.id}:status` ? '…' : t('requestInbox.complete')}
+                    {busy === `${request.id}:status` ? '…' : t('requestInbox.reject')}
                   </button>
                 )}
               </div>
