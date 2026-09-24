@@ -40,6 +40,7 @@ import {
 import { stageAndOpenPeerLiveDrop } from './liveDropFederation';
 import { buildLiveNodeDiagnostics } from './diagnostics';
 import { buildCertificationReport } from './certificationReport';
+import { NodeProfileStore } from './nodeProfileStore';
 import { isTrustedLiveWebOrigin } from './networkPolicy';
 import { SceneExecutor } from './sceneExecutor';
 import { PeerDiscovery } from './peerDiscovery';
@@ -155,6 +156,8 @@ const peerNodeStore = new PeerNodeStore(join(STATE_DIR, 'peers.json'));
 const signalTopologyStore = new SignalTopologyStore(join(STATE_DIR, 'signal-topology.json'));
 const eventLogStore = new LiveEventLogStore(join(STATE_DIR, 'events.json'));
 const liveChatStore = new LiveChatStore(join(STATE_DIR, 'chat.json'));
+const nodeProfileStore = new NodeProfileStore(join(STATE_DIR, 'profile.json'), hostname());
+let nodeDisplayName = hostname();
 const liveDropStore = new LiveDropStore(
   join(STATE_DIR, 'live-drop'),
   undefined,
@@ -169,13 +172,13 @@ const liveDropStore = new LiveDropStore(
 );
 const peerFederation = new PeerFederation({
   localNodeId: nodeId,
-  localDisplayName: hostname(),
+  localDisplayName: nodeDisplayName,
   capabilityEngine,
   store: peerNodeStore
 });
 const peerDiscovery = new PeerDiscovery({
   nodeId,
-  displayName: hostname(),
+  displayName: nodeDisplayName,
   httpPort: PORT,
   version: VERSION
 });
@@ -1227,9 +1230,14 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 </head>
 <body><main>
 <div class="brand">MUSICSCALE / LIVE NODE</div>
-<h1>${hostname()}</h1>
+<h1 id="node-display-name">${nodeDisplayName}</h1>
 <p class="muted">Node <code>${nodeId}</code> · v${VERSION}</p>
 <div class="hero-note"><strong>Conexão local, sem complicação</strong><span>Use o mesmo Wi‑Fi ou a mesma rede cabeada da igreja. A internet não é necessária para operar localmente. Redes de convidados podem impedir que os aparelhos se encontrem.</span></div>
+<div class="box provider-card">
+<header><div><small>NOME DESTE COMPUTADOR</small><strong>Use um nome que qualquer voluntário reconheça</strong></div><button class="btn" onclick="saveNodeProfile()">Salvar</button></header>
+<div class="field"><span>Ex.: Computador da Projeção</span><input id="node-name" value="" maxlength="64" autocomplete="off"/></div>
+<div id="profile-status" class="statusline">Carregando nome…</div>
+</div>
 <div class="box connect-card">
 <img src="/local/connect-qr.svg" alt="QR para abrir o MusicScale Live na rede local"/>
 <div><small>CONECTAR TABLET OU CELULAR</small><h2>Escaneie e continue</h2><p>Abra a câmera do aparelho do operador e escaneie este QR. O Live abre pelo caminho local correto — sem digitar IP ou porta.</p><span class="connect-badge">Internet não obrigatória</span></div>
@@ -1282,6 +1290,31 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 </div>
 <details class="box advanced"><summary>Detalhes técnicos da rede</summary><div class="tech-list"><p>Use estes endereços somente para diagnóstico ou fallback manual.</p><ul>${addresses || '<li>Nenhum IPv4 LAN detectado</li>'}</ul></div></details>
 <script>
+async function refreshNodeProfile(){
+  try{
+    const r=await fetch('/local/profile',{cache:'no-store'});
+    const d=await r.json();
+    if(!r.ok)return;
+    document.getElementById('node-name').value=d.displayName||'';
+    document.getElementById('node-display-name').textContent=d.displayName||'MusicScale Live Node';
+    document.getElementById('profile-status').textContent=d.tutorialCompletedAt?'Nome salvo · tutorial concluído':'Nome salvo · finalize o guia rápido no tablet.';
+  }catch{}
+}
+async function saveNodeProfile(){
+  const input=document.getElementById('node-name');
+  const status=document.getElementById('profile-status');
+  const displayName=input.value.trim();
+  if(!displayName){status.textContent='Digite um nome simples para este computador.';return}
+  status.textContent='Salvando…';
+  try{
+    const r=await fetch('/local/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({displayName})});
+    const d=await r.json();
+    if(!r.ok){status.textContent='Não foi possível salvar.';return}
+    input.value=d.displayName||displayName;
+    document.getElementById('node-display-name').textContent=d.displayName||displayName;
+    status.textContent='Pronto. Este nome aparecerá na descoberta da rede.';
+  }catch{status.textContent='Não foi possível salvar.'}
+}
 async function refresh(){
   try{
     const r=await fetch('/local/pairing',{cache:'no-store'});
@@ -1493,7 +1526,7 @@ async function saveHolyrics(){
     el.textContent='Holyrics conectado · '+(d.capabilities||[]).length+' capacidades · v'+(d.version||'detectada');
   }catch{el.textContent='Não foi possível salvar a configuração.'}
 }
-refresh();refreshProvider();setInterval(refresh,1000);
+refreshNodeProfile();refresh();refreshProvider();setInterval(refresh,1000);
 </script>
 </main></body></html>`;
 }
@@ -1507,6 +1540,10 @@ async function start(): Promise<void> {
   await providerRoutingStore.load();
   await peerNodeStore.load();
   await signalTopologyStore.load();
+  const profile = await nodeProfileStore.load();
+  nodeDisplayName = profile.displayName;
+  peerDiscovery.setDisplayName(nodeDisplayName);
+  peerFederation.setLocalDisplayName(nodeDisplayName);
   await registerHolyricsProvider();
   await registerResolumeProvider();
   await registerProPresenterProvider();
@@ -1527,6 +1564,29 @@ async function start(): Promise<void> {
       return sendHtml(res, 200, localConsoleHtml());
     }
 
+    if (req.method === 'GET' && url.pathname === '/local/profile') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      return send(res, 200, await nodeProfileStore.load());
+    }
+
+    if (req.method === 'POST' && url.pathname === '/local/profile') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') throw new Error('invalid_node_profile');
+      const displayName = String((body as Record<string, unknown>).displayName || '').trim();
+      if (!displayName) throw new Error('node_display_name_required');
+      const profile = await nodeProfileStore.setDisplayName(displayName);
+      nodeDisplayName = profile.displayName;
+      peerDiscovery.setDisplayName(nodeDisplayName);
+      peerFederation.setLocalDisplayName(nodeDisplayName);
+      return send(res, 200, profile);
+    }
+
+    if (req.method === 'POST' && url.pathname === '/local/tutorial-complete') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      return send(res, 200, await nodeProfileStore.markTutorialComplete());
+    }
+
     if (
       req.method === 'GET' &&
       (
@@ -1540,6 +1600,7 @@ async function start(): Promise<void> {
         version: VERSION,
         nodeId,
         hostname: hostname(),
+        displayName: nodeDisplayName,
         port: PORT
       });
     }
@@ -1551,6 +1612,7 @@ async function start(): Promise<void> {
         version: VERSION,
         nodeId,
         hostname: hostname(),
+        displayName: nodeDisplayName,
         health: providerSnapshot.some(provider => provider.health === 'degraded') ? 'degraded' : 'online',
         lanAddresses: lanAddresses(),
         providers: providerSnapshot.length,
@@ -2045,7 +2107,7 @@ async function start(): Promise<void> {
 
       return send(res, 200, {
         nodeId,
-        hostname: hostname(),
+        hostname: nodeDisplayName,
         providers
       });
     }
