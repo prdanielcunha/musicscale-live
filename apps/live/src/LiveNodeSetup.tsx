@@ -22,6 +22,19 @@ export function LiveNodeSetup({
     controller.credential?.baseUrl || sameOriginNode
   );
   const [pin, setPin] = useState('');
+  const [connectionTest, setConnectionTest] = useState<
+    | { state: 'idle' | 'running' }
+    | { state: 'passed'; latencyMs: number; providersOnline: number }
+    | { state: 'failed'; code: string }
+  >({ state: 'idle' });
+  const tutorialStorageKey = 'musicscale-live:onboarding-tutorial:v1';
+  const [tutorialStep, setTutorialStep] = useState(() => {
+    try {
+      return window.localStorage.getItem(tutorialStorageKey) === 'done' ? 4 : 0;
+    } catch {
+      return 0;
+    }
+  });
 
   const scope = useMemo(() => {
     if (!organizationId) return undefined;
@@ -40,6 +53,32 @@ export function LiveNodeSetup({
   const beginLocal = () => {
     setNodeUrl(sameOriginNode);
     return controller.beginPairing(sameOriginNode, scope);
+  };
+
+  const runConnectionTest = async () => {
+    setConnectionTest({ state: 'running' });
+    try {
+      const result = await controller.testConnection();
+      setConnectionTest({
+        state: 'passed',
+        latencyMs: result.latencyMs,
+        providersOnline: result.providersOnline
+      });
+    } catch (error) {
+      setConnectionTest({
+        state: 'failed',
+        code: error instanceof Error ? error.message : 'node_unreachable'
+      });
+    }
+  };
+
+  const finishTutorial = () => {
+    try {
+      window.localStorage.setItem(tutorialStorageKey, 'done');
+    } catch {
+      // Tutorial completion is convenience state only.
+    }
+    setTutorialStep(4);
   };
 
   return (
@@ -64,6 +103,79 @@ export function LiveNodeSetup({
                 {t('nodeSetup.disconnect')}
               </button>
             </div>
+
+            <div className="node-safe-test">
+              <div>
+                <small>{t('nodeSetup.safeTestKicker')}</small>
+                <strong>{t('nodeSetup.safeTestTitle')}</strong>
+                <span>{t('nodeSetup.safeTestDescription')}</span>
+              </div>
+              <button
+                className="secondary"
+                disabled={connectionTest.state === 'running'}
+                onClick={() => void runConnectionTest()}
+              >
+                {connectionTest.state === 'running'
+                  ? t('nodeSetup.safeTestRunning')
+                  : t('nodeSetup.safeTestAction')}
+              </button>
+              {connectionTest.state === 'passed' && (
+                <p className="node-test-result ok">
+                  {t('nodeSetup.safeTestPassed', {
+                    latency: connectionTest.latencyMs,
+                    providers: connectionTest.providersOnline
+                  })}
+                </p>
+              )}
+              {connectionTest.state === 'failed' && (
+                <p className="node-test-result warn">
+                  {t('nodeSetup.safeTestFailed', {
+                    reason: t(`nodeErrors.${connectionTest.code}`, {
+                      defaultValue: connectionTest.code
+                    })
+                  })}
+                </p>
+              )}
+            </div>
+
+            {tutorialStep < 4 && (
+              <div className="node-tutorial">
+                <div className="node-tutorial-progress">
+                  <small>{t('nodeSetup.tutorialKicker')}</small>
+                  <strong>{t('nodeSetup.tutorialTitle')}</strong>
+                  <span>{t('nodeSetup.tutorialTime')}</span>
+                </div>
+                <div className="node-tutorial-step">
+                  <b>{String(tutorialStep + 1).padStart(2, '0')}</b>
+                  <div>
+                    <strong>{t(`nodeSetup.tutorialSteps.${tutorialStep}.title`)}</strong>
+                    <p>{t(`nodeSetup.tutorialSteps.${tutorialStep}.description`)}</p>
+                  </div>
+                </div>
+                <div className="node-tutorial-actions">
+                  {tutorialStep > 0 && (
+                    <button
+                      className="secondary"
+                      onClick={() => setTutorialStep(step => Math.max(0, step - 1))}
+                    >
+                      {t('nodeSetup.tutorialBack')}
+                    </button>
+                  )}
+                  {tutorialStep < 3 ? (
+                    <button
+                      className="primary"
+                      onClick={() => setTutorialStep(step => Math.min(3, step + 1))}
+                    >
+                      {t('nodeSetup.tutorialNext')}
+                    </button>
+                  ) : (
+                    <button className="primary" onClick={finishTutorial}>
+                      {t('nodeSetup.tutorialDone')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="node-meta-grid human-meta-grid">
               <div>
@@ -170,7 +282,11 @@ export function LiveNodeSetup({
                 <div className="node-error node-error-friendly">
                   <strong>{t('nodeSetup.notFoundTitle')}</strong>
                   <p>{t(`nodeErrors.${controller.errorCode}`, { defaultValue: controller.errorCode })}</p>
-                  <span>{t('nodeSetup.notFoundHint')}</span>
+                  <span>
+                    {['node_timeout', 'node_unreachable'].includes(controller.errorCode)
+                      ? t('nodeSetup.networkIsolationHint')
+                      : t('nodeSetup.notFoundHint')}
+                  </span>
                 </div>
               )}
 
