@@ -70,7 +70,8 @@ async function seed() {
       actorId: 'viewer',
       kind: 'bible',
       payload: { reference: 'João 3:16' },
-      status: 'pending',
+      status: 'sent',
+      priority: 'normal',
       createdAt: '2026-09-19T00:00:00.000Z'
     });
   });
@@ -152,7 +153,8 @@ describe('MusicScale Live Firestore tenant rules', () => {
       actorId: 'viewer',
       kind: 'message',
       payload: { text: 'Voltar ao refrão' },
-      status: 'pending',
+      status: 'sent',
+      priority: 'normal',
       createdAt: '2026-09-19T00:00:00.000Z'
     }));
 
@@ -164,7 +166,7 @@ describe('MusicScale Live Firestore tenant rules', () => {
       actorId: 'operator',
       kind: 'message',
       payload: { text: 'spoofed' },
-      status: 'pending',
+      status: 'sent',
       createdAt: '2026-09-19T00:00:00.000Z'
     }));
   });
@@ -178,6 +180,38 @@ describe('MusicScale Live Firestore tenant rules', () => {
     }));
     await assertSucceeds(updateDoc(doc(operator, 'musicScaleLiveRequests', 'request-a'), {
       status: 'accepted'
+    }));
+  });
+
+  it('enforces the operator request lifecycle and blocks jumping straight to executed', async () => {
+    const operator = env.authenticatedContext('operator').firestore();
+    const ref = doc(operator, 'musicScaleLiveRequests', 'request-a');
+
+    await assertFails(updateDoc(ref, { status: 'executed' }));
+    await assertSucceeds(updateDoc(ref, {
+      status: 'accepted',
+      seenAt: '2026-09-24T12:00:01.000Z',
+      acceptedAt: '2026-09-24T12:00:01.000Z'
+    }));
+    await assertFails(updateDoc(ref, { status: 'executed' }));
+    await assertSucceeds(updateDoc(ref, {
+      status: 'prepared',
+      preparedAt: '2026-09-24T12:00:02.000Z'
+    }));
+    await assertSucceeds(updateDoc(ref, {
+      status: 'executed',
+      executedAt: '2026-09-24T12:00:03.000Z',
+      resolvedAt: '2026-09-24T12:00:03.000Z'
+    }));
+  });
+
+  it('lets the requester cancel sent or seen requests but never self-accept', async () => {
+    const viewer = env.authenticatedContext('viewer').firestore();
+    const ref = doc(viewer, 'musicScaleLiveRequests', 'request-a');
+
+    await assertSucceeds(updateDoc(ref, {
+      status: 'rejected',
+      rejectedAt: '2026-09-24T12:00:01.000Z'
     }));
   });
 
