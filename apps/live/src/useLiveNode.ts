@@ -368,6 +368,7 @@ export function useLiveNode() {
     text: string;
     replyToId?: string;
     relatedRequestId?: string;
+    relatedServiceItemId?: string;
   }): Promise<LiveChatMessage> => {
     if (!credential) throw new Error('node_not_paired');
     const message: LiveChatMessage = {
@@ -382,7 +383,8 @@ export function useLiveNode() {
       text: input.text.trim(),
       createdAt: new Date().toISOString(),
       ...(input.replyToId ? { replyToId: input.replyToId } : {}),
-      ...(input.relatedRequestId ? { relatedRequestId: input.relatedRequestId } : {})
+      ...(input.relatedRequestId ? { relatedRequestId: input.relatedRequestId } : {}),
+      ...(input.relatedServiceItemId ? { relatedServiceItemId: input.relatedServiceItemId } : {})
     };
 
     const response = await submitNodeChatMessage(
