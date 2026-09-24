@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CommandResult, LiveRequest } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
@@ -19,6 +19,13 @@ import {
 } from './requestSection';
 
 type Controller = ReturnType<typeof useLiveNode>;
+
+interface PreparedRequestSong {
+  id: string;
+  providerId: string;
+  title: string;
+  artist?: string;
+}
 
 function stringList(value: unknown): string[] {
   return Array.isArray(value)
@@ -42,11 +49,14 @@ export function LiveRequestInbox({
   const { t } = useTranslation();
   const [busy, setBusy] = useState<string | null>(null);
   const [preparedBible, setPreparedBible] = useState<Record<string, PreparedBibleRequest>>({});
+  const [preparedSongs, setPreparedSongs] = useState<Record<string, PreparedRequestSong[]>>({});
+  const [selectedSong, setSelectedSong] = useState<Record<string, string>>({});
   const [preparedMedia, setPreparedMedia] = useState<Record<string, PreparedRequestMediaCandidate[]>>({});
   const [selectedMedia, setSelectedMedia] = useState<Record<string, string>>({});
   const [preparedSections, setPreparedSections] = useState<Record<string, PreparedSectionCandidate[]>>({});
   const [selectedSection, setSelectedSection] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const seenInFlight = useRef(new Set<string>());
 
   useEffect(() => {
     let cancelled = false;
@@ -95,6 +105,15 @@ export function LiveRequestInbox({
     }
     return biblePresentProviders.length === 1 ? biblePresentProviders[0]! : null;
   }, [controller.nodeState?.routing?.bible, biblePresentProviders]);
+
+  const songProviders = useMemo(
+    () => providers.filter(provider =>
+      (provider.health === 'online' || provider.health === 'degraded') &&
+      provider.capabilities.includes('songs.search') &&
+      provider.capabilities.includes('songs.present')
+    ),
+    [providers]
+  );
 
   const mediaSearchProviders = useMemo(
     () => providers.filter(provider =>
@@ -145,24 +164,35 @@ export function LiveRequestInbox({
           request.liveSessionId === liveSessionId ||
           request.payload.source === 'playlist-sync'
         ) &&
-        (request.status === 'pending' || request.status === 'accepted')
+        ['sent', 'seen', 'accepted', 'prepared'].includes(request.status)
       )
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+      .sort((a, b) => {
+        if (a.priority === 'urgent' && b.priority !== 'urgent') return -1;
+        if (b.priority === 'urgent' && a.priority !== 'urgent') return 1;
+        return a.createdAt.localeCompare(b.createdAt);
+      }),
     [controller.nodeState, liveSessionId]
   );
 
   const pendingCount = requests.filter(request =>
-    request.payload.source !== 'playlist-sync' && request.status === 'pending'
+    request.payload.source !== 'playlist-sync' &&
+    (request.status === 'sent' || request.status === 'seen')
   ).length;
-  const readyCount = requests.filter(request =>
-    request.status === 'accepted' &&
-    (
-      (request.kind === 'bible' && Boolean(preparedBible[request.id])) ||
-      (request.kind === 'section' && Boolean(selectedSection[request.id])) ||
-      (request.kind === 'media' && Boolean(selectedMedia[request.id])) ||
-      (request.kind === 'message' && capabilitySet.has('stage.message'))
-    )
-  ).length;
+  const readyCount = requests.filter(request => request.status === 'prepared').length;
+
+  useEffect(() => {
+    for (const request of requests) {
+      if (
+        request.status !== 'sent' ||
+        request.payload.source === 'playlist-sync' ||
+        seenInFlight.current.has(request.id)
+      ) continue;
+      seenInFlight.current.add(request.id);
+      void controller.updateRequestStatus(request.id, 'seen', actorId)
+        .catch(() => undefined)
+        .finally(() => seenInFlight.current.delete(request.id));
+    }
+  }, [actorId, controller.updateRequestStatus, requests]);
 
   function clearError(requestId: string) {
     setErrors(current => {
@@ -179,7 +209,7 @@ export function LiveRequestInbox({
 
   async function setStatus(
     requestId: string,
-    status: 'accepted' | 'rejected' | 'completed'
+    status: LiveRequest['status']
   ): Promise<boolean> {
     const busyKey = `${requestId}:status`;
     setBusy(busyKey);
@@ -208,12 +238,115 @@ export function LiveRequestInbox({
       await prepareBibleRequest(request);
       return;
     }
+    if (request.kind === 'song') {
+      await prepareSongRequest(request);
+      return;
+    }
     if (request.kind === 'section') {
       await prepareSectionRequest(request);
       return;
     }
     if (request.kind === 'media') {
       await prepareMediaRequest(request);
+      return;
+    }
+    if (request.kind === 'message' && capabilitySet.has('stage.message')) {
+      await controller.updateRequestStatus(request.id, 'prepared', actorId);
+    }
+  }
+
+  async function prepareSongRequest(request: LiveRequest) {
+    const query = String(request.payload.query || request.payload.title || '').trim();
+    if (!query) return;
+
+    const busyKey = `${request.id}:song-prepare`;
+    setBusy(busyKey);
+    clearError(request.id);
+    try {
+      const batches = await Promise.all(songProviders.map(async provider => {
+        const results = await controller.executeCommand({
+          capability: 'songs.search',
+          payload: { text: query, title: true, artist: true },
+          liveSessionId,
+          actorId,
+          targetProviderIds: [provider.providerId],
+          safetyLevel: 'normal'
+        }).catch(() => []);
+        const failed = firstCommandFailure(results);
+        if (failed) return [];
+        return results.flatMap(result => {
+          const raw = result.observedState?.results;
+          if (!Array.isArray(raw)) return [];
+          return raw
+            .filter(item => item && typeof item === 'object')
+            .map(item => {
+              const song = item as Record<string, unknown>;
+              return {
+                id: String(song.id || ''),
+                providerId: result.providerInstanceId,
+                title: String(song.title || ''),
+                artist: song.artist ? String(song.artist) : undefined
+              } satisfies PreparedRequestSong;
+            })
+            .filter(item => item.id && item.providerId && item.title);
+        });
+      }));
+      const candidates = batches.flat().filter((candidate, index, all) =>
+        all.findIndex(item => item.id === candidate.id && item.providerId === candidate.providerId) === index
+      ).slice(0, 12);
+      if (!candidates.length) throw new Error('song_request_no_results');
+
+      setPreparedSongs(current => ({ ...current, [request.id]: candidates }));
+      setSelectedSong(current => ({ ...current, [request.id]: candidates[0]!.id + '@' + candidates[0]!.providerId }));
+      await controller.updateRequestStatus(request.id, 'prepared', actorId);
+    } catch (error) {
+      setRequestError(
+        request.id,
+        error instanceof Error ? error.message : 'song_request_prepare_failed'
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function takeSongRequest(request: LiveRequest) {
+    const candidates = preparedSongs[request.id] || [];
+    const selectedKey = selectedSong[request.id];
+    const candidate = candidates.find(item => `${item.id}@${item.providerId}` === selectedKey);
+    if (!candidate) return;
+
+    const busyKey = `${request.id}:song-take`;
+    setBusy(busyKey);
+    clearError(request.id);
+    try {
+      const results = await controller.executeCommand({
+        capability: 'songs.present',
+        payload: { id: candidate.id },
+        liveSessionId,
+        actorId,
+        targetProviderIds: [candidate.providerId],
+        safetyLevel: 'normal'
+      });
+      const failed = firstCommandFailure(results);
+      if (failed) throw new Error(failed.errorCode || 'song_request_take_failed');
+      await controller.updateRequestStatus(request.id, 'executed', actorId);
+      setPreparedSongs(current => {
+        const next = { ...current };
+        delete next[request.id];
+        return next;
+      });
+      setSelectedSong(current => {
+        const next = { ...current };
+        delete next[request.id];
+        return next;
+      });
+    } catch (error) {
+      setRequestError(
+        request.id,
+        error instanceof Error ? error.message : 'song_request_take_failed'
+      );
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -255,6 +388,7 @@ export function LiveRequestInbox({
             providerId: targetProvider.providerId
           }
         }));
+        await controller.updateRequestStatus(request.id, 'prepared', actorId);
         return;
       }
 
@@ -272,6 +406,7 @@ export function LiveRequestInbox({
             providerId: targetProvider.providerId
           }
         }));
+        await controller.updateRequestStatus(request.id, 'prepared', actorId);
         return;
       }
 
@@ -290,6 +425,7 @@ export function LiveRequestInbox({
         ...current,
         [request.id]: bibleRequestFromResults(results, reference)
       }));
+      await controller.updateRequestStatus(request.id, 'prepared', actorId);
     } catch (error) {
       setRequestError(
         request.id,
@@ -328,7 +464,7 @@ export function LiveRequestInbox({
       const failed = firstCommandFailure(results);
       if (failed) throw new Error(failed.errorCode || 'provider_error');
 
-      await controller.updateRequestStatus(request.id, 'completed', actorId);
+      await controller.updateRequestStatus(request.id, 'executed', actorId);
       setPreparedBible(current => {
         const next = { ...current };
         delete next[request.id];
@@ -434,6 +570,7 @@ export function LiveRequestInbox({
         ...current,
         [request.id]: orderedCandidates[0]!.id
       }));
+      await controller.updateRequestStatus(request.id, 'prepared', actorId);
     } catch (error) {
       setRequestError(
         request.id,
@@ -470,7 +607,7 @@ export function LiveRequestInbox({
       const failed = firstCommandFailure(results);
       if (failed) throw new Error(failed.errorCode || 'section_navigation_failed');
 
-      await controller.updateRequestStatus(request.id, 'completed', actorId);
+      await controller.updateRequestStatus(request.id, 'executed', actorId);
       setPreparedSections(current => {
         const next = { ...current };
         delete next[request.id];
@@ -551,6 +688,7 @@ export function LiveRequestInbox({
         ...current,
         [request.id]: candidates[0]!.id
       }));
+      await controller.updateRequestStatus(request.id, 'prepared', actorId);
     } catch (error) {
       setRequestError(
         request.id,
@@ -607,7 +745,7 @@ export function LiveRequestInbox({
         if (failed) throw new Error(failed.errorCode || 'media_open_failed');
       }
 
-      await controller.updateRequestStatus(request.id, 'completed', actorId);
+      await controller.updateRequestStatus(request.id, 'executed', actorId);
       setPreparedMedia(current => {
         const next = { ...current };
         delete next[request.id];
@@ -650,7 +788,7 @@ export function LiveRequestInbox({
       const failed = firstCommandFailure(results);
       if (failed) throw new Error(failed.errorCode || 'provider_error');
 
-      await controller.updateRequestStatus(request.id, 'completed', actorId);
+      await controller.updateRequestStatus(request.id, 'executed', actorId);
     } catch (error) {
       setRequestError(
         request.id,
