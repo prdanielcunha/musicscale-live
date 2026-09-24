@@ -77,11 +77,11 @@ Open: OS device enumeration; human aliases; Audio Profiles; safety lock; output 
 The newer 2026-09-23 roadmap's Cloud/Realtime phase now has a central durable browser Outbox, optimistic version metadata, conflict/retry states, Firestore transaction transport, realtime listeners for collaborative entities, presence contract, append-only change history and a dedicated RBAC emulator gate. Cloud writes remain disabled by default until the Phase 0 reliability/security gates and production Rules rollout are approved.
 
 ## Phase 9 — Intelligence, Analytics & Platform
-**Status: not started as a production feature**
+**Status: foundations implemented; production activation remains gated**
 
-Foundation: deterministic command/event/observed-state model can become the factual source for analytics and AI.
+Foundation: deterministic command/event/observed-state model is now used by a feature-gated factual Service Review. The review compares planned items with immutable Live Node events, separates explicit skips from merely unobserved items, records ad-hoc actions, request outcomes, provider failures/origins and latency without inferring motive or responsibility.
 
-Open: planned-vs-actual analytics; Service Review; preparation copilot; policy-bound natural-language preparation; templates; Provider SDK; adapter marketplace/Live Packs; enterprise redundancy/fleet/multi-venue.
+Open: production activation after preceding gates; retention/permission certification for review; preparation copilot; policy-bound natural-language preparation; evidence-backed technical task generation; templates; Provider SDK; adapter marketplace/Live Packs; enterprise redundancy/fleet/multi-venue.
 
 ## Current engineering priority
 
