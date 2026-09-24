@@ -961,7 +961,7 @@ function collaborationRouteAllowed(
   if (method === 'GET' && ['/health', '/state', '/capabilities', '/chat', '/requests'].includes(pathname)) {
     return true;
   }
-  if (method === 'POST' && ['/chat', '/requests', '/commands'].includes(pathname)) {
+  if (method === 'POST' && ['/heartbeat', '/chat', '/requests', '/commands'].includes(pathname)) {
     return true;
   }
   return Boolean(
