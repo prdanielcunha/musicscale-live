@@ -1,29 +1,34 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
+type IdempotencyStatus = 'pending' | 'completed';
+
 interface IdempotencyEntry<T> {
-  value: T;
+  status: IdempotencyStatus;
+  value?: T;
   expiresAt: number;
 }
 
 interface IdempotencyFile<T> {
-  version: 1;
+  version: 2;
   entries: Array<{
     key: string;
-    value: T;
+    status: IdempotencyStatus;
+    value?: T;
     expiresAt: number;
   }>;
 }
 
 /**
- * Keeps command results stable across retries and, when a file path is supplied,
- * across Live Node restarts.
+ * Durable idempotency ledger for Live commands.
  *
- * `run()` also coalesces concurrent retries that carry the same idempotency key,
- * so a provider action is executed at most once inside a running Node process.
+ * A record is written as "pending" before provider execution. If the Node crashes
+ * while the provider outcome is unknown, the same idempotency key is not replayed
+ * automatically after restart; it becomes an explicit uncertain attempt instead.
+ * Completed results are cached and returned for retries.
  */
 export class IdempotencyStore<T> {
-  private readonly values = new Map<string, IdempotencyEntry<T>>();
+  private readonly entries = new Map<string, IdempotencyEntry<T>>();
   private readonly inFlight = new Map<string, Promise<T>>();
   private loaded = false;
   private writeQueue: Promise<void> = Promise.resolve();
@@ -46,7 +51,7 @@ export class IdempotencyStore<T> {
       const raw = await readFile(this.filePath, 'utf8');
       const parsed = JSON.parse(raw) as Partial<IdempotencyFile<T>>;
       const now = Date.now();
-      const entries = parsed.version === 1 && Array.isArray(parsed.entries)
+      const entries = parsed.version === 2 && Array.isArray(parsed.entries)
         ? parsed.entries
         : [];
 
@@ -54,10 +59,12 @@ export class IdempotencyStore<T> {
         if (
           entry &&
           typeof entry.key === 'string' &&
+          (entry.status === 'pending' || entry.status === 'completed') &&
           Number.isFinite(entry.expiresAt) &&
           entry.expiresAt > now
         ) {
-          this.values.set(entry.key, {
+          this.entries.set(entry.key, {
+            status: entry.status,
             value: entry.value,
             expiresAt: entry.expiresAt
           });
@@ -77,31 +84,44 @@ export class IdempotencyStore<T> {
       throw new Error('idempotency_store_not_loaded');
     }
 
-    const entry = this.values.get(key);
+    const entry = this.entries.get(key);
     if (!entry) return undefined;
 
     if (entry.expiresAt <= Date.now()) {
-      this.values.delete(key);
+      this.entries.delete(key);
       return undefined;
     }
 
-    return entry.value;
+    return entry.status === 'completed'
+      ? entry.value
+      : undefined;
+  }
+
+  isUncertain(key: string): boolean {
+    if (this.filePath && !this.loaded) {
+      throw new Error('idempotency_store_not_loaded');
+    }
+
+    const entry = this.entries.get(key);
+    if (!entry) return false;
+
+    if (entry.expiresAt <= Date.now()) {
+      this.entries.delete(key);
+      return false;
+    }
+
+    return entry.status === 'pending';
   }
 
   async set(key: string, value: T): Promise<void> {
     await this.load();
     this.sweep();
-
-    if (!this.values.has(key) && this.values.size >= this.maxEntries) {
-      const oldest = this.values.keys().next().value as string | undefined;
-      if (oldest) this.values.delete(oldest);
-    }
-
-    this.values.set(key, {
+    this.reserveSlot(key);
+    this.entries.set(key, {
+      status: 'completed',
       value,
       expiresAt: Date.now() + this.ttlMs
     });
-
     await this.queuePersist();
   }
 
@@ -114,10 +134,27 @@ export class IdempotencyStore<T> {
     const existing = this.inFlight.get(key);
     if (existing) return existing;
 
+    if (this.isUncertain(key)) {
+      throw new Error('idempotency_previous_attempt_uncertain');
+    }
+
     const task = (async () => {
+      this.sweep();
+      this.reserveSlot(key);
+      this.entries.set(key, {
+        status: 'pending',
+        expiresAt: Date.now() + this.ttlMs
+      });
+      await this.queuePersist();
+
       try {
         const value = await producer();
-        await this.set(key, value);
+        this.entries.set(key, {
+          status: 'completed',
+          value,
+          expiresAt: Date.now() + this.ttlMs
+        });
+        await this.queuePersist();
         return value;
       } finally {
         this.inFlight.delete(key);
@@ -128,18 +165,24 @@ export class IdempotencyStore<T> {
     return task;
   }
 
+  private reserveSlot(key: string): void {
+    if (this.entries.has(key) || this.entries.size < this.maxEntries) return;
+    const oldest = this.entries.keys().next().value as string | undefined;
+    if (oldest) this.entries.delete(oldest);
+  }
+
   private sweep(): void {
     const now = Date.now();
-    for (const [key, entry] of this.values) {
-      if (entry.expiresAt <= now) this.values.delete(key);
+    for (const [key, entry] of this.entries) {
+      if (entry.expiresAt <= now) this.entries.delete(key);
     }
   }
 
   private trimToMaxEntries(): void {
-    while (this.values.size > this.maxEntries) {
-      const oldest = this.values.keys().next().value as string | undefined;
+    while (this.entries.size > this.maxEntries) {
+      const oldest = this.entries.keys().next().value as string | undefined;
       if (!oldest) break;
-      this.values.delete(oldest);
+      this.entries.delete(oldest);
     }
   }
 
@@ -160,9 +203,10 @@ export class IdempotencyStore<T> {
     await mkdir(dirname(this.filePath), { recursive: true });
     const temp = `${this.filePath}.tmp`;
     const payload: IdempotencyFile<T> = {
-      version: 1,
-      entries: [...this.values.entries()].map(([key, entry]) => ({
+      version: 2,
+      entries: [...this.entries.entries()].map(([key, entry]) => ({
         key,
+        status: entry.status,
         value: entry.value,
         expiresAt: entry.expiresAt
       }))
