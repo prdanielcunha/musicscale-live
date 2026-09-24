@@ -27,6 +27,8 @@ const DPAPI_PREFIX = 'dpapi:v1:';
 
 const DPAPI_SCRIPT = [
   "$ErrorActionPreference = 'Stop'",
+  "$protectedDataAssembly = Join-Path $PSHOME 'System.Security.Cryptography.ProtectedData.dll'",
+  "if (Test-Path $protectedDataAssembly) { Add-Type -Path $protectedDataAssembly } else { Add-Type -AssemblyName System.Security }",
   "$payload = [Console]::In.ReadToEnd() | ConvertFrom-Json",
   "$entropy = [Text.Encoding]::UTF8.GetBytes([string]$payload.purpose)",
   "if ([string]$payload.operation -eq 'protect') {",
