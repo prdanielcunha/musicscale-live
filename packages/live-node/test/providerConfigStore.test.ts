@@ -7,6 +7,7 @@ import type { SecretProtector } from '../src/secretProtector';
 
 class TestSecretProtector implements SecretProtector {
   readonly kind = 'windows-dpapi' as const;
+  deleted: Array<{ value: string; purpose: string }> = [];
 
   isProtected(value: string): boolean {
     return value.startsWith('test:v1:');
@@ -19,6 +20,10 @@ class TestSecretProtector implements SecretProtector {
   async unprotect(value: string): Promise<string> {
     if (!this.isProtected(value)) return value;
     return Buffer.from(value.slice('test:v1:'.length), 'base64').toString('utf8');
+  }
+
+  async delete(value: string, purpose: string): Promise<void> {
+    this.deleted.push({ value, purpose });
   }
 }
 
@@ -73,6 +78,23 @@ describe('ProviderConfigStore', () => {
     const migrated = await readFile(path, 'utf8');
     expect(migrated).not.toContain('legacy-token');
     expect(migrated).toContain('test:v1:');
+  });
+
+  it('removes the protected token from the external store when Holyrics is cleared', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ms-live-provider-'));
+    const path = join(dir, 'providers.json');
+    const protector = new TestSecretProtector();
+    const store = new ProviderConfigStore(path, protector);
+
+    await store.setHolyrics({
+      baseUrl: 'http://127.0.0.1:8091',
+      token: 'secret-to-delete'
+    });
+    await store.clearHolyrics();
+
+    expect(protector.deleted).toHaveLength(1);
+    expect(protector.deleted[0]?.purpose).toBe('holyrics.token');
+    expect(await store.getHolyrics()).toBeNull();
   });
 
   it('stores a local Resolume Webserver endpoint without a cloud secret', async () => {

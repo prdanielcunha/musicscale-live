@@ -1,10 +1,11 @@
 import { spawn } from 'node:child_process';
 
 export interface SecretProtector {
-  readonly kind: 'plaintext-alpha' | 'windows-dpapi';
+  readonly kind: 'plaintext-alpha' | 'windows-dpapi' | 'macos-keychain';
   isProtected(value: string): boolean;
   protect(value: string, purpose: string): Promise<string>;
   unprotect(value: string, purpose: string): Promise<string>;
+  delete(value: string, purpose: string): Promise<void>;
 }
 
 export class PlaintextAlphaSecretProtector implements SecretProtector {
@@ -20,6 +21,10 @@ export class PlaintextAlphaSecretProtector implements SecretProtector {
 
   async unprotect(value: string): Promise<string> {
     return value;
+  }
+
+  async delete(): Promise<void> {
+    // Alpha fallback only. There is no external secret store to clean.
   }
 }
 
@@ -119,11 +124,146 @@ export class WindowsDpapiSecretProtector implements SecretProtector {
       purpose
     });
   }
+
+  async delete(): Promise<void> {
+    // DPAPI stores the encrypted bytes inline in providers.json.
+  }
+}
+
+const KEYCHAIN_PREFIX = 'keychain:v1:';
+const KEYCHAIN_SERVICE = 'com.millionsnest.musicscale-live';
+
+function keychainAccount(purpose: string): string {
+  return `provider.${Buffer.from(purpose, 'utf8').toString('base64url')}`;
+}
+
+function keychainReference(purpose: string): string {
+  return `${KEYCHAIN_PREFIX}${Buffer.from(purpose, 'utf8').toString('base64url')}`;
+}
+
+function purposeFromKeychainReference(value: string): string | null {
+  if (!value.startsWith(KEYCHAIN_PREFIX)) return null;
+  try {
+    return Buffer.from(
+      value.slice(KEYCHAIN_PREFIX.length),
+      'base64url'
+    ).toString('utf8');
+  } catch {
+    return null;
+  }
+}
+
+function runMacSecurity(
+  args: string[],
+  allowNotFound = false
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('/usr/bin/security', args, {
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', chunk => { stdout += chunk; });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+
+    child.on('error', error => reject(error));
+    child.on('close', code => {
+      if (code === 0) {
+        resolve(stdout.trimEnd());
+        return;
+      }
+
+      if (
+        allowNotFound &&
+        (code === 44 || /could not be found/i.test(stderr))
+      ) {
+        resolve('');
+        return;
+      }
+
+      reject(new Error(
+        stderr.trim()
+          ? `macos_keychain_failed: ${stderr.trim().slice(0, 500)}`
+          : `macos_keychain_failed: exit_${code}`
+      ));
+    });
+  });
+}
+
+export class MacOsKeychainSecretProtector implements SecretProtector {
+  readonly kind = 'macos-keychain' as const;
+
+  isProtected(value: string): boolean {
+    return purposeFromKeychainReference(value) !== null;
+  }
+
+  async protect(value: string, purpose: string): Promise<string> {
+    if (!value) return value;
+    if (this.isProtected(value)) return value;
+
+    const encodedSecret = Buffer.from(value, 'utf8').toString('base64');
+    await runMacSecurity([
+      'add-generic-password',
+      '-U',
+      '-a',
+      keychainAccount(purpose),
+      '-s',
+      KEYCHAIN_SERVICE,
+      '-w',
+      encodedSecret
+    ]);
+
+    return keychainReference(purpose);
+  }
+
+  async unprotect(value: string, purpose: string): Promise<string> {
+    if (!value) return value;
+    if (!this.isProtected(value)) return value;
+
+    const storedPurpose = purposeFromKeychainReference(value);
+    if (!storedPurpose || storedPurpose !== purpose) {
+      throw new Error('macos_keychain_reference_mismatch');
+    }
+
+    const encodedSecret = await runMacSecurity([
+      'find-generic-password',
+      '-a',
+      keychainAccount(purpose),
+      '-s',
+      KEYCHAIN_SERVICE,
+      '-w'
+    ]);
+
+    if (!encodedSecret) throw new Error('macos_keychain_secret_missing');
+    try {
+      return Buffer.from(encodedSecret, 'base64').toString('utf8');
+    } catch {
+      throw new Error('macos_keychain_secret_invalid');
+    }
+  }
+
+  async delete(value: string, purpose: string): Promise<void> {
+    if (!this.isProtected(value)) return;
+    const storedPurpose = purposeFromKeychainReference(value);
+    if (!storedPurpose || storedPurpose !== purpose) return;
+
+    await runMacSecurity([
+      'delete-generic-password',
+      '-a',
+      keychainAccount(purpose),
+      '-s',
+      KEYCHAIN_SERVICE
+    ], true);
+  }
 }
 
 export function createPlatformSecretProtector(
   platform: NodeJS.Platform = process.platform
 ): SecretProtector {
   if (platform === 'win32') return new WindowsDpapiSecretProtector();
+  if (platform === 'darwin') return new MacOsKeychainSecretProtector();
   return new PlaintextAlphaSecretProtector();
 }
