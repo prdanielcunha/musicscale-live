@@ -85,9 +85,9 @@ Phase 0 is not closed until all are recorded:
 
 # Phase 1 — Cloud and true realtime sync
 
-**Status:** BLOCKED BY PHASE 0 GATE.
+**Status:** FOUNDATION IMPLEMENTED BEHIND THE PHASE 0 GATE; cloud writes remain feature-gated until production Rules/RBAC and physical reliability evidence are approved.
 
-Implement one synchronization subsystem rather than scattered Firestore writes.
+A single synchronization subsystem now replaces scattered Firestore writes for the first collaborative entities.
 
 Core design:
 
@@ -112,7 +112,9 @@ remote update
 
 Policies must be defined per entity. Provider credentials never enter this system.
 
-Gate: every visible mutation has a truthful sync state; offline edits synchronize without duplication; conflicts are reproducible and resolvable.
+Implemented in code: durable IndexedDB Outbox; exponential retry/backoff; version/origin/actor/time metadata; Firestore transaction transport; local/pending/synced/offline/conflict/failed states; explicit conflict resolution and retry UI; realtime scene/request/presence/service-plan listeners; append-only change history and restore entry point; isolated Firestore RBAC emulator rules with secret-field rejection.
+
+Gate remains open until cloud writes are enabled in an approved environment and the offline → reconnect → conflict matrix is physically certified: every visible mutation has a truthful sync state; offline edits synchronize without duplication; conflicts are reproducible and resolvable.
 
 ---
 
