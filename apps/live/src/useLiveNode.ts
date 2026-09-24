@@ -665,6 +665,33 @@ export function useLiveNode() {
     return refreshed;
   }, [credential]);
 
+  const testConnection = useCallback(async (): Promise<{
+    ok: boolean;
+    latencyMs: number;
+    providersOnline: number;
+    stateRevision: number;
+  }> => {
+    if (!credential) throw new Error('node_not_paired');
+    const started = performance.now();
+    const [heartbeatResult, nextHealth, nextState] = await Promise.all([
+      heartbeatNode(credential.baseUrl, credential.token),
+      probeNode(credential.baseUrl),
+      loadNodeState(credential.baseUrl, credential.token)
+    ]);
+    const latencyMs = Math.max(0, Math.round(performance.now() - started));
+    failures.current = 0;
+    setHealth(nextHealth);
+    setNodeState(nextState);
+    setState('connected');
+    setErrorCode(null);
+    return {
+      ok: true,
+      latencyMs,
+      providersOnline: nextHealth.providersOnline,
+      stateRevision: heartbeatResult.stateRevision
+    };
+  }, [credential]);
+
   const disconnect = useCallback(async () => {
     const current = credential;
     if (current) {
@@ -724,6 +751,7 @@ export function useLiveNode() {
     submitRequest,
     updateRequestStatus,
     cacheScenes,
+    testConnection,
     disconnect
   };
 }
