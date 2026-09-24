@@ -28,6 +28,46 @@ interface RemoteSyncMeta {
   updatedAt?: string;
 }
 
+const SECRET_FIELD_NAMES = new Set([
+  'token',
+  'password',
+  'secret',
+  'apikey',
+  'accesstoken',
+  'refreshtoken',
+  'providertoken',
+  'authorization'
+]);
+
+function normalizedSecretKey(key: string): string {
+  return key.replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+export function assertCloudPayloadSafe(
+  value: unknown,
+  path = 'payload',
+  depth = 0
+): void {
+  if (depth > 12 || value == null) return;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      assertCloudPayloadSafe(item, `${path}[${index}]`, depth + 1)
+    );
+    return;
+  }
+  if (typeof value !== 'object') return;
+
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    if (SECRET_FIELD_NAMES.has(normalizedSecretKey(key))) {
+      throw new SyncTransportError(
+        `sync_payload_contains_secret:${path}.${key}`,
+        false
+      );
+    }
+    assertCloudPayloadSafe(child, `${path}.${key}`, depth + 1);
+  }
+}
+
 function remotePayload(
   data: Record<string, unknown> | undefined
 ): Record<string, unknown> | null {
@@ -38,6 +78,7 @@ function remotePayload(
 
 class FirestoreLiveSyncTransport {
   async apply(mutation: SyncMutation): Promise<SyncApplyResult> {
+    assertCloudPayloadSafe(mutation.payload);
     const collectionName = SYNC_COLLECTION_BY_ENTITY[mutation.entityKind];
     const target = doc(db, collectionName, mutation.entityId);
     const history = doc(db, LIVE_COLLECTIONS.changeHistory, mutation.id);
