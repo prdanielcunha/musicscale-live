@@ -740,7 +740,6 @@ export function ScalePreflight({
           const index = rows.findIndex(candidate => candidate.source.id === row.source.id);
           return (
           <div className="preflight-row" key={row.source.id}>
-          <div className="preflight-row" key={row.source.id}>
             <b>{String(index + 1).padStart(2, '0')}</b>
             <div className="preflight-song">
               <strong>{row.source.title}</strong>
