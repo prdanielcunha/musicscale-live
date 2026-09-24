@@ -2355,3 +2355,70 @@ img,video,canvas,svg{max-width:100%}
   .service-review-block-head{flex-direction:column}
   .service-review-block-head>span{max-width:none;text-align:left}
 }
+
+
+/* Roadmap Phase 3 — five-minute onboarding */
+.node-safe-test,
+.node-tutorial{
+  margin-top:12px;
+  padding:14px;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:14px;
+  background:rgba(255,255,255,.022);
+}
+.node-safe-test{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px 14px;
+  align-items:center;
+}
+.node-safe-test small,
+.node-tutorial small{display:block;color:#777d8e}
+.node-safe-test strong,
+.node-tutorial strong{display:block;margin-top:3px}
+.node-safe-test span,
+.node-tutorial span,
+.node-tutorial p{display:block;margin:4px 0 0;color:#7f8495;line-height:1.5}
+.node-test-result{grid-column:1/-1;margin:0!important}
+.node-test-result.ok{color:#72d7ad}
+.node-test-result.warn{color:#e4a65c}
+.node-tutorial-progress{
+  display:flex;
+  align-items:baseline;
+  gap:8px 12px;
+  flex-wrap:wrap;
+}
+.node-tutorial-progress strong{margin:0}
+.node-tutorial-progress span{margin:0 0 0 auto}
+.node-tutorial-step{
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr);
+  gap:12px;
+  margin-top:12px;
+  padding:12px;
+  border:1px solid rgba(124,92,255,.12);
+  border-radius:12px;
+  background:rgba(124,92,255,.035);
+}
+.node-tutorial-step>b{
+  display:grid;
+  place-items:center;
+  width:42px;
+  height:42px;
+  border-radius:12px;
+  background:#171421;
+  color:#a89bff;
+}
+.node-tutorial-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:10px;
+}
+@media(max-width:640px){
+  .node-safe-test{grid-template-columns:1fr}
+  .node-safe-test button{width:100%}
+  .node-test-result{grid-column:auto}
+  .node-tutorial-progress span{margin-left:0;width:100%}
+  .node-tutorial-actions button{flex:1}
+}
