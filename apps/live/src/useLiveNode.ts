@@ -399,6 +399,7 @@ export function useLiveNode() {
     actorId: string;
     kind: LiveRequest['kind'];
     payload: Record<string, unknown>;
+    priority?: LiveRequest['priority'];
   }) => {
     if (!credential) throw new Error('node_not_paired');
 
@@ -411,6 +412,7 @@ export function useLiveNode() {
       kind: input.kind,
       payload: input.payload,
       status: 'sent',
+      priority: input.priority || 'normal',
       createdAt: new Date().toISOString()
     };
 
