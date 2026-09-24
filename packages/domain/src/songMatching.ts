@@ -54,7 +54,7 @@ function normalizedFingerprint(value?: string): string {
 }
 
 function confidence(score: number): SongMatchCandidate['confidence'] {
-  if (score >= 92) return 'high';
+  if (score >= 90) return 'high';
   if (score >= 76) return 'medium';
   return 'low';
 }
@@ -79,7 +79,7 @@ function candidateFor(
   let score = 0;
 
   if (titleExact) {
-    score += 68;
+    score += 72;
     reasons.push('title_exact');
   } else if (titleSimilarity >= 0.85) {
     score += Math.round(58 * titleSimilarity);
@@ -91,7 +91,7 @@ function candidateFor(
 
   if (sourceArtist) {
     if (artistExact) {
-      score += 16;
+      score += 18;
       reasons.push('artist_exact');
     } else if (artistSimilarity >= 0.7) {
       score += Math.round(11 * artistSimilarity);
@@ -166,24 +166,10 @@ export function matchExternalSong(
   // Auto-match only when evidence is strong and clearly separated.
   // This intentionally refuses "pretty close" guesses before Live.
   if (
-    best!.score >= 92 &&
+    best!.score >= 90 &&
     (candidates.length === 1 || margin >= 12)
   ) {
     return { status: 'matched', candidate: best! };
-  }
-
-  // Preserve the old safe exact-title behavior when there is exactly one
-  // strict title+artist result and no conflicting version/fingerprint signal.
-  const strict = candidates.filter(candidate =>
-    candidate.titleExact &&
-    (normalizeSongIdentity(source.artist || '')
-      ? candidate.artistExact
-      : true) &&
-    !candidate.reasons.includes('version_differs') &&
-    !candidate.reasons.includes('lyrics_fingerprint_differs')
-  );
-  if (strict.length === 1 && strict[0]!.score >= 82) {
-    return { status: 'matched', candidate: strict[0]! };
   }
 
   return {
