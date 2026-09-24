@@ -120,9 +120,9 @@ Gate remains open until cloud writes are enabled in an approved environment and 
 
 # Phase 2 — Premium accessible interface
 
-**Status:** BLOCKED BY PHASE 1 GATE.
+**Status:** CODE FOUNDATION IMPLEMENTED BEHIND THE PHASE 1 GATE; visual/device certification remains open.
 
-The current CSS contains legacy 5–10 px rules, so this is a real remediation phase, not a cosmetic pass.
+The legacy 5–10 px typography debt has been removed from the stylesheet and a permanent UI contract now prevents regressions below the accessibility floor. Major Live/Studio surfaces are split into lazy chunks so unopened workspaces do not inflate the initial bundle.
 
 Targets:
 
@@ -136,7 +136,9 @@ Targets:
 - virtualized long lists;
 - shared design tokens instead of local one-off typography/spacing rules.
 
-Gate: no functional copy below 12 px, critical controls survive 200% zoom, keyboard/screen-reader paths work, initial bundle excludes unopened surfaces.
+Implemented in code: 543 legacy font-size declarations below 12 px raised to the 12 px metadata floor; global 14 px functional-control floor; 44×44 px touch-target token enforced for buttons/inputs/selects/textareas; focus-visible and reduced-motion rules; a CI contract rejects future sub-12 px typography; Studio/Live/Media/Scenes/Diagnostics and supporting system panels now use React lazy chunks with a stable loading surface.
+
+Gate remains open for real-device 200% zoom, screen-reader and touch QA: no functional copy below 12 px, critical controls survive 200% zoom, keyboard/screen-reader paths work, initial bundle excludes unopened surfaces.
 
 ---
 
