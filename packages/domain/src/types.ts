@@ -574,6 +574,7 @@ export interface LiveCollaborationGrant {
   inviteId: EntityId;
   liveSessionId: EntityId;
   role: LiveCollaborationRole;
+  actorId: EntityId;
   expiresAt: string;
   permissions: Array<
     | 'request.bible'
