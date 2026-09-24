@@ -61,9 +61,9 @@ Open: Windows/macOS hardware matrix; same/cross-PC LAN; playlist/library capabil
 ## Phase 7 — Automation & Production Ecosystem
 **Status: partial**
 
-Implemented: Scene domain/Studio/cache/execution; action offsets; parallel multi-provider actions; completed/partial/failed results; guarded/critical confirmation; linked presentation + visual orchestration; read-only scene rehearsal that validates live provider availability, explicit targets, configured routes, capability resolution, safety level and action offsets without sending commands.
+Implemented: Scene domain/Studio/cache/execution; action offsets; parallel multi-provider actions; completed/partial/failed results; guarded/critical confirmation; linked presentation + visual orchestration; read-only scene rehearsal that validates live provider availability, explicit targets, configured routes, capability resolution, safety level and action offsets without sending commands. A full-ServicePlan smart rehearsal foundation now runs as a pure zero-write simulator behind a feature flag, checking provider links, provider health/capabilities, routing ambiguity, cached scenes, scene action targets and output declarations before anything is allowed to reach TAKE.
 
-Open: trigger/condition engine; sequential/retry/timeout/fallback/rollback policy; deeper rehearsal simulation of conditional branches; OBS; OSC/MIDI; later ATEM/vMix/Art-Net/DMX/Companion; automation audit UX.
+Open: trigger/condition engine; sequential/retry/timeout/fallback/rollback policy; deeper rehearsal simulation of conditional branches; physical validation of full-plan rehearsal against real providers; OBS; OSC/MIDI; later ATEM/vMix/Art-Net/DMX/Companion; automation audit UX.
 
 ## Phase 8 — Audio/Output Intelligence
 **Status: not production-significant yet**
