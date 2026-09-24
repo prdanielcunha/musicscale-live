@@ -204,6 +204,7 @@ export class MacOsKeychainSecretProtector implements SecretProtector {
     if (!value) return value;
     if (this.isProtected(value)) return value;
 
+    const encodedSecret = Buffer.from(value, 'utf8').toString('base64');
     await runMacSecurity([
       'add-generic-password',
       '-U',
@@ -212,7 +213,7 @@ export class MacOsKeychainSecretProtector implements SecretProtector {
       '-s',
       KEYCHAIN_SERVICE,
       '-w',
-      value
+      encodedSecret
     ]);
 
     return keychainReference(purpose);
@@ -227,7 +228,7 @@ export class MacOsKeychainSecretProtector implements SecretProtector {
       throw new Error('macos_keychain_reference_mismatch');
     }
 
-    const secret = await runMacSecurity([
+    const encodedSecret = await runMacSecurity([
       'find-generic-password',
       '-a',
       keychainAccount(purpose),
@@ -236,8 +237,12 @@ export class MacOsKeychainSecretProtector implements SecretProtector {
       '-w'
     ]);
 
-    if (!secret) throw new Error('macos_keychain_secret_missing');
-    return secret;
+    if (!encodedSecret) throw new Error('macos_keychain_secret_missing');
+    try {
+      return Buffer.from(encodedSecret, 'base64').toString('utf8');
+    } catch {
+      throw new Error('macos_keychain_secret_invalid');
+    }
   }
 
   async delete(value: string, purpose: string): Promise<void> {
