@@ -27,6 +27,7 @@ import { IdempotencyStore } from './idempotencyStore';
 import { PairingStore } from './pairingStore';
 import { RuntimeStateStore } from './runtimeStateStore';
 import { ProviderConfigStore } from './providerConfigStore';
+import { createPlatformSecretProtector } from './secretProtector';
 import { ProviderRoutingStore } from './providerRoutingStore';
 import { PeerNodeStore } from './peerNodeStore';
 import { PeerFederation } from './peerFederation';
@@ -143,7 +144,11 @@ const sceneIdempotency = new IdempotencyStore<SceneExecutionResult>(
 );
 const pairingStore = new PairingStore(join(STATE_DIR, 'pairings.json'), nodeId);
 const runtimeState = new RuntimeStateStore(join(STATE_DIR, 'runtime.json'), nodeId);
-const providerConfigStore = new ProviderConfigStore(join(STATE_DIR, 'providers.json'));
+const secretProtector = createPlatformSecretProtector();
+const providerConfigStore = new ProviderConfigStore(
+  join(STATE_DIR, 'providers.json'),
+  secretProtector
+);
 const providerRoutingStore = new ProviderRoutingStore(join(STATE_DIR, 'routing.json'));
 const peerNodeStore = new PeerNodeStore(join(STATE_DIR, 'peers.json'));
 const signalTopologyStore = new SignalTopologyStore(join(STATE_DIR, 'signal-topology.json'));
