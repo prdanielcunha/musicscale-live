@@ -1,0 +1,276 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function org(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId));
+    }
+
+    function membership(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    function isActiveMember(orgId) {
+      return signedIn() &&
+        (
+          org(orgId).data.ownerUid == request.auth.uid ||
+          (
+            exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)) &&
+            membership(orgId).data.status == 'active'
+          )
+        );
+    }
+
+    function isAdmin(orgId) {
+      return isActiveMember(orgId) &&
+        (
+          org(orgId).data.ownerUid == request.auth.uid ||
+          membership(orgId).data.organizationRole in ['owner', 'admin']
+        );
+    }
+
+    function canConduct(orgId) {
+      return isAdmin(orgId) ||
+        (
+          isActiveMember(orgId) &&
+          membership(orgId).data.permissions['musicscale.live.conduct'] == true
+        );
+    }
+
+    function validTenantCreate() {
+      return request.resource.data.organizationId is string &&
+        isActiveMember(request.resource.data.organizationId);
+    }
+
+    function immutableTenant() {
+      return request.resource.data.organizationId == resource.data.organizationId;
+    }
+
+    function noSecretFields() {
+      return !request.resource.data.keys().hasAny([
+        'token',
+        'password',
+        'secret',
+        'apiKey',
+        'accessToken',
+        'refreshToken',
+        'providerToken'
+      ]);
+    }
+
+    function memberRead() {
+      return resource.data.organizationId is string &&
+        isActiveMember(resource.data.organizationId);
+    }
+
+    match /organizations/{orgId} {
+      allow read: if isActiveMember(orgId);
+      allow write: if false;
+
+      match /members/{uid} {
+        allow read: if isActiveMember(orgId);
+        allow write: if false;
+      }
+    }
+
+    match /musicScaleLiveVenues/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        isAdmin(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        isAdmin(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if isAdmin(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveSystems/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        isAdmin(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        isAdmin(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if isAdmin(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveNodes/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        isAdmin(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        isAdmin(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if isAdmin(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveProfiles/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        isAdmin(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        isAdmin(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if isAdmin(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveSharedConfig/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        isAdmin(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        isAdmin(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if isAdmin(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveRoutes/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        isAdmin(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        isAdmin(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if isAdmin(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveSignalTopologies/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        isAdmin(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        isAdmin(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if isAdmin(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveScenes/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        canConduct(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        canConduct(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if canConduct(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveAutomations/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        canConduct(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        canConduct(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if canConduct(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveProviderLinks/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        canConduct(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        canConduct(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if canConduct(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveServicePlans/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        canConduct(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        canConduct(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if canConduct(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveSessions/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        canConduct(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        canConduct(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if canConduct(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveRequests/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        request.resource.data.actorId == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        noSecretFields() &&
+        (
+          canConduct(resource.data.organizationId) ||
+          (
+            resource.data.actorId == request.auth.uid &&
+            request.resource.data.actorId == resource.data.actorId &&
+            resource.data.status == 'pending' &&
+            request.resource.data.status == 'rejected'
+          )
+        );
+      allow delete: if canConduct(resource.data.organizationId);
+    }
+
+    match /musicScaleLivePresence/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        request.resource.data.actorId == request.auth.uid &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        resource.data.actorId == request.auth.uid &&
+        request.resource.data.actorId == resource.data.actorId &&
+        noSecretFields();
+      allow delete: if resource.data.actorId == request.auth.uid ||
+        canConduct(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveEvents/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        canConduct(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update, delete: if false;
+    }
+
+    match /musicScaleLiveChangeHistory/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        canConduct(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update, delete: if false;
+    }
+
+    match /musicScaleLiveMediaAssets/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        canConduct(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        canConduct(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if canConduct(resource.data.organizationId);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

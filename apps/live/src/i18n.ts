@@ -140,6 +140,28 @@ const resources = {
     providers: 'Providers',
     pending: 'Aguardando',
     connected: 'Conectado',
+    syncState: {
+      disabled: 'Somente local',
+      local: 'Salvo neste dispositivo',
+      pending: 'Sincronizando',
+      synced: 'Salvo na nuvem',
+      offline: 'Será sincronizado depois',
+      conflict: 'Alterado em outro dispositivo',
+      failed: 'Não foi possível sincronizar'
+    },
+    syncPanel: {
+      kicker: 'SINCRONIZAÇÃO',
+      title: 'Estado dos dados',
+      description: 'O Live mostra o que está seguro localmente, o que já chegou à nuvem e o que precisa de decisão.',
+      localOnly: 'A operação local continua ativa. A sincronização com a nuvem está desativada nesta build.',
+      summary: '{{pending}} pendente(s) · {{conflicts}} conflito(s) · {{failed}} falha(s)',
+      noAction: 'Nenhuma ação necessária',
+      noActionHint: 'As alterações conhecidas estão estáveis ou já sincronizadas.',
+      remoteVersion: 'Versão da nuvem',
+      useRemote: 'Usar versão da nuvem',
+      keepLocal: 'Manter minha versão',
+      retry: 'Tentar novamente'
+    },
     readOnlyBridge: 'Bridge MusicScale em modo leitura',
     loading: 'Carregando contexto...',
     accessibility: {
@@ -1353,6 +1375,28 @@ const resources = {
     songs: 'songs', foundation: 'Foundation', providerAgnostic: 'Provider-agnostic', lanFirst: 'LAN-first',
     offlineReady: 'Offline-ready', health: 'System health', node: 'Live Node', cloud: 'Cloud Sync',
     providers: 'Providers', pending: 'Pending', connected: 'Connected', readOnlyBridge: 'MusicScale read-only bridge',
+    syncState: {
+      disabled: 'Local only',
+      local: 'Saved on this device',
+      pending: 'Syncing',
+      synced: 'Saved to cloud',
+      offline: 'Will sync later',
+      conflict: 'Changed on another device',
+      failed: 'Could not sync'
+    },
+    syncPanel: {
+      kicker: 'SYNC',
+      title: 'Data status',
+      description: 'Live shows what is safe locally, what reached the cloud and what needs a decision.',
+      localOnly: 'Local operation remains active. Cloud sync is disabled in this build.',
+      summary: '{{pending}} pending · {{conflicts}} conflict(s) · {{failed}} failed',
+      noAction: 'No action required',
+      noActionHint: 'Known changes are stable or already synchronized.',
+      remoteVersion: 'Cloud version',
+      useRemote: 'Use cloud version',
+      keepLocal: 'Keep my version',
+      retry: 'Try again'
+    },
     loading: 'Loading context...',
     accessibility: {
       skipToContent: 'Skip to content',
@@ -2558,6 +2602,28 @@ const resources = {
     songs: 'canciones', foundation: 'Foundation', providerAgnostic: 'Provider-agnostic', lanFirst: 'LAN-first',
     offlineReady: 'Offline-ready', health: 'Salud del sistema', node: 'Live Node', cloud: 'Cloud Sync',
     providers: 'Providers', pending: 'Pendiente', connected: 'Conectado', readOnlyBridge: 'Bridge MusicScale en modo lectura',
+    syncState: {
+      disabled: 'Solo local',
+      local: 'Guardado en este dispositivo',
+      pending: 'Sincronizando',
+      synced: 'Guardado en la nube',
+      offline: 'Se sincronizará después',
+      conflict: 'Cambiado en otro dispositivo',
+      failed: 'No se pudo sincronizar'
+    },
+    syncPanel: {
+      kicker: 'SINCRONIZACIÓN',
+      title: 'Estado de los datos',
+      description: 'Live muestra qué está seguro localmente, qué llegó a la nube y qué necesita una decisión.',
+      localOnly: 'La operación local sigue activa. La sincronización con la nube está desactivada en esta build.',
+      summary: '{{pending}} pendiente(s) · {{conflicts}} conflicto(s) · {{failed}} fallo(s)',
+      noAction: 'No se requiere ninguna acción',
+      noActionHint: 'Los cambios conocidos están estables o ya sincronizados.',
+      remoteVersion: 'Versión de la nube',
+      useRemote: 'Usar versión de la nube',
+      keepLocal: 'Mantener mi versión',
+      retry: 'Intentar de nuevo'
+    },
     loading: 'Cargando contexto...',
     accessibility: {
       skipToContent: 'Ir directamente al contenido',

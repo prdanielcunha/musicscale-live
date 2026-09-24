@@ -2022,3 +2022,54 @@ code,kbd{font-variant-ligatures:none}
     transition-duration:.01ms!important;
   }
 }
+
+
+/* Phase 1 — truthful cloud sync */
+.sync-status-panel{
+  margin:0 0 16px;padding:18px;border:1px solid rgba(255,255,255,.065);
+  border-radius:18px;background:linear-gradient(155deg,rgba(17,18,25,.97),rgba(9,10,15,.96));
+}
+.sync-status-panel>header{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
+}
+.sync-status-panel h2{margin:5px 0 4px;font-size:20px;letter-spacing:-.025em}
+.sync-status-panel p{margin:0;max-width:760px;color:#858a99;font-size:14px;line-height:1.5}
+.sync-status-summary{
+  flex:none;min-width:190px;padding:10px 12px;border:1px solid rgba(255,255,255,.06);
+  border-radius:12px;background:#0d0e14;text-align:right;
+}
+.sync-status-summary strong{display:block;font-size:14px}
+.sync-status-summary small{display:block;margin-top:4px;color:#747989;font-size:12px;line-height:1.35}
+.sync-status-panel.state-synced{border-color:rgba(54,192,139,.14)}
+.sync-status-panel.state-conflict,.sync-status-panel.state-failed{border-color:rgba(228,103,114,.2)}
+.sync-status-panel.state-offline,.sync-status-panel.state-pending{border-color:rgba(233,166,74,.16)}
+.sync-status-empty{
+  margin-top:12px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.025)
+}
+.sync-status-empty strong{display:block;font-size:14px}
+.sync-status-empty span{display:block;margin-top:3px;color:#747989;font-size:12px}
+.sync-status-list{display:grid;gap:7px;margin-top:12px}
+.sync-status-item{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  min-height:64px;padding:10px 12px;border:1px solid rgba(255,255,255,.055);
+  border-radius:12px;background:#0d0e14;
+}
+.sync-status-item>div:first-child{min-width:0}
+.sync-status-item small{
+  display:block;color:#8e84cf;font-size:12px;text-transform:uppercase;letter-spacing:.06em
+}
+.sync-status-item strong{
+  display:block;margin-top:3px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.sync-status-item span{display:block;margin-top:3px;color:#777c8b;font-size:12px}
+.sync-status-item.state-conflict{border-color:rgba(228,103,114,.18)}
+.sync-status-item.state-failed{border-color:rgba(228,103,114,.14)}
+.sync-status-item.state-offline{border-color:rgba(233,166,74,.13)}
+.sync-status-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.sync-status-actions button{min-height:44px;padding:9px 12px;font-size:14px}
+@media(max-width:760px){
+  .sync-status-panel>header,.sync-status-item{align-items:stretch;flex-direction:column}
+  .sync-status-summary{min-width:0;text-align:left}
+  .sync-status-actions{justify-content:stretch}
+  .sync-status-actions button{flex:1}
+}

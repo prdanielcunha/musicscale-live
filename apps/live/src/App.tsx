@@ -27,6 +27,8 @@ import { markLiveMetric } from './telemetry';
 import { useLiveNode } from './useLiveNode';
 import { useLiveFocus } from './useLiveFocus';
 import { useOperatorViewport } from './useOperatorViewport';
+import { useLiveSyncSummary } from './useLiveSync';
+import { SyncStatusPanel } from './SyncStatusPanel';
 import { RequestSurface } from './RequestSurface';
 import { LiveRequestInbox } from './LiveRequestInbox';
 import { LiveSessionPulse } from './LiveSessionPulse';
@@ -98,6 +100,7 @@ export function App() {
   const liveNode = useLiveNode();
   const liveFocus = useLiveFocus(surface === 'live');
   const operatorViewport = useOperatorViewport(surface === 'live');
+  const syncSummary = useLiveSyncSummary();
 
   useEffect(() => {
     let cancelled = false;
@@ -544,7 +547,13 @@ export function App() {
 
             {surface === 'studio' && studioSection === 'overview' && (
               <section className="health-grid">
-                <article><span className="status ok" /><div><small>{t('cloud')}</small><strong>{t('connected')}</strong></div></article>
+                <article>
+                  <span className={`status ${syncSummary.overall === 'synced' ? 'ok' : syncSummary.overall === 'failed' || syncSummary.overall === 'conflict' ? 'danger' : 'warn'}`} />
+                  <div>
+                    <small>{t('cloud')}</small>
+                    <strong>{t(`syncState.${syncSummary.overall}`)}</strong>
+                  </div>
+                </article>
                 <article>
                   <span className={`status ${nodeConnected ? 'ok' : liveNode.state === 'offline' || liveNode.state === 'blocked' ? 'danger' : 'warn'}`} />
                   <div><small>{t('node')}</small><strong>{nodeStatus}</strong></div>
@@ -554,6 +563,10 @@ export function App() {
                   <div><small>{t('providers')}</small><strong>{providersConnected ? `${liveNode.health?.providersOnline ?? 0}/${liveNode.health?.providers ?? 0}` : t('pending')}</strong></div>
                 </article>
               </section>
+            )}
+
+            {surface === 'studio' && studioSection === 'overview' && (
+              <SyncStatusPanel />
             )}
 
             {surface === 'studio' && (

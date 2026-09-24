@@ -189,6 +189,80 @@ describe('MusicScale Live Firestore tenant rules', () => {
     }));
   });
 
+  it('blocks provider credentials from cloud documents while allowing safe provider links', async () => {
+    const operator = env.authenticatedContext('operator').firestore();
+
+    await assertSucceeds(setDoc(doc(operator, 'musicScaleLiveProviderLinks', 'link-safe'), {
+      id: 'link-safe',
+      organizationId: 'org-a',
+      venueId: 'venue-a',
+      providerInstanceId: 'holyrics-primary',
+      entityType: 'song',
+      musicScaleEntityId: 'song-a',
+      externalId: 'holyrics-song-a'
+    }));
+
+    await assertFails(setDoc(doc(operator, 'musicScaleLiveProviderLinks', 'link-secret'), {
+      id: 'link-secret',
+      organizationId: 'org-a',
+      venueId: 'venue-a',
+      providerInstanceId: 'holyrics-primary',
+      entityType: 'song',
+      musicScaleEntityId: 'song-a',
+      externalId: 'holyrics-song-a',
+      token: 'must-never-reach-cloud'
+    }));
+  });
+
+  it('allows members to publish only their own presence record', async () => {
+    const viewer = env.authenticatedContext('viewer').firestore();
+
+    await assertSucceeds(setDoc(doc(viewer, 'musicScaleLivePresence', 'viewer-presence'), {
+      id: 'viewer-presence',
+      organizationId: 'org-a',
+      venueId: 'venue-a',
+      liveSessionId: 'session-a',
+      actorId: 'viewer',
+      role: 'viewer',
+      active: true,
+      lastSeenAt: '2026-09-24T09:00:00.000Z'
+    }));
+
+    await assertFails(setDoc(doc(viewer, 'musicScaleLivePresence', 'spoofed-presence'), {
+      id: 'spoofed-presence',
+      organizationId: 'org-a',
+      venueId: 'venue-a',
+      liveSessionId: 'session-a',
+      actorId: 'operator',
+      role: 'operator',
+      active: true,
+      lastSeenAt: '2026-09-24T09:00:00.000Z'
+    }));
+  });
+
+  it('keeps change history append-only and tenant-scoped', async () => {
+    const operator = env.authenticatedContext('operator').firestore();
+
+    await assertSucceeds(setDoc(doc(operator, 'musicScaleLiveChangeHistory', 'mutation-a'), {
+      id: 'mutation-a',
+      organizationId: 'org-a',
+      venueId: 'venue-a',
+      entityKind: 'scene',
+      entityId: 'scene-a',
+      operation: 'upsert',
+      payload: { id: 'scene-a', name: 'Scene A' },
+      version: 'v1',
+      origin: 'studio',
+      actorId: 'operator',
+      createdAt: '2026-09-24T09:00:00.000Z',
+      committedAt: '2026-09-24T09:00:01.000Z'
+    }));
+
+    await assertFails(updateDoc(doc(operator, 'musicScaleLiveChangeHistory', 'mutation-a'), {
+      version: 'rewritten'
+    }));
+  });
+
   it('keeps Live events append-only', async () => {
     const operator = env.authenticatedContext('operator').firestore();
 

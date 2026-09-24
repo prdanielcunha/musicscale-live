@@ -66,5 +66,8 @@ jobs:
       - name: Unit and contract tests
         run: npm test
 
+      - name: Firestore RBAC emulator gate
+        run: npm run test:firestore-rules
+
       - name: Build PWA and Live Node
         run: npm run build

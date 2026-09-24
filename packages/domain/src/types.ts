@@ -535,3 +535,97 @@ export interface LiveRequest {
   resolvedAt?: string;
   resolvedBy?: EntityId;
 }
+
+
+export type SyncEntityKind =
+  | 'servicePlan'
+  | 'providerLink'
+  | 'scene'
+  | 'request'
+  | 'presence'
+  | 'liveConfig'
+  | 'route'
+  | 'signalTopology';
+
+export type SyncStatus =
+  | 'local'
+  | 'pending'
+  | 'synced'
+  | 'offline'
+  | 'conflict'
+  | 'failed';
+
+export type SyncMutationOperation = 'upsert' | 'delete';
+
+export type SyncConflictPolicy =
+  | 'manual'
+  | 'last-write-wins'
+  | 'append-only';
+
+export interface SyncMutation<TPayload = Record<string, unknown>> {
+  id: EntityId;
+  organizationId: EntityId;
+  venueId?: EntityId;
+  liveSystemId?: EntityId;
+  entityKind: SyncEntityKind;
+  entityId: EntityId;
+  operation: SyncMutationOperation;
+  payload?: TPayload;
+  baseVersion?: string | null;
+  version: string;
+  origin: 'studio' | 'live-ui' | 'pastor' | 'conductor' | 'live-node' | 'system';
+  actorId: EntityId;
+  createdAt: string;
+  attempt: number;
+  nextAttemptAt?: string;
+  conflictPolicy: SyncConflictPolicy;
+}
+
+export interface SyncConflict<TPayload = Record<string, unknown>> {
+  mutation: SyncMutation<TPayload>;
+  remoteVersion?: string | null;
+  remotePayload?: TPayload | null;
+  detectedAt: string;
+}
+
+export interface EntitySyncState {
+  key: string;
+  entityKind: SyncEntityKind;
+  entityId: EntityId;
+  status: SyncStatus;
+  mutationId?: EntityId;
+  version?: string;
+  errorCode?: string;
+  updatedAt: string;
+}
+
+export interface CloudVersionEnvelope<TPayload = Record<string, unknown>> {
+  data: TPayload;
+  _sync: {
+    version: string;
+    mutationId: EntityId;
+    actorId: EntityId;
+    origin: SyncMutation['origin'];
+    updatedAt: string;
+  };
+}
+
+
+export type LivePresenceRole =
+  | 'operator'
+  | 'pastor'
+  | 'conductor'
+  | 'viewer';
+
+export interface LivePresence {
+  id: EntityId;
+  organizationId: EntityId;
+  venueId: EntityId;
+  liveSystemId?: EntityId;
+  liveSessionId: EntityId;
+  actorId: EntityId;
+  role: LivePresenceRole;
+  deviceName?: string;
+  active: boolean;
+  lastSeenAt: string;
+}

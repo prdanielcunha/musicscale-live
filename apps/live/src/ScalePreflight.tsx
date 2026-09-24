@@ -7,6 +7,7 @@ import { liveFeatureFlags } from './featureFlags';
 import { syncPreparedServicePlan } from './liveCloudRepository';
 import type { useLiveNode } from './useLiveNode';
 import { ProductionPreflightChecklist } from './ProductionPreflightChecklist';
+import { useEntitySyncState } from './useLiveSync';
 
 type Controller = ReturnType<typeof useLiveNode>;
 
@@ -154,8 +155,9 @@ export function ScalePreflight({
   const [syncArmed, setSyncArmed] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [offlinePrepared, setOfflinePrepared] = useState(false);
-  const [cloudSync, setCloudSync] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const [systemBlocked, setSystemBlocked] = useState(false);
+  const servicePlanId = `music-scale:${scale.id}`;
+  const cloudSync = useEntitySyncState('servicePlan', servicePlanId);
   const syncTimer = useRef<number | null>(null);
   const cachedSignature = useRef<string | null>(null);
   const autoCheckedSignature = useRef<string | null>(null);
@@ -235,13 +237,10 @@ export function ScalePreflight({
     await controller.cacheServicePlan(plan, providerLinks);
     setOfflinePrepared(true);
     if (liveFeatureFlags.servicePlanWrites) {
-      setCloudSync('syncing');
-      try {
-        await syncPreparedServicePlan(plan, providerLinks, actorId);
-        setCloudSync('synced');
-      } catch {
-        setCloudSync('error');
-      }
+      await syncPreparedServicePlan(plan, providerLinks, actorId).catch(() => {
+        // The local Live Node already has the plan. The Sync Engine keeps
+        // the truthful pending/offline/failed state for cloud recovery.
+      });
     }
   }
 
@@ -554,9 +553,9 @@ export function ScalePreflight({
           <strong>{readyCount}/{rows.length}</strong>
           <small>{t('preflight.ready')}</small>
           {offlinePrepared && <em>{t('preflight.offlineReady')}</em>}
-          {liveFeatureFlags.servicePlanWrites && cloudSync !== 'idle' && (
-            <em className={`cloud-sync-${cloudSync}`}>
-              {t(`preflight.cloudSync.${cloudSync}`)}
+          {liveFeatureFlags.servicePlanWrites && offlinePrepared && (
+            <em className={`cloud-sync-${cloudSync?.status || 'local'}`}>
+              {t(`syncState.${cloudSync?.status || 'local'}`)}
             </em>
           )}
         </div>
