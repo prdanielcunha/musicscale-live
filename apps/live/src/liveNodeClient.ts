@@ -686,7 +686,7 @@ export async function updateNodeLiveRequestStatus(
   baseUrl: string,
   token: string,
   requestId: string,
-  status: 'accepted' | 'rejected' | 'completed',
+  status: LiveRequest['status'],
   resolvedBy: string
 ): Promise<{ request: LiveRequest; stateRevision: number }> {
   return requestJson(baseUrl, `/requests/${encodeURIComponent(requestId)}/status`, {
