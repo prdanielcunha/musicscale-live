@@ -1,4 +1,4 @@
-name: Build MusicScale Live Node alpha packages
+name: Build MusicScale Live Node beta packages
 
 on:
   workflow_dispatch:
@@ -15,6 +15,9 @@ on:
 
 permissions:
   contents: read
+
+env:
+  LIVE_NODE_VERSION: 0.1.0-beta.1
 
 concurrency:
   group: musicscale-live-node-packages-${{ github.ref }}
@@ -56,6 +59,9 @@ jobs:
       - name: Brand contract
         run: npm run check:brand
 
+      - name: UI accessibility contract
+        run: npm run check:ui
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -94,7 +100,7 @@ jobs:
           if (-not (Test-Path $iscc)) {
             throw "Inno Setup compiler not found at $iscc"
           }
-          & $iscc "/DSourceDir=$env:PACKAGE_DIR" "/DOutputDir=$env:PACKAGE_DIR" "distribution/windows/MusicScaleLiveNode.iss"
+          & $iscc "/DSourceDir=$env:PACKAGE_DIR" "/DOutputDir=$env:PACKAGE_DIR" "/DAppVersion=$env:LIVE_NODE_VERSION" "distribution/windows/MusicScaleLiveNode.iss"
           $setup = Join-Path $env:PACKAGE_DIR "MusicScaleLiveSetup.exe"
           if (-not (Test-Path $setup)) {
             throw "MusicScaleLiveSetup.exe was not created."
@@ -118,6 +124,22 @@ jobs:
             cp distribution/macos/install.command "$out/install.command"
             cp distribution/macos/uninstall.command "$out/uninstall.command"
             chmod +x "$out/install.command" "$out/uninstall.command"
+
+            root="$RUNNER_TEMP/pkg-root"
+            scripts="$RUNNER_TEMP/pkg-scripts"
+            app_dir="$root/Library/Application Support/MusicScaleLive"
+            agent_dir="$root/Library/LaunchAgents"
+            mkdir -p "$app_dir/web" "$agent_dir" "$scripts"
+            cp "$out/MusicScaleLiveNode" "$app_dir/MusicScaleLiveNode"
+            cp -R "$out/web/." "$app_dir/web/"
+            cp distribution/macos/pkg/com.millionsnest.musicscale-live-node.plist "$agent_dir/"
+            cp distribution/macos/pkg/scripts/postinstall "$scripts/postinstall"
+            chmod +x "$app_dir/MusicScaleLiveNode" "$scripts/postinstall"
+            pkgbuild               --root "$root"               --scripts "$scripts"               --identifier "com.millionsnest.musicscale-live-node"               --version "$LIVE_NODE_VERSION"               "$out/MusicScaleLiveNode.pkg"
+          else
+            cp distribution/linux/install.sh "$out/install.sh"
+            cp distribution/linux/uninstall.sh "$out/uninstall.sh"
+            chmod +x "$out/install.sh" "$out/uninstall.sh"
           fi
 
           (
@@ -151,10 +173,10 @@ jobs:
           }
           Stop-Process -Id $proc.Id -Force
 
-      - name: Upload unsigned alpha package
+      - name: Upload beta test package
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
+          name: ${{ matrix.artifact }}-${{ env.LIVE_NODE_VERSION }}
           path: ${{ env.PACKAGE_DIR }}
           if-no-files-found: error
           retention-days: 14
