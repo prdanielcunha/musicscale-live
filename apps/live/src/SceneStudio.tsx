@@ -10,9 +10,9 @@ import type { useLiveNode } from './useLiveNode';
 import { createClientId } from './clientId';
 import { liveFeatureFlags } from './featureFlags';
 import {
-  listScenes,
   removeScene,
-  saveScene as saveCloudScene
+  saveScene as saveCloudScene,
+  subscribeCloudScenes
 } from './liveCloudRepository';
 
 type Controller = ReturnType<typeof useLiveNode>;
@@ -208,25 +208,23 @@ export function SceneStudio({
 
   useEffect(() => {
     if (!credential || !liveFeatureFlags.servicePlanWrites) return;
-    let cancelled = false;
 
-    void listScenes(
+    return subscribeCloudScenes(
       credential.binding.organizationId,
-      credential.binding.venueId,
-      credential.binding.liveSystemId
-    ).then(async cloudScenes => {
-      if (cancelled || !cloudScenes.length) return;
-      const local = controller.nodeState?.state.scenes || [];
-      const merged = new Map(local.map(scene => [scene.id, scene]));
-      for (const scene of cloudScenes) merged.set(scene.id, scene);
-      await controller.cacheScenes([...merged.values()]);
-    }).catch(() => {
-      // Cloud enrichment is optional; the local Node remains authoritative live.
-    });
-
-    return () => {
-      cancelled = true;
-    };
+      cloudScenes => {
+        const local = controller.nodeState?.state.scenes || [];
+        const merged = new Map(local.map(scene => [scene.id, scene]));
+        for (const scene of cloudScenes) merged.set(scene.id, scene);
+        void controller.cacheScenes([...merged.values()]);
+      },
+      {
+        venueId: credential.binding.venueId,
+        liveSystemId: credential.binding.liveSystemId,
+        onError: () => {
+          // The local Node remains authoritative when cloud sync is unavailable.
+        }
+      }
+    );
   }, [
     controller.cacheScenes,
     controller.nodeState?.state.scenes,
@@ -326,7 +324,7 @@ export function SceneStudio({
     try {
       await controller.cacheScenes(scenes.filter(item => item.id !== scene.id));
       if (liveFeatureFlags.servicePlanWrites) {
-        await removeScene(scene.id).catch(() => {
+        await removeScene(scene, actorId).catch(() => {
           setMessage(t('sceneStudio.cloudPending'));
         });
       }
