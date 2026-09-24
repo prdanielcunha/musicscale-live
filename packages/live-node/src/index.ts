@@ -2595,6 +2595,7 @@ async function start(): Promise<void> {
       message === 'live_drop_file_type_not_allowed' || message === 'live_drop_content_type_mismatch' ? 415 :
       message === 'provider_link_target_missing' ? 409 :
       message === 'stale_service_plan' ? 409 :
+      message === 'idempotency_previous_attempt_uncertain' ? 409 :
       message === 'live_drop_asset_not_ready' ||
       message === 'live_drop_asset_not_quarantined' ||
       message === 'live_drop_media_open_not_supported' ||
