@@ -162,6 +162,26 @@ const resources = {
       keepLocal: 'Manter minha versão',
       retry: 'Tentar novamente'
     },
+    smartRehearsal: {
+      kicker: 'ENSAIO SEGURO',
+      title: 'Simular o culto sem enviar comandos',
+      description: 'Valida plano, links, rotas, providers e cenas usando somente o estado conhecido. Nada é colocado no ar.',
+      simulation: 'Simulação',
+      ready: 'Pronto para armar',
+      blocked: 'Corrija os bloqueios',
+      zeroWrites: 'Nenhum comando enviado',
+      readyItems: 'Itens prontos',
+      blockers: 'Bloqueios',
+      warnings: 'Avisos',
+      commands: 'Comandos enviados',
+      noBlockers: 'Nenhum bloqueio detectado',
+      noBlockersHint: 'O plano conhecido pode ser preparado. O TAKE continua sendo a única ação que executa no ar.',
+      severity: {
+        blocker: 'Bloqueio',
+        warning: 'Aviso',
+        info: 'Pronto'
+      }
+    },
     readOnlyBridge: 'Bridge MusicScale em modo leitura',
     loading: 'Carregando contexto...',
     accessibility: {
@@ -1397,6 +1417,26 @@ const resources = {
       keepLocal: 'Keep my version',
       retry: 'Try again'
     },
+    smartRehearsal: {
+      kicker: 'SAFE REHEARSAL',
+      title: 'Simulate the service without sending commands',
+      description: 'Validates the plan, links, routes, providers and scenes from known state. Nothing is put on air.',
+      simulation: 'Simulation',
+      ready: 'Ready to arm',
+      blocked: 'Fix blockers',
+      zeroWrites: 'No commands sent',
+      readyItems: 'Ready items',
+      blockers: 'Blockers',
+      warnings: 'Warnings',
+      commands: 'Commands sent',
+      noBlockers: 'No blockers detected',
+      noBlockersHint: 'The known plan can be prepared. TAKE remains the only action that executes on air.',
+      severity: {
+        blocker: 'Blocker',
+        warning: 'Warning',
+        info: 'Ready'
+      }
+    },
     loading: 'Loading context...',
     accessibility: {
       skipToContent: 'Skip to content',
@@ -2623,6 +2663,26 @@ const resources = {
       useRemote: 'Usar versión de la nube',
       keepLocal: 'Mantener mi versión',
       retry: 'Intentar de nuevo'
+    },
+    smartRehearsal: {
+      kicker: 'ENSAYO SEGURO',
+      title: 'Simular el culto sin enviar comandos',
+      description: 'Valida el plan, los vínculos, las rutas, los providers y las escenas usando solo el estado conocido. Nada sale al aire.',
+      simulation: 'Simulación',
+      ready: 'Listo para armar',
+      blocked: 'Corrija los bloqueos',
+      zeroWrites: 'Ningún comando enviado',
+      readyItems: 'Elementos listos',
+      blockers: 'Bloqueos',
+      warnings: 'Avisos',
+      commands: 'Comandos enviados',
+      noBlockers: 'No se detectaron bloqueos',
+      noBlockersHint: 'El plan conocido puede prepararse. TAKE sigue siendo la única acción que ejecuta al aire.',
+      severity: {
+        blocker: 'Bloqueo',
+        warning: 'Aviso',
+        info: 'Listo'
+      }
     },
     loading: 'Cargando contexto...',
     accessibility: {
