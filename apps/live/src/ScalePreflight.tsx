@@ -235,6 +235,7 @@ export function ScalePreflight({
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [offlinePrepared, setOfflinePrepared] = useState(false);
   const [systemBlocked, setSystemBlocked] = useState(false);
+  const [showReadyItems, setShowReadyItems] = useState(false);
   const servicePlanId = `music-scale:${scale.id}`;
   const cloudSync = useEntitySyncState('servicePlan', servicePlanId);
   const syncTimer = useRef<number | null>(null);
@@ -292,6 +293,12 @@ export function ScalePreflight({
 
   const readyCount = rows.filter(row => row.status === 'matched' && row.matched).length;
   const unresolvedCount = rows.length - readyCount;
+  const exceptionCount = rows.filter(row =>
+    row.status !== 'matched' || !row.matched
+  ).length;
+  const visibleRows = showReadyItems
+    ? rows
+    : rows.filter(row => row.status !== 'matched' || !row.matched);
   const hasChecked = rows.some(row => row.status !== 'idle');
   const progress = rows.length > 0
     ? Math.round((readyCount / rows.length) * 100)
@@ -702,8 +709,37 @@ export function ScalePreflight({
         )}
       </div>
 
+      <div className="preflight-exception-bar">
+        <div>
+          <strong>
+            {exceptionCount > 0
+              ? t('preflight.exceptionsRemaining', { count: exceptionCount })
+              : t('preflight.noExceptions')}
+          </strong>
+          <small>
+            {showReadyItems
+              ? t('preflight.showingAll', { count: rows.length })
+              : t('preflight.readyCollapsed', { count: readyCount })}
+          </small>
+        </div>
+        {readyCount > 0 && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setShowReadyItems(value => !value)}
+          >
+            {showReadyItems
+              ? t('preflight.hideReady')
+              : t('preflight.showReady', { count: readyCount })}
+          </button>
+        )}
+      </div>
+
       <div className="preflight-list">
-        {rows.map((row, index) => (
+        {visibleRows.map(row => {
+          const index = rows.findIndex(candidate => candidate.source.id === row.source.id);
+          return (
+          <div className="preflight-row" key={row.source.id}>
           <div className="preflight-row" key={row.source.id}>
             <b>{String(index + 1).padStart(2, '0')}</b>
             <div className="preflight-song">
@@ -767,7 +803,8 @@ export function ScalePreflight({
               )}
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
 
       {!canSearch && <p className="preflight-note">{t('preflight.searchUnavailable')}</p>}
