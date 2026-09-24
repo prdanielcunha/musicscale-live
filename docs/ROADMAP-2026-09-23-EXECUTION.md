@@ -220,11 +220,13 @@ Gate remains open: every detectable blocker appears before Live and simulation e
 
 # Phase 10 — Post-service review
 
-**Status:** BLOCKED BY PHASE 9 GATE.
+**Status:** FACTUAL REVIEW FOUNDATION IMPLEMENTED BEHIND FEATURE FLAG; activation remains BLOCKED BY PHASE 9 GATE.
 
-Use immutable operational events to compare planned vs actual, skipped/added items, requests, failures, reconnections and manual intervention. Convert relevant technical failures into actionable setup tasks.
+A pure domain review now compares the prepared ServicePlan with immutable Live Node events. It distinguishes executed items, items explicitly marked skipped, and items that were simply **not observed** — avoiding the false assumption that absence of an event means the operator intentionally skipped something. It also reports ad-hoc run-of-show actions, request terminal states, provider failures, event origins and provider latency facts. The Studio surface is available behind `VITE_LIVE_SERVICE_REVIEW`.
 
-Gate: review is immediately available after session close and respects retention/organization permissions.
+This foundation deliberately does not infer motive, cause or responsibility. Later setup-task generation must remain evidence-backed.
+
+Gate remains open: review is immediately available after session close, factual, and respects retention/organization permissions.
 
 ---
 
