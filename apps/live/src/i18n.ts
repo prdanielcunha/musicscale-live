@@ -367,7 +367,39 @@ const resources = {
       addressHint: 'Use somente como fallback técnico. Informe um endereço local exibido pelo Live Node, por exemplo 192.168.1.20:4317.',
       probing: 'Procurando…',
       pair: 'Conectar manualmente',
-      noCloudSecret: 'Credenciais dos apps permanecem somente no computador local.'
+      noCloudSecret: 'Credenciais dos apps permanecem somente no computador local.',
+      networkIsolationHint: 'Se o Node está aberto mas não aparece, confirme que os dois aparelhos estão no mesmo Wi‑Fi/LAN e que a rede não está em modo Guest/Convidados ou com isolamento de clientes.',
+      safeTestKicker: 'TESTE SEM RISCO',
+      safeTestTitle: 'Confirmar comunicação antes do culto',
+      safeTestDescription: 'Faz somente heartbeat, leitura de estado e health. Nenhum comando é enviado aos providers.',
+      safeTestAction: 'Testar conexão',
+      safeTestRunning: 'Testando…',
+      safeTestPassed: 'Conexão local OK · {{latency}} ms · {{providers}} provider(s) operacional(is).',
+      safeTestFailed: 'Teste não concluído: {{reason}}',
+      tutorialKicker: 'GUIA DE 90 SEGUNDOS',
+      tutorialTitle: 'Aprenda o fluxo antes de operar',
+      tutorialTime: '4 passos · sem colocar nada no ar',
+      tutorialBack: 'Voltar',
+      tutorialNext: 'Próximo',
+      tutorialDone: 'Entendi o fluxo',
+      tutorialSteps: {
+        0: {
+          title: 'Prepare primeiro',
+          description: 'Abra Preparar, deixe o Live conferir músicas, rotas, mídia e cache. Resolver exceções antes do culto reduz decisões durante o ao vivo.'
+        },
+        1: {
+          title: 'NEXT é preparação',
+          description: 'Selecionar um item prepara o próximo conteúdo. A seleção sozinha nunca deve colocar algo no telão.'
+        },
+        2: {
+          title: 'TAKE é a fronteira',
+          description: 'Somente TAKE executa o conteúdo preparado. Confira Preview, provider e destino antes de confirmar.'
+        },
+        3: {
+          title: 'Se algo cair, continue local',
+          description: 'O Live Node mantém o plano preparado na LAN. Se a internet cair, use Local Recovery e mantenha o provider original disponível como fallback.'
+        }
+      }
     },
     localRecovery: {
       mode: 'Modo de recuperação local',
@@ -1644,7 +1676,39 @@ const resources = {
       addressHint: 'Use only as a technical fallback. Enter a local address shown by Live Node, for example 192.168.1.20:4317.',
       probing: 'Looking…',
       pair: 'Connect manually',
-      noCloudSecret: 'App credentials stay only on the local computer.'
+      noCloudSecret: 'App credentials stay only on the local computer.',
+      networkIsolationHint: 'If Node is running but cannot be found, confirm both devices are on the same Wi‑Fi/LAN and the network is not Guest mode or using client isolation.',
+      safeTestKicker: 'ZERO-RISK TEST',
+      safeTestTitle: 'Confirm communication before the service',
+      safeTestDescription: 'Runs heartbeat, state read and health only. No provider command is sent.',
+      safeTestAction: 'Test connection',
+      safeTestRunning: 'Testing…',
+      safeTestPassed: 'Local connection OK · {{latency}} ms · {{providers}} operational provider(s).',
+      safeTestFailed: 'Test did not complete: {{reason}}',
+      tutorialKicker: '90-SECOND GUIDE',
+      tutorialTitle: 'Learn the flow before operating',
+      tutorialTime: '4 steps · nothing goes on air',
+      tutorialBack: 'Back',
+      tutorialNext: 'Next',
+      tutorialDone: 'I understand the flow',
+      tutorialSteps: {
+        0: {
+          title: 'Prepare first',
+          description: 'Open Prepare and let Live check songs, routes, media and cache. Fix exceptions before the service.'
+        },
+        1: {
+          title: 'NEXT means prepare',
+          description: 'Selecting an item prepares the next content. Selection by itself never puts content on air.'
+        },
+        2: {
+          title: 'TAKE is the boundary',
+          description: 'Only TAKE executes prepared content. Check Preview, provider and destination before confirming.'
+        },
+        3: {
+          title: 'If something drops, stay local',
+          description: 'Live Node keeps the prepared plan on the LAN. If internet fails, use Local Recovery and keep the original provider available as fallback.'
+        }
+      }
     },
     localRecovery: {
       mode: 'Local recovery mode',
@@ -2921,7 +2985,39 @@ const resources = {
       addressHint: 'Use solo como alternativa técnica. Ingrese una dirección local mostrada por Live Node, por ejemplo 192.168.1.20:4317.',
       probing: 'Buscando…',
       pair: 'Conectar manualmente',
-      noCloudSecret: 'Las credenciales de las apps permanecen solo en la computadora local.'
+      noCloudSecret: 'Las credenciales de las apps permanecen solo en la computadora local.',
+      networkIsolationHint: 'Si Node está abierto pero no aparece, confirme que ambos dispositivos estén en la misma Wi‑Fi/LAN y que la red no sea Guest/Invitados ni tenga aislamiento de clientes.',
+      safeTestKicker: 'PRUEBA SIN RIESGO',
+      safeTestTitle: 'Confirmar la comunicación antes del culto',
+      safeTestDescription: 'Solo ejecuta heartbeat, lectura de estado y health. No envía comandos a los providers.',
+      safeTestAction: 'Probar conexión',
+      safeTestRunning: 'Probando…',
+      safeTestPassed: 'Conexión local OK · {{latency}} ms · {{providers}} provider(s) operativo(s).',
+      safeTestFailed: 'La prueba no se completó: {{reason}}',
+      tutorialKicker: 'GUÍA DE 90 SEGUNDOS',
+      tutorialTitle: 'Aprenda el flujo antes de operar',
+      tutorialTime: '4 pasos · nada sale al aire',
+      tutorialBack: 'Volver',
+      tutorialNext: 'Siguiente',
+      tutorialDone: 'Entendí el flujo',
+      tutorialSteps: {
+        0: {
+          title: 'Prepare primero',
+          description: 'Abra Preparar y deje que Live revise canciones, rutas, medios y caché. Resuelva las excepciones antes del culto.'
+        },
+        1: {
+          title: 'NEXT significa preparar',
+          description: 'Seleccionar un elemento prepara el siguiente contenido. La selección por sí sola nunca lo pone al aire.'
+        },
+        2: {
+          title: 'TAKE es la frontera',
+          description: 'Solo TAKE ejecuta el contenido preparado. Revise Preview, provider y destino antes de confirmar.'
+        },
+        3: {
+          title: 'Si algo cae, siga local',
+          description: 'Live Node mantiene el plan preparado en la LAN. Si cae Internet, use Local Recovery y conserve el provider original como fallback.'
+        }
+      }
     },
     localRecovery: {
       mode: 'Modo de recuperación local',
