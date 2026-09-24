@@ -22,6 +22,24 @@ function input() {
 }
 
 describe('SyncEngine', () => {
+  it('reports local instead of offline when cloud writes are intentionally disabled', async () => {
+    const store = new MemorySyncStore();
+    const engine = new SyncEngine({
+      store,
+      enabled: () => false,
+      online: () => true,
+      transport: {
+        async apply(mutation) {
+          return { version: mutation.version, mutationId: mutation.id };
+        }
+      }
+    });
+
+    const state = await engine.enqueue(input());
+    expect(state.status).toBe('local');
+    expect(await store.listMutations()).toHaveLength(1);
+  });
+
   it('keeps a local mutation durable and truthful while offline', async () => {
     const store = new MemorySyncStore();
     let writes = 0;
