@@ -181,7 +181,7 @@ async function resolveSong(
     return {
       source,
       status: 'missing',
-      candidates: externalSongs
+      candidates: []
     };
   } catch (error) {
     return {
