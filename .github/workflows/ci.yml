@@ -60,6 +60,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Phase 0 reliability gate
+        run: npm run test:reliability
+
       - name: Unit and contract tests
         run: npm test
 
