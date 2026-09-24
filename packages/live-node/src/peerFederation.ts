@@ -195,6 +195,11 @@ export class PeerFederation {
     return this.options.fetchImpl || fetch;
   }
 
+  setLocalDisplayName(displayName: string): void {
+    const normalized = displayName.trim().replace(/\s+/g, ' ').slice(0, 64);
+    if (normalized) this.options.localDisplayName = normalized;
+  }
+
   async load(): Promise<void> {
     await this.options.store.load();
     const peers = await this.options.store.all();
