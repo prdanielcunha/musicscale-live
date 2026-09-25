@@ -214,4 +214,63 @@ describe('rehearseServicePlan', () => {
     expect(report.safeToArm).toBe(false);
     expect(report.findings.some(item => item.code === 'scene_action_target_invalid')).toBe(true);
   });
+
+  it('blocks planned media when the referenced asset is not in the offline cache', () => {
+    const mediaPlan: ServicePlan = {
+      ...plan,
+      items: [{
+        id: 'video-1',
+        type: 'video',
+        title: 'Abertura',
+        state: 'prepared',
+        payload: { assetId: 'asset-opening' }
+      }]
+    };
+
+    const report = rehearseServicePlan({
+      plan: mediaPlan,
+      providerLinks: [],
+      providers: [{
+        providerId: 'holyrics-primary',
+        health: 'online',
+        capabilities: ['media.open']
+      }],
+      offlineMedia: []
+    });
+
+    expect(report.safeToArm).toBe(false);
+    expect(report.findings.some(finding => finding.code === 'media_cache_missing')).toBe(true);
+    expect(report.simulatedCommands).toBe(0);
+  });
+
+  it('accepts a referenced media asset when the offline cache confirms it ready', () => {
+    const mediaPlan: ServicePlan = {
+      ...plan,
+      items: [{
+        id: 'video-1',
+        type: 'video',
+        title: 'Abertura',
+        state: 'prepared',
+        payload: { assetId: 'asset-opening' }
+      }]
+    };
+
+    const report = rehearseServicePlan({
+      plan: mediaPlan,
+      providerLinks: [],
+      providers: [{
+        providerId: 'holyrics-primary',
+        health: 'online',
+        capabilities: ['media.open']
+      }],
+      offlineMedia: [{
+        id: 'asset-opening',
+        fileName: 'abertura.mp4',
+        ready: true
+      }]
+    });
+
+    expect(report.findings.some(finding => finding.code === 'media_cache_missing')).toBe(false);
+    expect(report.safeToArm).toBe(true);
+  });
 });
