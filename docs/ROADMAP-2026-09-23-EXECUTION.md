@@ -200,13 +200,17 @@ Gate remains open for physical multi-device proof: temporary sessions expire at 
 
 # Phase 8 — Controlled AI
 
-**Status:** BLOCKED BY PHASE 7 GATE.
+**Status:** SERVER GATEWAY + EXPLAINABLE UI FOUNDATION IMPLEMENTED; provider-secret rollout and feature acceptance remain behind the Phase 7 gate.
 
-Create a server-side AI Gateway with structured schema validation, timeout, cache, redaction, audit, per-organization budget, circuit breaker and deterministic fallback. Model choice is benchmark-driven and may change without affecting domain contracts.
+The AI path is server-only and provider-neutral from the Live PWA perspective. The backend validates Firebase identity and MusicScale organization access, redacts obvious PII/secrets, validates structured JSON output, applies an 8-second default timeout, short-lived cache, per-organization monthly request budget, circuit breaker, deterministic fallback and an audit record with model/token/latency/estimated-cost metadata. The browser never receives the model API key.
 
-Allowed first uses: diagnostic explanation, song matching assistance, request classification/deduplication, natural-language search preparation, metadata normalization and post-service summary.
+The current default is Gemini 3.5 Flash-Lite, with Gemini 3.8 Flash reserved for larger/complex inputs. Both model names remain environment-configurable so the domain contract does not depend on a model generation.
 
-Forbidden: AI executing TAKE, authorizing users, or asserting what is on air.
+The first visible assist surfaces explain deterministic diagnostics, pre-service rehearsal risks and post-service facts. The gateway contract also supports song-match assistance, request classification/deduplication, natural-language search interpretation and metadata normalization without giving AI authority to mutate Live state.
+
+Forbidden by code/prompt contract: AI executing TAKE, authorizing users, manufacturing provider state, or asserting what is on air without supplied observed evidence.
+
+Gate remains open until the production model credential is provisioned server-side, organization budgets are exercised, fallback is verified with the provider unavailable, and outputs are acceptance-tested in PT/EN/ES.
 
 ---
 
