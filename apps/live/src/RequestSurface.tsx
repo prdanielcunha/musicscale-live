@@ -14,7 +14,7 @@ import {
 
 type Controller = ReturnType<typeof useLiveNode>;
 
-const PASTOR_KINDS: RequestKind[] = ['bible', 'message', 'media'];
+const PASTOR_KINDS: RequestKind[] = ['bible', 'song', 'message', 'media'];
 const CONDUCTOR_KINDS: RequestKind[] = ['section', 'message'];
 
 export function RequestSurface({
@@ -39,6 +39,7 @@ export function RequestSurface({
   const [sendingQuick, setSendingQuick] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [priority, setPriority] = useState<'normal' | 'urgent'>('normal');
 
   useEffect(() => {
     let cancelled = false;
@@ -130,7 +131,8 @@ export function RequestSurface({
       payload: {
         ...payload,
         sourceSurface: mode
-      }
+      },
+      priority
     });
   }
 
@@ -195,6 +197,7 @@ export function RequestSurface({
     try {
       const payload =
         kind === 'bible' ? { reference: text } :
+        kind === 'song' ? { query: text } :
         kind === 'section' ? { section: text } :
         kind === 'media' ? { query: text } :
         { text };
@@ -317,7 +320,19 @@ export function RequestSurface({
             </button>
           ))}
         </div>
-        <p className="request-kind-hint">{t(`requestsSurface.kindHints.${kind}`)}</p>
+        <div className="request-compose-meta">
+          <p className="request-kind-hint">{t(`requestsSurface.kindHints.${kind}`)}</p>
+          <button
+            type="button"
+            className={priority === 'urgent' ? 'request-priority active' : 'request-priority'}
+            aria-pressed={priority === 'urgent'}
+            onClick={() => setPriority(current => current === 'urgent' ? 'normal' : 'urgent')}
+          >
+            {priority === 'urgent'
+              ? t('requestsSurface.priorityUrgentActive')
+              : t('requestsSurface.priorityUrgent')}
+          </button>
+        </div>
         <div className="request-input-row">
           <input
             value={value}
@@ -420,6 +435,7 @@ export function RequestSurface({
         {ownRequests.length ? ownRequests.map(request => {
           const label =
             request.kind === 'bible' ? request.payload.reference :
+            request.kind === 'song' ? request.payload.query :
             request.kind === 'section' ? request.payload.section :
             request.kind === 'media' ? request.payload.query :
             request.payload.text;
@@ -431,7 +447,7 @@ export function RequestSurface({
               </div>
               <div className="request-history-status">
                 <span>{t(`requestsSurface.status.${request.status}`)}</span>
-                {request.status === 'pending' && (
+                {(request.status === 'sent' || request.status === 'seen') && (
                   <button
                     type="button"
                     disabled={Boolean(cancellingId)}
