@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  buildNextServicePlanDraft,
   buildServiceReview,
   type LiveSessionEvent,
   type ServiceReviewReport
@@ -24,6 +25,10 @@ export function ServiceReviewPanel({
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nextScheduledAt, setNextScheduledAt] = useState('');
+  const [nextTitle, setNextTitle] = useState('');
+  const [preparingNext, setPreparingNext] = useState(false);
+  const [nextPrepared, setNextPrepared] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!plan || !liveSessionId) return;
@@ -54,6 +59,45 @@ export function ServiceReviewPanel({
   }, [events, liveSessionId, loaded, plan]);
 
   if (!plan) return null;
+
+  async function prepareNextService() {
+    if (!nextScheduledAt || preparingNext || controller.nodeState?.state.activeLiveSessionId) return;
+    const localDate = new Date(nextScheduledAt);
+    if (!Number.isFinite(localDate.getTime())) {
+      setError('next_service_invalid_date');
+      return;
+    }
+
+    setPreparingNext(true);
+    setNextPrepared(false);
+    setError(null);
+    try {
+      const id = `next:${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)}`;
+      const next = buildNextServicePlanDraft({
+        previous: plan!,
+        id,
+        scheduledAt: localDate.toISOString(),
+        title: nextTitle.trim() || plan!.title
+      });
+      await controller.cacheServicePlan(
+        next,
+        controller.nodeState?.state.providerLinks || []
+      );
+      setNextPrepared(true);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'next_service_prepare_failed');
+    } finally {
+      setPreparingNext(false);
+    }
+  }
+
+  const formatDuration = (seconds?: number) => {
+    if (typeof seconds !== 'number') return '—';
+    const absolute = Math.abs(Math.round(seconds));
+    const minutes = Math.floor(absolute / 60);
+    const remainder = absolute % 60;
+    return minutes > 0 ? `${minutes}m ${remainder}s` : `${remainder}s`;
+  };
 
   return (
     <section className="service-review-panel">
@@ -115,6 +159,14 @@ export function ServiceReviewPanel({
                   : '—'}
               </strong>
             </article>
+            <article>
+              <small>{t('serviceReview.plannedDuration')}</small>
+              <strong>{formatDuration(report.plannedDurationSeconds)}</strong>
+            </article>
+            <article>
+              <small>{t('serviceReview.observedDuration')}</small>
+              <strong>{formatDuration(report.observedRunOfShowDurationSeconds)}</strong>
+            </article>
           </div>
 
           <div className="service-review-grid">
@@ -132,6 +184,17 @@ export function ServiceReviewPanel({
                     <div>
                       <strong>{item.title}</strong>
                       <small>{item.type} · {item.serviceItemId}</small>
+                      {(typeof item.plannedDurationSeconds === 'number' || typeof item.observedWindowSeconds === 'number') && (
+                        <small>
+                          {t('serviceReview.durationLine', {
+                            planned: formatDuration(item.plannedDurationSeconds),
+                            observed: formatDuration(item.observedWindowSeconds),
+                            delta: typeof item.durationDeltaSeconds === 'number'
+                              ? `${item.durationDeltaSeconds >= 0 ? '+' : '−'}${formatDuration(Math.abs(item.durationDeltaSeconds))}`
+                              : '—'
+                          })}
+                        </small>
+                      )}
                     </div>
                     <span>{t(`serviceReview.itemStatus.${item.status}`)}</span>
                   </div>
@@ -147,7 +210,7 @@ export function ServiceReviewPanel({
                 </div>
               </div>
 
-              {report.failures.length === 0 && report.adHoc.length === 0 ? (
+              {report.failures.length === 0 && report.adHoc.length === 0 && report.corrections.length === 0 ? (
                 <div className="service-review-empty">
                   <strong>{t('serviceReview.noAttention')}</strong>
                   <span>{t('serviceReview.noAttentionHint')}</span>
@@ -172,10 +235,73 @@ export function ServiceReviewPanel({
                       <span>{entry.type}</span>
                     </div>
                   ))}
+                  {report.corrections.slice(0, 8).map(correction => (
+                    <div key={correction.id} className="correction">
+                      <small>{t('serviceReview.correction')}</small>
+                      <strong>{correction.title}</strong>
+                      <span>{correction.reason}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </article>
           </div>
+
+          <section className="service-review-next">
+            <div>
+              <small>{t('serviceReview.nextKicker')}</small>
+              <strong>{t('serviceReview.nextTitle')}</strong>
+              <span>{t('serviceReview.nextHint')}</span>
+            </div>
+            <div className="service-review-next-fields">
+              <label>
+                <span>{t('serviceReview.nextName')}</span>
+                <input
+                  value={nextTitle}
+                  onChange={event => {
+                    setNextTitle(event.target.value);
+                    setNextPrepared(false);
+                  }}
+                  placeholder={plan.title}
+                />
+              </label>
+              <label>
+                <span>{t('serviceReview.nextDate')}</span>
+                <input
+                  type="datetime-local"
+                  value={nextScheduledAt}
+                  onChange={event => {
+                    setNextScheduledAt(event.target.value);
+                    setNextPrepared(false);
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="secondary"
+                disabled={
+                  !nextScheduledAt ||
+                  preparingNext ||
+                  Boolean(controller.nodeState?.state.activeLiveSessionId)
+                }
+                onClick={() => void prepareNextService()}
+              >
+                {preparingNext
+                  ? t('serviceReview.nextPreparing')
+                  : t('serviceReview.nextPrepare')}
+              </button>
+            </div>
+            {controller.nodeState?.state.activeLiveSessionId && (
+              <small className="service-review-next-note">
+                {t('serviceReview.nextBlockedDuringLive')}
+              </small>
+            )}
+            {nextPrepared && (
+              <small className="service-review-next-success">
+                {t('serviceReview.nextPrepared')}
+              </small>
+            )}
+          </section>
 
           {liveFeatureFlags.aiAssist && controller.credential?.binding.organizationId && (
             <AiInsightPanel
