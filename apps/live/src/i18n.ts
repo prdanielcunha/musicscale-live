@@ -182,6 +182,25 @@ const resources = {
         info: 'Pronto'
       }
     },
+    aiAssist: {
+      kicker: 'IA DE APOIO · NÃO EXECUTA',
+      analyze: 'Explicar com IA',
+      thinking: 'Analisando…',
+      humanReview: 'Sugestões para revisão humana. TAKE e estado no ar continuam determinísticos.',
+      unavailableTitle: 'IA indisponível',
+      unavailableHint: 'O Live continua funcionando normalmente. Use os fatos e diagnósticos determinísticos acima.',
+      cached: 'cache',
+      confidence: '{{value}}% de confiança',
+      tasks: {
+        diagnostic_explanation: 'Explicar diagnóstico',
+        song_match_assist: 'Ajudar na correspondência',
+        request_classification: 'Organizar pedidos',
+        natural_search: 'Interpretar busca',
+        metadata_normalization: 'Normalizar metadata',
+        post_service_summary: 'Resumir fatos do culto',
+        pre_service_risk_summary: 'Explicar riscos antes do culto'
+      }
+    },
     serviceReview: {
       kicker: 'REVISÃO DO CULTO',
       title: 'O que realmente aconteceu',
@@ -1529,6 +1548,25 @@ const resources = {
         info: 'Ready'
       }
     },
+    aiAssist: {
+      kicker: 'AI ASSIST · NEVER EXECUTES',
+      analyze: 'Explain with AI',
+      thinking: 'Analyzing…',
+      humanReview: 'Suggestions for human review. TAKE and on-air truth remain deterministic.',
+      unavailableTitle: 'AI unavailable',
+      unavailableHint: 'Live keeps working normally. Use the deterministic facts and diagnostics above.',
+      cached: 'cache',
+      confidence: '{{value}}% confidence',
+      tasks: {
+        diagnostic_explanation: 'Explain diagnostics',
+        song_match_assist: 'Assist song matching',
+        request_classification: 'Organize requests',
+        natural_search: 'Interpret search',
+        metadata_normalization: 'Normalize metadata',
+        post_service_summary: 'Summarize service facts',
+        pre_service_risk_summary: 'Explain pre-service risks'
+      }
+    },
     serviceReview: {
       kicker: 'SERVICE REVIEW',
       title: 'What actually happened',
@@ -2866,6 +2904,25 @@ const resources = {
         blocker: 'Bloqueo',
         warning: 'Aviso',
         info: 'Listo'
+      }
+    },
+    aiAssist: {
+      kicker: 'IA DE APOYO · NO EJECUTA',
+      analyze: 'Explicar con IA',
+      thinking: 'Analizando…',
+      humanReview: 'Sugerencias para revisión humana. TAKE y el estado al aire siguen siendo determinísticos.',
+      unavailableTitle: 'IA no disponible',
+      unavailableHint: 'Live sigue funcionando normalmente. Use los hechos y diagnósticos determinísticos de arriba.',
+      cached: 'caché',
+      confidence: '{{value}}% de confianza',
+      tasks: {
+        diagnostic_explanation: 'Explicar diagnóstico',
+        song_match_assist: 'Ayudar con coincidencias',
+        request_classification: 'Organizar solicitudes',
+        natural_search: 'Interpretar búsqueda',
+        metadata_normalization: 'Normalizar metadata',
+        post_service_summary: 'Resumir hechos del culto',
+        pre_service_risk_summary: 'Explicar riesgos antes del culto'
       }
     },
     serviceReview: {
