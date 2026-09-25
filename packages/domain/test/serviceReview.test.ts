@@ -134,7 +134,7 @@ describe('buildServiceReview', () => {
           id: 'request-created',
           type: 'request.created',
           correlationId: 'request-1',
-          payload: { requestId: 'request-1', status: 'pending' }
+          payload: { requestId: 'request-1', status: 'sent' }
         }),
         event({
           id: 'request-accepted',
@@ -144,19 +144,83 @@ describe('buildServiceReview', () => {
           payload: { requestId: 'request-1', status: 'accepted' }
         }),
         event({
-          id: 'request-completed',
+          id: 'request-executed',
           type: 'request.status.changed',
           correlationId: 'request-1',
           occurredAt: '2026-09-27T22:02:00.000Z',
-          payload: { requestId: 'request-1', status: 'completed' }
+          payload: { requestId: 'request-1', status: 'executed' }
         })
       ]
     });
 
     expect(report.requestSummary.created).toBe(1);
-    expect(report.requestSummary.completed).toBe(1);
+    expect(report.requestSummary.executed).toBe(1);\n    expect(report.requestSummary.completed).toBe(1);
     expect(report.requestSummary.accepted).toBe(0);
-    expect(report.requestSummary.latestStatusByRequest['request-1']).toBe('completed');
+    expect(report.requestSummary.latestStatusByRequest['request-1']).toBe('executed');
+  });
+
+  it('reports observed duration only from timestamps and creates deterministic correction tasks', () => {
+    const timedPlan: ServicePlan = {
+      ...plan,
+      items: [
+        {
+          id: 'song-1',
+          type: 'song',
+          title: 'Song A',
+          state: 'prepared',
+          plannedDurationSeconds: 180
+        }
+      ]
+    };
+
+    const report = buildServiceReview({
+      plan: timedPlan,
+      liveSessionId: 'session-1',
+      events: [
+        event({
+          id: 'song-start',
+          type: 'song.presented',
+          serviceItemId: 'song-1',
+          occurredAt: '2026-09-27T22:00:00.000Z',
+          payload: {
+            providers: [{
+              providerId: 'holyrics-primary',
+              accepted: true,
+              latencyMs: 110
+            }]
+          }
+        }),
+        event({
+          id: 'slide-move',
+          type: 'presentation.navigated',
+          serviceItemId: 'song-1',
+          occurredAt: '2026-09-27T22:03:10.000Z'
+        }),
+        event({
+          id: 'provider-failure',
+          type: 'command.failed',
+          serviceItemId: 'song-1',
+          occurredAt: '2026-09-27T22:03:11.000Z',
+          level: 'error',
+          payload: {
+            providers: [{
+              providerId: 'holyrics-primary',
+              accepted: false,
+              latencyMs: 420,
+              errorCode: 'provider_timeout'
+            }]
+          }
+        })
+      ]
+    });
+
+    const item = report.items[0]!;
+    expect(item.plannedDurationSeconds).toBe(180);
+    expect(item.observedWindowSeconds).toBe(190);
+    expect(item.durationDeltaSeconds).toBe(10);
+    expect(report.corrections.some(item => item.code === 'check_provider_connection')).toBe(true);
+    expect(report.corrections.some(item => item.code === 'review_provider_latency')).toBe(true);
+    expect(report.factsOnly).toBe(true);
   });
 
   it('ignores events from another session when a session is selected', () => {
