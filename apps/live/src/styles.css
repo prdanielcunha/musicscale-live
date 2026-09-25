@@ -2523,3 +2523,34 @@ img,video,canvas,svg{max-width:100%}
   .universal-prepared-next button{width:100%}
   .live-shortcut-grid{grid-template-columns:1fr}
 }
+
+/* Roadmap Phase 7 — request priority + explicit lifecycle */
+.request-compose-meta{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:4px 0 8px;
+}
+.request-compose-meta .request-kind-hint{margin:0;min-width:0}
+.request-priority{
+  flex:none;
+  min-height:44px;
+  padding:8px 12px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.025);
+  color:var(--text-muted,#858b9a);
+}
+.request-priority.active{
+  border-color:rgba(255,176,64,.34);
+  background:rgba(255,176,64,.09);
+  color:var(--text,#f3f4f8);
+}
+.request-history-item.status-prepared,
+.request-history-item.status-accepted{border-color:rgba(124,92,255,.16)}
+.request-history-item.status-executed{opacity:.72}
+@media(max-width:640px){
+  .request-compose-meta{align-items:stretch;flex-direction:column}
+  .request-priority{width:100%}
+}
