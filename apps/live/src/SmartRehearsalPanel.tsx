@@ -8,6 +8,8 @@ import {
   type ProviderRouteGroup
 } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
+import { AiInsightPanel } from './AiInsightPanel';
+import { liveFeatureFlags } from './featureFlags';
 
 type Controller = ReturnType<typeof useLiveNode>;
 
@@ -93,6 +95,30 @@ export function SmartRehearsalPanel({
           <strong>{report.simulatedCommands}</strong>
         </article>
       </div>
+
+      {liveFeatureFlags.aiAssist && controller.credential?.binding.organizationId && (
+        <AiInsightPanel
+          organizationId={controller.credential.binding.organizationId}
+          task="pre_service_risk_summary"
+          input={{
+            planId: report.planId,
+            revision: report.revision,
+            safeToArm: report.safeToArm,
+            blockers: report.blockers,
+            warnings: report.warnings,
+            readyItems: report.readyItems,
+            totalItems: report.totalItems,
+            findings: attention.map(finding => ({
+              severity: finding.severity,
+              code: finding.code,
+              message: finding.message,
+              serviceItemId: finding.serviceItemId,
+              providerId: finding.providerId
+            }))
+          }}
+          compact
+        />
+      )}
 
       {attention.length === 0 ? (
         <div className="smart-rehearsal-empty">
