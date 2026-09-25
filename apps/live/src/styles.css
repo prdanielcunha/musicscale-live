@@ -2554,3 +2554,57 @@ img,video,canvas,svg{max-width:100%}
   .request-compose-meta{align-items:stretch;flex-direction:column}
   .request-priority{width:100%}
 }
+
+/* Roadmap Phase 8 — controlled AI assist */
+.ai-insight-panel{
+  display:grid;
+  gap:10px;
+  margin-top:12px;
+  padding:14px;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:14px;
+  background:linear-gradient(135deg,rgba(124,92,255,.06),rgba(255,255,255,.018));
+}
+.ai-insight-panel.compact{padding:12px}
+.ai-insight-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+}
+.ai-insight-head>div{display:grid;gap:3px;min-width:0}
+.ai-insight-head small{color:#8a7ee8;font-size:12px;font-weight:700;letter-spacing:.04em}
+.ai-insight-head strong{font-size:14px}
+.ai-insight-head span{color:#777d8e;line-height:1.45}
+.ai-insight-result{display:grid;gap:10px}
+.ai-insight-result>p{margin:0;line-height:1.55;color:#d8dbe5}
+.ai-insight-suggestions{display:grid;gap:7px}
+.ai-insight-suggestions article{
+  display:grid;
+  gap:3px;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.055);
+  border-radius:10px;
+  background:rgba(10,11,16,.56);
+}
+.ai-insight-suggestions article small{color:#8a7ee8;text-transform:uppercase;letter-spacing:.04em}
+.ai-insight-suggestions article span{color:#858a98;line-height:1.45}
+.ai-insight-warnings{display:grid;gap:5px}
+.ai-insight-warnings span{
+  padding:8px 10px;
+  border-radius:9px;
+  background:rgba(255,184,77,.07);
+  color:#b9a98d;
+}
+.ai-insight-result footer{display:flex;flex-wrap:wrap;gap:8px;color:#6f7482}
+.ai-insight-result footer span{
+  padding:4px 7px;
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:999px;
+}
+.ai-insight-fallback{display:grid;gap:3px;padding:10px;border-radius:10px;background:rgba(255,255,255,.025)}
+.ai-insight-fallback span,.ai-insight-fallback small{color:#777d8e}
+@media(max-width:640px){
+  .ai-insight-head{align-items:stretch;flex-direction:column}
+  .ai-insight-head button{width:100%}
+}
