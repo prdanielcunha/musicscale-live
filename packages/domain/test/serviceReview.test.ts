@@ -154,7 +154,8 @@ describe('buildServiceReview', () => {
     });
 
     expect(report.requestSummary.created).toBe(1);
-    expect(report.requestSummary.executed).toBe(1);\n    expect(report.requestSummary.completed).toBe(1);
+    expect(report.requestSummary.executed).toBe(1);
+    expect(report.requestSummary.completed).toBe(1);
     expect(report.requestSummary.accepted).toBe(0);
     expect(report.requestSummary.latestStatusByRequest['request-1']).toBe('executed');
   });
