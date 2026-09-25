@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ProviderRouteGroup } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
+import { AiInsightPanel } from './AiInsightPanel';
+import { liveFeatureFlags } from './featureFlags';
 
 type Controller = ReturnType<typeof useLiveNode>;
 
@@ -318,6 +320,33 @@ export function DiagnosticsPanel({
           </button>
         </div>
       </div>
+
+      {liveFeatureFlags.aiAssist && controller.credential?.binding.organizationId && (
+        <AiInsightPanel
+          organizationId={controller.credential.binding.organizationId}
+          task="diagnostic_explanation"
+          input={{
+            node: {
+              health: controller.health?.health || null,
+              providers: providers.length,
+              providersOnline: providerOnline,
+              peerOffline,
+              ambiguousRoutes,
+              hasCachedPlan
+            },
+            issues: issues.map(issue => ({
+              severity: issue.severity,
+              title: issue.title,
+              description: issue.description
+            })),
+            routing,
+            signal: {
+              enabledEndpoints,
+              enabledLinks
+            }
+          }}
+        />
+      )}
 
       {issues.length > 0 && (
         <div className="diagnostic-issues">
