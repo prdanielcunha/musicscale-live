@@ -1,6 +1,9 @@
 import type {
   CommandResult,
   LiveChatMessage,
+  LiveCollaborationGrant,
+  LiveCollaborationInvite,
+  LiveCollaborationRole,
   LiveCommand,
   LiveDropAsset,
   LiveNodeHealth,
@@ -60,6 +63,19 @@ export interface LiveDropRetentionPolicy {
 }
 
 export type LiveDropRetentionPreset = 'service' | 'week' | 'keep';
+
+export interface CollaborationRedeemResponse {
+  nodeId: string;
+  token: string;
+  binding: PairingCompleteResponse['binding'];
+  collaboration: LiveCollaborationGrant;
+}
+
+export interface CollaborationInviteResponse {
+  invite: LiveCollaborationInvite;
+  joinUrl: string;
+  qrSvg: string;
+}
 
 export interface LiveNodeStateResponse {
   nodeId: string;
@@ -213,6 +229,84 @@ export async function completePairing(
     method: 'POST',
     body: JSON.stringify(request)
   });
+}
+
+export async function redeemNodeCollaborationInvite(
+  baseUrlInput: string,
+  request: {
+    inviteId: string;
+    secret: string;
+    actorId: string;
+    deviceId: string;
+    deviceName: string;
+  }
+): Promise<CollaborationRedeemResponse> {
+  const baseUrl = normalizePrivateNodeUrl(baseUrlInput);
+  return requestJson<CollaborationRedeemResponse>(
+    baseUrl,
+    '/collaboration/redeem',
+    {
+      method: 'POST',
+      body: JSON.stringify(request)
+    },
+    5000
+  );
+}
+
+export async function createNodeCollaborationInvite(
+  baseUrl: string,
+  token: string,
+  request: {
+    liveSessionId: string;
+    role: LiveCollaborationRole;
+    createdBy: string;
+    ttlMinutes?: number;
+    maxUses?: number;
+  }
+): Promise<CollaborationInviteResponse> {
+  return requestJson<CollaborationInviteResponse>(
+    baseUrl,
+    '/collaboration/invites',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(request)
+    },
+    5000
+  );
+}
+
+export async function listNodeCollaborationInvites(
+  baseUrl: string,
+  token: string,
+  liveSessionId: string
+): Promise<LiveCollaborationInvite[]> {
+  const params = new URLSearchParams({ liveSessionId });
+  const response = await requestJson<{ invites: LiveCollaborationInvite[] }>(
+    baseUrl,
+    `/collaboration/invites?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+    3500
+  );
+  return response.invites;
+}
+
+export async function revokeNodeCollaborationSession(
+  baseUrl: string,
+  token: string,
+  liveSessionId: string
+): Promise<number> {
+  const response = await requestJson<{ revoked: number }>(
+    baseUrl,
+    '/collaboration/revoke-session',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ liveSessionId })
+    },
+    3500
+  );
+  return response.revoked;
 }
 
 export async function heartbeatNode(baseUrl: string, token: string): Promise<{
@@ -686,7 +780,7 @@ export async function updateNodeLiveRequestStatus(
   baseUrl: string,
   token: string,
   requestId: string,
-  status: 'accepted' | 'rejected' | 'completed',
+  status: LiveRequest['status'],
   resolvedBy: string
 ): Promise<{ request: LiveRequest; stateRevision: number }> {
   return requestJson(baseUrl, `/requests/${encodeURIComponent(requestId)}/status`, {
