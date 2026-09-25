@@ -6,6 +6,8 @@ import {
   type ServiceReviewReport
 } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
+import { AiInsightPanel } from './AiInsightPanel';
+import { liveFeatureFlags } from './featureFlags';
 
 type Controller = ReturnType<typeof useLiveNode>;
 
@@ -174,6 +176,29 @@ export function ServiceReviewPanel({
               )}
             </article>
           </div>
+
+          {liveFeatureFlags.aiAssist && controller.credential?.binding.organizationId && (
+            <AiInsightPanel
+              organizationId={controller.credential.binding.organizationId}
+              task="post_service_summary"
+              input={{
+                planId: report.planId,
+                revision: report.revision,
+                plannedItems: report.plannedItems,
+                executedPlannedItems: report.executedPlannedItems,
+                explicitlySkippedItems: report.explicitlySkippedItems,
+                notObservedItems: report.notObservedItems,
+                adHocRunOfShowActions: report.adHocRunOfShowActions,
+                warningEvents: report.warningEvents,
+                errorEvents: report.errorEvents,
+                requestSummary: report.requestSummary,
+                providerLatency: report.providerLatency,
+                failures: report.failures,
+                factsOnly: report.factsOnly
+              }}
+              compact
+            />
+          )}
 
           <footer className="service-review-facts">
             {t('serviceReview.factsOnly')}
