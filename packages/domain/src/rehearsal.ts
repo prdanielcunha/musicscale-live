@@ -372,6 +372,53 @@ export function rehearseServicePlan(input: RehearsalInput): ServicePlanRehearsal
       continue;
     }
 
+    if (item.type === 'video' || item.type === 'image' || item.type === 'audio') {
+      const offlineMedia = input.offlineMedia || [];
+      const assetId =
+        typeof item.payload?.assetId === 'string'
+          ? item.payload.assetId.trim()
+          : typeof item.payload?.liveDropAssetId === 'string'
+            ? item.payload.liveDropAssetId.trim()
+            : '';
+      const fileName =
+        typeof item.payload?.fileName === 'string'
+          ? item.payload.fileName.trim()
+          : typeof item.payload?.file === 'string'
+            ? item.payload.file.trim()
+            : '';
+      const fingerprint =
+        typeof item.payload?.sha256 === 'string'
+          ? item.payload.sha256.trim().toLowerCase()
+          : '';
+
+      if (assetId || fileName || fingerprint) {
+        const cached = offlineMedia.find(asset =>
+          asset.ready && (
+            (assetId && asset.id === assetId) ||
+            (fileName && asset.fileName === fileName) ||
+            (fingerprint && asset.sha256?.toLowerCase() === fingerprint)
+          )
+        );
+        if (!cached) {
+          itemFindings.push({
+            id: `media-cache-missing:${item.id}`,
+            severity: 'blocker',
+            code: 'media_cache_missing',
+            message: `“${item.title}” is referenced by the plan but is not available in the known offline media cache.`,
+            serviceItemId: item.id
+          });
+        }
+      } else if (item.payload?.remoteOnly === true || item.payload?.cloudUrl) {
+        itemFindings.push({
+          id: `media-cache-unknown:${item.id}`,
+          severity: 'warning',
+          code: 'media_cache_unknown',
+          message: `“${item.title}” has a remote media reference with no verified offline cache identity.`,
+          serviceItemId: item.id
+        });
+      }
+    }
+
     const capability = itemCapability(item);
     if (!capability) {
       items.push({
