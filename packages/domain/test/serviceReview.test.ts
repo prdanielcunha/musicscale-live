@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LiveSessionEvent, ServicePlan } from '../src/types';
-import { buildServiceReview } from '../src/serviceReview';
+import { buildNextServicePlanDraft, buildServiceReview } from '../src/serviceReview';
 
 const plan: ServicePlan = {
   id: 'plan-1',
@@ -241,4 +241,25 @@ describe('buildServiceReview', () => {
     expect(report.adHocRunOfShowActions).toBe(0);
     expect(report.executedPlannedItems).toBe(1);
   });
+
+  it('creates a fresh next-service draft without mutating the previous plan', () => {
+    const next = buildNextServicePlanDraft({
+      previous: plan,
+      id: 'plan-next',
+      scheduledAt: '2026-10-04T19:00:00-03:00',
+      title: 'Next Sunday',
+      now: new Date('2026-09-27T23:30:00.000Z')
+    });
+
+    expect(next.id).toBe('plan-next');
+    expect(next.title).toBe('Next Sunday');
+    expect(next.revision).toBe(1);
+    expect(next.sourceMusicScaleId).toBeUndefined();
+    expect(next.items).toHaveLength(plan.items.length);
+    expect(next.items.every(item => item.state === 'planned')).toBe(true);
+    expect(next.items[0]?.id).toBe('plan-next:item:1');
+    expect(next.metadata?.clonedFromPlanId).toBe('plan-1');
+    expect(plan.items[0]?.id).toBe('song-1');
+  });
+
 });
