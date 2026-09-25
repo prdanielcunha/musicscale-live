@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CAPABILITIES,
@@ -21,6 +21,7 @@ export function SmartRehearsalPanel({
   const { t } = useTranslation();
   const state = controller.nodeState?.state;
   const plan = state?.servicePlan || null;
+  const [trainingMode, setTrainingMode] = useState(false);
 
   const report = useMemo(() => {
     if (!plan || !controller.nodeState) return null;
@@ -40,13 +41,20 @@ export function SmartRehearsalPanel({
       providerLinks: state?.providerLinks || [],
       providers,
       routing: (controller.nodeState.routing || {}) as Partial<Record<ProviderRouteGroup, string>>,
-      scenes: state?.scenes || []
+      scenes: state?.scenes || [],
+      offlineMedia: (controller.nodeState.liveDrop || []).map(asset => ({
+        id: asset.id,
+        fileName: asset.fileName,
+        sha256: asset.sha256,
+        ready: asset.status === 'ready'
+      }))
     });
   }, [
     controller.nodeState,
     plan,
     state?.providerLinks,
-    state?.scenes
+    state?.scenes,
+    controller.nodeState?.liveDrop
   ]);
 
   if (!report) return null;
@@ -75,7 +83,42 @@ export function SmartRehearsalPanel({
           </strong>
           <span>{t('smartRehearsal.zeroWrites')}</span>
         </div>
+        <button
+          type="button"
+          className={trainingMode ? 'secondary active' : 'secondary'}
+          onClick={() => setTrainingMode(value => !value)}
+        >
+          {trainingMode
+            ? t('smartRehearsal.trainingExit')
+            : t('smartRehearsal.trainingStart')}
+        </button>
       </header>
+
+      {trainingMode && (
+        <div className="smart-rehearsal-training" role="status">
+          <div>
+            <small>{t('smartRehearsal.trainingKicker')}</small>
+            <strong>{t('smartRehearsal.trainingTitle')}</strong>
+            <span>{t('smartRehearsal.trainingHint')}</span>
+          </div>
+          <ol>
+            {report.items.map(item => (
+              <li key={item.serviceItemId} className={item.ready ? 'ready' : 'attention'}>
+                <strong>{item.title}</strong>
+                <span>
+                  {item.ready
+                    ? t('smartRehearsal.trainingReady')
+                    : item.findings
+                        .filter(finding => finding.severity === 'blocker' || finding.severity === 'warning')
+                        .map(finding => finding.message)
+                        .join(' · ')}
+                </span>
+              </li>
+            ))}
+          </ol>
+          <small>{t('smartRehearsal.trainingZeroWrite')}</small>
+        </div>
+      )}
 
       <div className="smart-rehearsal-metrics">
         <article>
