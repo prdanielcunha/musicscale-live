@@ -216,25 +216,31 @@ Gate remains open until the production model credential is provisioned server-si
 
 # Phase 9 — Smart rehearsal
 
-**Status:** DETERMINISTIC ZERO-WRITE FOUNDATION IMPLEMENTED BEHIND FEATURE FLAG; activation remains BLOCKED BY PHASE 8 GATE.
+**Status:** DETERMINISTIC ZERO-WRITE REHEARSAL + VOLUNTEER TRAINING FOUNDATION IMPLEMENTED BEHIND FEATURE FLAG; safe-output/physical acceptance remains gated.
 
-The full prepared ServicePlan can now be simulated in pure domain code without calling any provider. The simulator validates item identity, offline provider links, provider health/capabilities, route ambiguity/invalid targets, cached scenes, scene action targets and output declarations. Studio can surface the report behind `VITE_LIVE_SMART_REHEARSAL`, and the report contract explicitly records `simulatedCommands: 0`.
+The full prepared ServicePlan can be simulated in pure domain code without calling any provider. The simulator validates item identity, offline provider links, provider health/capabilities, route ambiguity/invalid targets, cached scenes, scene action targets, output declarations and known offline-media cache identity/readiness. Explicit media references that are absent from the local cache are blockers; remote-only references without a verified local identity remain warnings rather than invented facts.
 
-A later, separately armed safe-output rehearsal may be added only after the preceding gates are certified. It must remain distinct from this zero-write simulation.
+Studio surfaces the report behind `VITE_LIVE_SMART_REHEARSAL`, records `simulatedCommands: 0`, and now includes a volunteer training mode that walks the prepared service item-by-item while preserving zero writes to providers.
 
-Gate remains open: every detectable blocker appears before Live and simulation emits zero real commands.
+A separately armed safe-output rehearsal may execute only after the preceding physical gates are certified and must remain distinct from zero-write simulation/training.
+
+Gate remains open for real-device proof: every detectable blocker is surfaced before Live, simulation/training emit zero provider commands, and any later safe-output rehearsal is verified on the certified output matrix.
 
 ---
 
 # Phase 10 — Post-service review
 
-**Status:** FACTUAL REVIEW FOUNDATION IMPLEMENTED BEHIND FEATURE FLAG; activation remains BLOCKED BY PHASE 9 GATE.
+**Status:** FACTUAL REVIEW, CORRECTION ACTIONS AND NEXT-SERVICE DRAFT FOUNDATION IMPLEMENTED BEHIND FEATURE FLAG; physical/retention acceptance remains gated.
 
-A pure domain review now compares the prepared ServicePlan with immutable Live Node events. It distinguishes executed items, items explicitly marked skipped, and items that were simply **not observed** — avoiding the false assumption that absence of an event means the operator intentionally skipped something. It also reports ad-hoc run-of-show actions, request terminal states, provider failures, event origins and provider latency facts. The Studio surface is available behind `VITE_LIVE_SERVICE_REVIEW`.
+The pure domain review compares the prepared ServicePlan with immutable Live Node events. It distinguishes executed items, items explicitly marked skipped, and items that were simply **not observed**. It reports ad-hoc run-of-show actions, the Phase 7 request lifecycle, provider failures, event origins and provider latency facts.
 
-This foundation deliberately does not infer motive, cause or responsibility. Later setup-task generation must remain evidence-backed.
+Planned duration is compared only with factual event windows when enough timestamps exist; missing timing evidence remains unknown. Provider failures become deterministic correction actions, and elevated provider-response p95 is explicitly labeled as a provider-response signal rather than the full command-to-observed latency gate.
 
-Gate remains open: review is immediately available after session close, factual, and respects retention/organization permissions.
+Studio can create an explicit next-service local draft from the reviewed plan only after the operator supplies the next date/time. The clone receives a fresh plan/item identity, revision 1, planned item states and provenance metadata, while preserving known provider links for later review. It is blocked while a Live session is active. The Studio surface remains behind `VITE_LIVE_SERVICE_REVIEW`.
+
+The review deliberately does not infer motive, cause or responsibility. AI may summarize these facts behind its separate guardrail but cannot change the report or execute remediation.
+
+Gate remains open: review availability after session close, retention/organization permission validation and physical confirmation of correction usefulness.
 
 ---
 
