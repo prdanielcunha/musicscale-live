@@ -7,6 +7,7 @@ import { dirname, extname, join, resolve, sep } from 'node:path';
 import {
   CAPABILITIES,
   CapabilityEngine,
+  transitionLiveRequest,
   routeGroupForCapability,
   type Capability,
   type CommandResult,
@@ -14,6 +15,8 @@ import {
   type LiveChatMessage,
   type LiveDropAsset,
   type LiveRequest,
+  type LiveRequestStatus,
+  type LiveCollaborationRole,
   type PairingRequest,
   type ProviderAssetRequest,
   type ProviderLink,
@@ -25,6 +28,7 @@ import {
 } from '@millionsnest/live-domain';
 import { IdempotencyStore } from './idempotencyStore';
 import { PairingStore } from './pairingStore';
+import { CollaborationInviteStore } from './collaborationInviteStore';
 import { RuntimeStateStore } from './runtimeStateStore';
 import { ProviderConfigStore } from './providerConfigStore';
 import { createPlatformSecretProtector } from './secretProtector';
@@ -145,6 +149,10 @@ const sceneIdempotency = new IdempotencyStore<SceneExecutionResult>(
   join(STATE_DIR, 'idempotency-scenes.json')
 );
 const pairingStore = new PairingStore(join(STATE_DIR, 'pairings.json'), nodeId);
+const collaborationInviteStore = new CollaborationInviteStore(
+  join(STATE_DIR, 'collaboration.json'),
+  nodeId
+);
 const runtimeState = new RuntimeStateStore(join(STATE_DIR, 'runtime.json'), nodeId);
 const secretProtector = createPlatformSecretProtector();
 const providerConfigStore = new ProviderConfigStore(
@@ -862,6 +870,9 @@ function validateLiveChatMessage(value: unknown): LiveChatMessage {
   if (candidate.relatedRequestId !== undefined && typeof candidate.relatedRequestId !== 'string') {
     throw new Error('invalid_live_chat_request');
   }
+  if (candidate.relatedServiceItemId !== undefined && typeof candidate.relatedServiceItemId !== 'string') {
+    throw new Error('invalid_live_chat_service_item');
+  }
 
   return {
     ...(candidate as LiveChatMessage),
@@ -897,10 +908,13 @@ function validateLiveRequest(value: unknown): LiveRequest {
   if (required.some(item => typeof item !== 'string' || !item)) {
     throw new Error('invalid_live_request');
   }
-  if (!['bible','section','media','message'].includes(String(candidate.kind))) {
+  if (!['bible','song','section','media','message'].includes(String(candidate.kind))) {
     throw new Error('invalid_live_request_kind');
   }
-  if (candidate.status !== 'pending') throw new Error('invalid_live_request_status');
+  if (candidate.status !== 'sent') throw new Error('invalid_live_request_status');
+  if (candidate.priority !== undefined && !['normal','urgent'].includes(String(candidate.priority))) {
+    throw new Error('invalid_live_request_priority');
+  }
   if (!candidate.payload || typeof candidate.payload !== 'object' || Array.isArray(candidate.payload)) {
     throw new Error('invalid_live_request_payload');
   }
@@ -923,10 +937,50 @@ function assertLiveRequestScope(
 async function authorize(req: IncomingMessage) {
   const token = bearerToken(req);
   if (DEV_TOKEN && token === DEV_TOKEN) {
-    return { dev: true as const, token, binding: null };
+    return { dev: true as const, token, binding: null, collaboration: null };
   }
   const binding = await pairingStore.authorize(token);
-  return binding ? { dev: false as const, token, binding } : null;
+  if (binding) {
+    return { dev: false as const, token, binding, collaboration: null };
+  }
+  const collaboration = await collaborationInviteStore.authorize(token);
+  return collaboration
+    ? {
+        dev: false as const,
+        token,
+        binding: collaboration.binding,
+        collaboration: collaboration.grant
+      }
+    : null;
+}
+
+function collaborationRouteAllowed(
+  method: string | undefined,
+  pathname: string
+): boolean {
+  if (method === 'GET' && ['/health', '/state', '/capabilities', '/chat', '/requests'].includes(pathname)) {
+    return true;
+  }
+  if (method === 'POST' && ['/heartbeat', '/chat', '/requests', '/commands'].includes(pathname)) {
+    return true;
+  }
+  return Boolean(
+    method === 'POST' &&
+    pathname.startsWith('/requests/') &&
+    pathname.endsWith('/status')
+  );
+}
+
+function collaborationCanRequest(
+  grant: NonNullable<Awaited<ReturnType<typeof authorize>>>['collaboration'],
+  request: LiveRequest
+): boolean {
+  if (!grant) return true;
+  if (request.liveSessionId !== grant.liveSessionId || request.actorId !== grant.actorId) {
+    return false;
+  }
+  const permission = `request.${request.kind}`;
+  return grant.permissions.includes(permission as (typeof grant.permissions)[number]);
 }
 
 function liveDropScopeFromSession(
@@ -1535,6 +1589,7 @@ async function start(): Promise<void> {
   await idempotency.load();
   await sceneIdempotency.load();
   await pairingStore.load();
+  await collaborationInviteStore.load();
   await runtimeState.load();
   await providerConfigStore.load();
   await providerRoutingStore.load();
@@ -2080,6 +2135,133 @@ async function start(): Promise<void> {
       return send(res, 201, completed);
     }
 
+    if (req.method === 'POST' && url.pathname === '/collaboration/redeem') {
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_collaboration_redeem');
+      }
+      const candidate = body as Record<string, unknown>;
+      requireStrings(
+        candidate,
+        ['inviteId', 'secret', 'actorId', 'deviceId', 'deviceName'],
+        'invalid_collaboration_redeem'
+      );
+      const redeemed = await collaborationInviteStore.redeem({
+        inviteId: String(candidate.inviteId),
+        secret: String(candidate.secret),
+        actorId: String(candidate.actorId),
+        deviceId: String(candidate.deviceId),
+        deviceName: String(candidate.deviceName)
+      });
+      return send(res, 201, {
+        nodeId,
+        token: redeemed.token,
+        binding: redeemed.binding,
+        collaboration: redeemed.grant
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/collaboration/invites') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      if (!session.binding || session.collaboration) {
+        return send(res, 403, { error: 'collaboration_invite_admin_required' });
+      }
+
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_collaboration_invite');
+      }
+      const candidate = body as Record<string, unknown>;
+      requireStrings(
+        candidate,
+        ['liveSessionId', 'role', 'createdBy'],
+        'invalid_collaboration_invite'
+      );
+      const role = String(candidate.role) as LiveCollaborationRole;
+      if (!['pastor', 'conductor', 'viewer'].includes(role)) {
+        throw new Error('invalid_collaboration_role');
+      }
+      const liveSessionId = String(candidate.liveSessionId);
+      const runtime = await runtimeState.load();
+      const activeSessionId = runtime.activeLiveSessionId || '';
+      if (activeSessionId && activeSessionId !== liveSessionId) {
+        return send(res, 409, { error: 'collaboration_session_not_active' });
+      }
+
+      const ttlMinutesRaw = Number(candidate.ttlMinutes);
+      const maxUsesRaw = Number(candidate.maxUses);
+      const created = await collaborationInviteStore.createInvite({
+        binding: session.binding,
+        liveSessionId,
+        role,
+        createdBy: String(candidate.createdBy),
+        ...(Number.isFinite(ttlMinutesRaw)
+          ? { ttlMs: Math.max(5, Math.min(720, ttlMinutesRaw)) * 60_000 }
+          : {}),
+        ...(Number.isFinite(maxUsesRaw)
+          ? { maxUses: Math.max(1, Math.min(50, Math.floor(maxUsesRaw))) }
+          : {})
+      });
+
+      const lan = lanAddresses();
+      const socketAddress = (req.socket.localAddress || '').replace(/^::ffff:/, '');
+      const ip = lan.includes(socketAddress) ? socketAddress : (lan[0] || '127.0.0.1');
+      const joinUrl =
+        `http://${ip}:${PORT}/?collabInvite=${encodeURIComponent(created.invite.id)}&collabRole=${encodeURIComponent(created.invite.role)}#collabSecret=${encodeURIComponent(created.secret)}`;
+      const qrSvg = await qrToString(joinUrl, {
+        type: 'svg',
+        margin: 1,
+        width: 320,
+        errorCorrectionLevel: 'M'
+      });
+
+      return send(res, 201, {
+        invite: created.invite,
+        joinUrl,
+        qrSvg
+      });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/collaboration/invites') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      if (!session.binding || session.collaboration) {
+        return send(res, 403, { error: 'collaboration_invite_admin_required' });
+      }
+      const liveSessionId = String(url.searchParams.get('liveSessionId') || '').trim();
+      return send(res, 200, {
+        invites: await collaborationInviteStore.listActive(liveSessionId || undefined)
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/collaboration/revoke-session') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      if (!session.binding || session.collaboration) {
+        return send(res, 403, { error: 'collaboration_invite_admin_required' });
+      }
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_collaboration_revoke');
+      }
+      const liveSessionId = String(
+        (body as Record<string, unknown>).liveSessionId || ''
+      ).trim();
+      if (!liveSessionId) throw new Error('invalid_collaboration_revoke');
+      return send(res, 200, {
+        revoked: await collaborationInviteStore.revokeSession(liveSessionId)
+      });
+    }
+
+    const collaborationRouteSession = bearerToken(req) ? await authorize(req) : null;
+    if (
+      collaborationRouteSession?.collaboration &&
+      !collaborationRouteAllowed(req.method, url.pathname)
+    ) {
+      return send(res, 403, { error: 'collaboration_scope_forbidden' });
+    }
+
     if (req.method === 'GET' && url.pathname === '/capabilities') {
       const session = await authorize(req);
       if (!session) return send(res, 401, { error: 'unauthorized' });
@@ -2146,17 +2328,27 @@ async function start(): Promise<void> {
             {}
         };
       });
-      const liveDrop = session.binding
+      const collaborationState = session.collaboration
+        ? {
+            ...state,
+            activeLiveSessionId: session.collaboration.liveSessionId,
+            requests: state.requests.filter(
+              item => item.liveSessionId === session.collaboration!.liveSessionId
+            )
+          }
+        : state;
+      const liveDrop = session.binding && !session.collaboration
         ? await liveDropStore.list(liveDropScopeFromSession(session))
         : [];
       return send(res, 200, {
         nodeId,
-        state,
+        state: collaborationState,
         providers,
         routing: await providerRoutingStore.all(),
-        peers: peerFederation.publicStatus(),
-        signalTopology: await signalTopologyStore.load(),
-        liveDrop
+        peers: session.collaboration ? [] : peerFederation.publicStatus(),
+        signalTopology: session.collaboration ? null : await signalTopologyStore.load(),
+        liveDrop,
+        ...(session.collaboration ? { collaboration: session.collaboration } : {})
       });
     }
 
@@ -2524,6 +2716,12 @@ async function start(): Promise<void> {
 
       const liveSessionId = String(url.searchParams.get('liveSessionId') || '').trim();
       if (!liveSessionId) throw new Error('invalid_live_chat_session');
+      if (
+        session.collaboration &&
+        liveSessionId !== session.collaboration.liveSessionId
+      ) {
+        return send(res, 403, { error: 'collaboration_scope_forbidden' });
+      }
       const requestedLimit = Number(url.searchParams.get('limit') || '100');
       const limit = Number.isFinite(requestedLimit)
         ? Math.max(1, Math.min(300, Math.floor(requestedLimit)))
@@ -2545,6 +2743,22 @@ async function start(): Promise<void> {
 
       const message = validateLiveChatMessage(await readJson(req));
       assertLiveChatScope(message, session.binding);
+      if (session.collaboration) {
+        const expectedSender =
+          session.collaboration.role === 'pastor'
+            ? 'pastor'
+            : session.collaboration.role === 'conductor'
+              ? 'conductor'
+              : 'team';
+        if (
+          !session.collaboration.permissions.includes('chat.write') ||
+          message.liveSessionId !== session.collaboration.liveSessionId ||
+          message.actorId !== session.collaboration.actorId ||
+          message.senderContext !== expectedSender
+        ) {
+          return send(res, 403, { error: 'collaboration_scope_forbidden' });
+        }
+      }
       await liveChatStore.append(message);
       return send(res, 201, { message });
     }
@@ -2581,7 +2795,15 @@ async function start(): Promise<void> {
       const session = await authorize(req);
       if (!session) return send(res, 401, { error: 'unauthorized' });
       const state = await runtimeState.load();
-      const liveSessionId = String(url.searchParams.get('liveSessionId') || '');
+      const requestedSessionId = String(url.searchParams.get('liveSessionId') || '');
+      if (
+        session.collaboration &&
+        requestedSessionId &&
+        requestedSessionId !== session.collaboration.liveSessionId
+      ) {
+        return send(res, 403, { error: 'collaboration_scope_forbidden' });
+      }
+      const liveSessionId = session.collaboration?.liveSessionId || requestedSessionId;
       const requests = state.requests
         .filter(item => !liveSessionId || item.liveSessionId === liveSessionId)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -2594,6 +2816,12 @@ async function start(): Promise<void> {
 
       const request = validateLiveRequest(await readJson(req));
       assertLiveRequestScope(request, session.binding);
+      if (
+        session.collaboration &&
+        !collaborationCanRequest(session.collaboration, request)
+      ) {
+        return send(res, 403, { error: 'collaboration_scope_forbidden' });
+      }
 
       const state = await runtimeState.load();
       const existing = state.requests.find(item => item.id === request.id);
@@ -2624,8 +2852,8 @@ async function start(): Promise<void> {
       const body = await readJson(req);
       if (!body || typeof body !== 'object') throw new Error('invalid_live_request_status');
       const candidate = body as Record<string, unknown>;
-      const status = String(candidate.status || '');
-      if (!['accepted','rejected','completed'].includes(status)) {
+      const status = String(candidate.status || '') as LiveRequestStatus;
+      if (!['seen','accepted','prepared','executed','rejected'].includes(status)) {
         throw new Error('invalid_live_request_status');
       }
       const resolvedBy = String(candidate.resolvedBy || '');
@@ -2635,18 +2863,28 @@ async function start(): Promise<void> {
       const current = state.requests.find(item => item.id === requestId);
       if (!current) return send(res, 404, { error: 'live_request_not_found' });
       assertLiveRequestScope(current, session.binding);
+      if (
+        session.collaboration &&
+        (
+          status !== 'rejected' ||
+          current.actorId !== session.collaboration.actorId ||
+          current.liveSessionId !== session.collaboration.liveSessionId ||
+          resolvedBy !== session.collaboration.actorId
+        )
+      ) {
+        return send(res, 403, { error: 'collaboration_scope_forbidden' });
+      }
 
       const now = new Date().toISOString();
+      let transitioned: LiveRequest;
+      try {
+        transitioned = transitionLiveRequest(current, status, resolvedBy, now);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : 'invalid_live_request_transition';
+        return send(res, 409, { error: code });
+      }
       const requests = state.requests.map(item =>
-        item.id === requestId
-          ? {
-              ...item,
-              status: status as LiveRequest['status'],
-              updatedAt: now,
-              resolvedAt: status === 'accepted' ? item.resolvedAt : now,
-              resolvedBy
-            }
-          : item
+        item.id === requestId ? transitioned : item
       );
       const next = await runtimeState.patch({ requests });
       const updatedRequest = requests.find(item => item.id === requestId);
@@ -2708,6 +2946,24 @@ async function start(): Promise<void> {
 
       const command = validateCommand(await readJson(req));
       assertCommandScope(command, session.binding);
+      if (session.collaboration) {
+        const allowedCapability =
+          (
+            command.capability === 'bible.search' &&
+            session.collaboration.permissions.includes('request.bible')
+          ) ||
+          (
+            command.capability === 'songs.search' &&
+            session.collaboration.permissions.includes('request.song')
+          );
+        if (
+          !allowedCapability ||
+          command.liveSessionId !== session.collaboration.liveSessionId ||
+          command.actorId !== session.collaboration.actorId
+        ) {
+          return send(res, 403, { error: 'collaboration_command_forbidden' });
+        }
+      }
 
       if (command.safetyLevel === 'critical' && liveEnv('CRITICAL_ACTIONS_ENABLED') !== 'true') {
         return send(res, 403, { error: 'critical_action_blocked' });
@@ -2734,10 +2990,16 @@ async function start(): Promise<void> {
     const message = error instanceof Error ? error.message : 'internal_error';
     const status =
       message === 'payload_too_large' || message === 'live_drop_file_too_large' ? 413 :
-      message === 'forbidden_scope' || message === 'live_drop_pairing_scope_required' ? 403 :
+      message === 'forbidden_scope' ||
+      message === 'live_drop_pairing_scope_required' ||
+      message === 'collaboration_scope_forbidden' ||
+      message === 'collaboration_command_forbidden' ||
+      message === 'collaboration_invite_admin_required' ? 403 :
       message === 'live_drop_asset_not_found' ? 404 :
       message === 'live_drop_file_type_not_allowed' || message === 'live_drop_content_type_mismatch' ? 415 :
       message === 'provider_link_target_missing' ? 409 :
+      message === 'collaboration_session_not_active' ||
+      message === 'collaboration_invite_exhausted' ? 409 :
       message === 'stale_service_plan' ? 409 :
       message === 'idempotency_previous_attempt_uncertain' ? 409 :
       message === 'live_drop_asset_not_ready' ||

@@ -67,6 +67,32 @@ service cloud.firestore {
         isActiveMember(resource.data.organizationId);
     }
 
+    function immutableRequestIdentity() {
+      return request.resource.data.actorId == resource.data.actorId &&
+        request.resource.data.liveSessionId == resource.data.liveSessionId &&
+        request.resource.data.kind == resource.data.kind;
+    }
+
+    function validRequestTransition() {
+      return request.resource.data.status == resource.data.status ||
+        (
+          resource.data.status == 'sent' &&
+          request.resource.data.status in ['seen', 'accepted', 'rejected']
+        ) ||
+        (
+          resource.data.status == 'seen' &&
+          request.resource.data.status in ['accepted', 'rejected']
+        ) ||
+        (
+          resource.data.status == 'accepted' &&
+          request.resource.data.status in ['prepared', 'rejected']
+        ) ||
+        (
+          resource.data.status == 'prepared' &&
+          request.resource.data.status in ['executed', 'rejected']
+        );
+    }
+
     match /organizations/{orgId} {
       allow read: if isActiveMember(orgId);
       allow write: if false;
@@ -213,16 +239,18 @@ service cloud.firestore {
       allow read: if memberRead();
       allow create: if validTenantCreate() &&
         request.resource.data.actorId == request.auth.uid &&
-        request.resource.data.status == 'pending' &&
+        request.resource.data.status == 'sent' &&
+        request.resource.data.priority in ['normal', 'urgent'] &&
         noSecretFields();
       allow update: if immutableTenant() &&
+        immutableRequestIdentity() &&
+        validRequestTransition() &&
         noSecretFields() &&
         (
           canConduct(resource.data.organizationId) ||
           (
             resource.data.actorId == request.auth.uid &&
-            request.resource.data.actorId == resource.data.actorId &&
-            resource.data.status == 'pending' &&
+            resource.data.status in ['sent', 'seen'] &&
             request.resource.data.status == 'rejected'
           )
         );

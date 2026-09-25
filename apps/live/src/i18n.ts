@@ -1194,6 +1194,7 @@ const resources = {
       send: 'Enviar',
       audienceLabel: 'Destino da mensagem',
       actionHint: 'Para Bíblia, mídia ou seção musical, use um pedido estruturado. O chat nunca executa comandos.',
+      serviceItemContext: 'Comentário ligado ao item atual do roteiro',
       retrying: 'Tentando reconectar…',
       emptyTitle: 'Nenhuma mensagem nesta sessão',
       emptyHint: 'Use este espaço para comunicação rápida sem transformar texto livre em comando de produção.',
@@ -1264,6 +1265,7 @@ const resources = {
       },
       kindHints: {
         bible: 'Digite a referência. O operador confere antes de colocar no ar.',
+        song: 'Peça uma música pelo nome. O operador localiza, prepara e confirma antes do TAKE.',
         section: 'Peça uma mudança musical sem disputar o controle da apresentação.',
         media: 'Descreva a mídia. O operador localiza e confirma o destino.',
         message: 'Envie uma instrução curta para a equipe ou palco.'
@@ -1309,14 +1311,17 @@ const resources = {
         send: 'Pedir ao operador',
         hint: 'Toque em uma seção para pedir exatamente este ponto da música. O Live confere se a mesma apresentação ainda está ativa antes de permitir o TAKE.'
       },
-      kinds: { bible: 'Bíblia', section: 'Seção', media: 'Mídia', message: 'Mensagem' },
+      kinds: { bible: 'Bíblia', song: 'Música', section: 'Seção', media: 'Mídia', message: 'Mensagem' },
       placeholders: {
         bible: 'Ex.: João 3:16-17',
+        song: 'Ex.: Bondade de Deus',
         section: 'Ex.: Voltar ao refrão',
         media: 'Ex.: Vídeo de testemunho',
         message: 'Ex.: Segurar neste slide'
       },
-      status: { pending: 'Aguardando', accepted: 'Aceito', rejected: 'Recusado', completed: 'Concluído' }
+      priorityUrgent: 'Marcar urgente',
+      priorityUrgentActive: 'Urgente · prioridade visível',
+      status: { sent: 'Enviado', seen: 'Visto', accepted: 'Aceito', prepared: 'Preparado', executed: 'Executado', rejected: 'Recusado' }
     },
     requestInbox: {
       kicker: 'PEDIDOS AO VIVO',
@@ -1331,6 +1336,13 @@ const resources = {
       flowLabel: 'Progresso seguro do pedido',
       flow: { requested: 'Pedido', prepared: 'Preparado', executed: 'Executado' },
       prepared: 'PRONTO',
+      urgent: 'URGENTE',
+      prepareSong: 'Preparar música',
+      songPrepared: 'MÚSICA PREPARADA',
+      songPreparedHint: '{{count}} opção(ões) encontradas',
+      songSearchAgain: 'Buscar novamente',
+      songResultsLabel: 'Músicas encontradas para este pedido',
+      takeSong: 'TAKE · colocar música no ar',
       verseCount: '{{count}} verso(s)',
       prepareBible: 'Preparar Bíblia',
       preparing: 'Preparando…',
@@ -1365,6 +1377,9 @@ const resources = {
       actionError: 'Não consegui concluir esta ação: {{message}}',
       sources: { pastor: 'Pastor', conductor: 'Condutor' },
       errors: {
+        song_request_no_results: 'nenhuma música compatível foi encontrada',
+        song_request_prepare_failed: 'não foi possível preparar a música pedida',
+        song_request_take_failed: 'não foi possível colocar a música preparada no ar',
         bible_requested_provider_unavailable: 'o provider bíblico usado no pedido não está mais disponível',
         bible_route_required: 'há mais de um provider bíblico. Escolha a rota de Bíblia no Studio',
         bible_present_unavailable: 'nenhum provider disponível consegue apresentar Bíblia agora',
@@ -2518,6 +2533,7 @@ const resources = {
       send: 'Send',
       audienceLabel: 'Message audience',
       actionHint: 'For Bible, media or song sections, use a structured request. Chat never executes commands.',
+      serviceItemContext: 'Comment linked to the current service-plan item',
       retrying: 'Trying to reconnect…',
       emptyTitle: 'No messages in this session',
       emptyHint: 'Use this space for quick coordination without turning free text into production commands.',
@@ -2588,6 +2604,7 @@ const resources = {
       },
       kindHints: {
         bible: 'Type the reference. The operator checks it before putting it on air.',
+        song: 'Request a song by name. The operator finds, prepares and confirms it before TAKE.',
         section: 'Request a musical section without taking over presentation control.',
         media: 'Describe the media. The operator locates it and confirms the destination.',
         message: 'Send a short instruction to the team or stage.'
@@ -2633,14 +2650,17 @@ const resources = {
         send: 'Request from operator',
         hint: 'Tap a section to request that exact point in the song. Live verifies the same presentation is still active before TAKE is allowed.'
       },
-      kinds: { bible: 'Bible', section: 'Section', media: 'Media', message: 'Message' },
+      kinds: { bible: 'Bible', song: 'Song', section: 'Section', media: 'Media', message: 'Message' },
       placeholders: {
         bible: 'e.g. John 3:16-17',
+        song: 'e.g. Goodness of God',
         section: 'e.g. Back to chorus',
         media: 'e.g. Testimony video',
         message: 'e.g. Hold this slide'
       },
-      status: { pending: 'Waiting', accepted: 'Accepted', rejected: 'Rejected', completed: 'Completed' }
+      priorityUrgent: 'Mark urgent',
+      priorityUrgentActive: 'Urgent · visible priority',
+      status: { sent: 'Sent', seen: 'Seen', accepted: 'Accepted', prepared: 'Prepared', executed: 'Executed', rejected: 'Rejected' }
     },
     requestInbox: {
       kicker: 'LIVE REQUESTS',
@@ -2655,6 +2675,13 @@ const resources = {
       flowLabel: 'Safe request progress',
       flow: { requested: 'Requested', prepared: 'Prepared', executed: 'Executed' },
       prepared: 'READY',
+      urgent: 'URGENT',
+      prepareSong: 'Prepare song',
+      songPrepared: 'SONG PREPARED',
+      songPreparedHint: '{{count}} option(s) found',
+      songSearchAgain: 'Search again',
+      songResultsLabel: 'Songs found for this request',
+      takeSong: 'TAKE · put song on air',
       verseCount: '{{count}} verse(s)',
       prepareBible: 'Prepare Bible',
       preparing: 'Preparing…',
@@ -2689,6 +2716,9 @@ const resources = {
       actionError: 'Could not complete this action: {{message}}',
       sources: { pastor: 'Pastor', conductor: 'Conductor' },
       errors: {
+        song_request_no_results: 'no matching song was found',
+        song_request_prepare_failed: 'the requested song could not be prepared',
+        song_request_take_failed: 'the prepared song could not be put on air',
         bible_requested_provider_unavailable: 'the Bible provider used by this request is no longer available',
         bible_route_required: 'more than one Bible provider is available. Choose the Bible route in Studio',
         bible_present_unavailable: 'no available provider can present Bible content right now',
@@ -3842,6 +3872,7 @@ const resources = {
       send: 'Enviar',
       audienceLabel: 'Destino del mensaje',
       actionHint: 'Para Biblia, media o secciones musicales, use un pedido estructurado. El chat nunca ejecuta comandos.',
+      serviceItemContext: 'Comentario vinculado al elemento actual del plan',
       retrying: 'Intentando reconectar…',
       emptyTitle: 'No hay mensajes en esta sesión',
       emptyHint: 'Use este espacio para coordinación rápida sin convertir texto libre en comandos de producción.',
@@ -3912,6 +3943,7 @@ const resources = {
       },
       kindHints: {
         bible: 'Escriba la referencia. El operador la revisa antes de ponerla al aire.',
+        song: 'Pida una canción por nombre. El operador la localiza, prepara y confirma antes del TAKE.',
         section: 'Pida una sección musical sin tomar el control de la presentación.',
         media: 'Describa la media. El operador la localiza y confirma el destino.',
         message: 'Envíe una instrucción breve al equipo o escenario.'
@@ -3957,14 +3989,17 @@ const resources = {
         send: 'Pedir al operador',
         hint: 'Toque una sección para pedir exactamente ese punto de la canción. Live verifica que la misma presentación siga activa antes de permitir el TAKE.'
       },
-      kinds: { bible: 'Biblia', section: 'Sección', media: 'Media', message: 'Mensaje' },
+      kinds: { bible: 'Biblia', song: 'Canción', section: 'Sección', media: 'Media', message: 'Mensaje' },
       placeholders: {
         bible: 'Ej.: Juan 3:16-17',
+        song: 'Ej.: Bondad de Dios',
         section: 'Ej.: Volver al coro',
         media: 'Ej.: Video de testimonio',
         message: 'Ej.: Mantener este slide'
       },
-      status: { pending: 'Esperando', accepted: 'Aceptado', rejected: 'Rechazado', completed: 'Completado' }
+      priorityUrgent: 'Marcar urgente',
+      priorityUrgentActive: 'Urgente · prioridad visible',
+      status: { sent: 'Enviado', seen: 'Visto', accepted: 'Aceptado', prepared: 'Preparado', executed: 'Ejecutado', rejected: 'Rechazado' }
     },
     requestInbox: {
       kicker: 'PEDIDOS EN VIVO',
@@ -3979,6 +4014,13 @@ const resources = {
       flowLabel: 'Progreso seguro del pedido',
       flow: { requested: 'Pedido', prepared: 'Preparado', executed: 'Ejecutado' },
       prepared: 'LISTO',
+      urgent: 'URGENTE',
+      prepareSong: 'Preparar canción',
+      songPrepared: 'CANCIÓN PREPARADA',
+      songPreparedHint: '{{count}} opción(es) encontrada(s)',
+      songSearchAgain: 'Buscar de nuevo',
+      songResultsLabel: 'Canciones encontradas para este pedido',
+      takeSong: 'TAKE · poner canción al aire',
       verseCount: '{{count}} verso(s)',
       prepareBible: 'Preparar Biblia',
       preparing: 'Preparando…',
@@ -4013,6 +4055,9 @@ const resources = {
       actionError: 'No fue posible completar esta acción: {{message}}',
       sources: { pastor: 'Pastor', conductor: 'Conductor' },
       errors: {
+        song_request_no_results: 'no se encontró una canción compatible',
+        song_request_prepare_failed: 'no fue posible preparar la canción solicitada',
+        song_request_take_failed: 'no fue posible poner al aire la canción preparada',
         bible_requested_provider_unavailable: 'el provider bíblico usado en el pedido ya no está disponible',
         bible_route_required: 'hay más de un provider bíblico. Elija la ruta de Biblia en Studio',
         bible_present_unavailable: 'ningún provider disponible puede presentar Biblia ahora',

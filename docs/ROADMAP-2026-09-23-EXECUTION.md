@@ -186,13 +186,15 @@ Gate remains open for measured p95: local-index response < 150 ms and search wor
 
 # Phase 7 — Collaboration during service
 
-**Status:** BLOCKED BY PHASE 6 GATE.
+**Status:** CODE FOUNDATION IMPLEMENTED; realtime multi-device acceptance remains behind the Phase 6 gate.
 
-Temporary role QR sessions, structured requests, presence, contextual comments and a state machine:
+The collaboration contract now uses the explicit request lifecycle:
 
 `sent → seen → accepted → prepared → executed | rejected`.
 
-Gate: requests never reach air without policy + preparation + TAKE; all participants observe the same request status.
+Node, cloud sync and Firestore rules validate allowed transitions instead of trusting UI state. Song/Bible/media/message/section requests remain requests only: the operator must accept, prepare and use TAKE before output changes. Urgent priority is controlled, comments can stay attached to the related request/service item, and temporary pastor/conductor role sessions use expiring least-privilege grants with local QR join support.
+
+Gate remains open for physical multi-device proof: temporary sessions expire at service end/TTL, participants converge on the same request state in realtime, and no request reaches air without policy + preparation + TAKE.
 
 ---
 
