@@ -5,6 +5,8 @@ import type {
   LiveChatAudience,
   LiveChatMessage,
   LiveChatSenderContext,
+  LiveCollaborationInvite,
+  LiveCollaborationRole,
   CommandResult,
   LiveDropAsset,
   LiveNodeConnectionState,
@@ -35,6 +37,7 @@ import {
   cacheNodeScenes,
   completePairing,
   completePeerNodePairing,
+  createNodeCollaborationInvite,
   discoverPeerNodes,
   executeNodeCommand,
   executeNodeScene,
@@ -42,14 +45,17 @@ import {
   fetchProviderOutputSnapshot,
   heartbeatNode,
   listNodeChatMessages,
+  listNodeCollaborationInvites,
   listNodeEvents,
   listNodeLiveDrop,
   loadNodeState,
   openNodeLiveDrop,
   probeNode,
+  redeemNodeCollaborationInvite,
   requestPairing,
   requestPeerNodePairing,
   removePeerNode,
+  revokeNodeCollaborationSession,
   revokeNodePairing,
   reviewNodeLiveDrop,
   saveNodeSignalTopology,
@@ -216,6 +222,89 @@ export function useLiveNode() {
     }
   }, [heartbeat, pending]);
 
+  const joinCollaborationInvite = useCallback(async (input: {
+    baseUrl: string;
+    inviteId: string;
+    secret: string;
+  }) => {
+    setState('probing');
+    setErrorCode(null);
+    try {
+      const transport = transportBroker.resolve(input.baseUrl);
+      const baseUrl = transport.baseUrl;
+      const deviceId = getOrCreateDeviceId();
+      const deviceName = defaultDeviceName();
+      const actorId = `collab-device:${deviceId}`;
+      const redeemed = await redeemNodeCollaborationInvite(baseUrl, {
+        inviteId: input.inviteId,
+        secret: input.secret,
+        actorId,
+        deviceId,
+        deviceName
+      });
+      const nextCredential: StoredLiveNodeCredential = {
+        baseUrl,
+        transportKind: transport.kind,
+        token: redeemed.token,
+        binding: redeemed.binding,
+        collaboration: redeemed.collaboration
+      };
+      await saveLiveNodeCredential(nextCredential);
+      setCredential(nextCredential);
+      setPending(null);
+      failures.current = 0;
+      const connected = await heartbeat(nextCredential);
+      if (!connected) throw new Error('collaboration_connect_failed');
+      return nextCredential;
+    } catch (error) {
+      markError(error, 'offline');
+      return null;
+    }
+  }, [heartbeat, markError]);
+
+  const createCollaborationInvite = useCallback(async (input: {
+    liveSessionId: string;
+    role: LiveCollaborationRole;
+    createdBy: string;
+    ttlMinutes?: number;
+    maxUses?: number;
+  }) => {
+    if (!credential || credential.collaboration) {
+      throw new Error('collaboration_invite_admin_required');
+    }
+    return createNodeCollaborationInvite(
+      credential.baseUrl,
+      credential.token,
+      input
+    );
+  }, [credential]);
+
+  const listCollaborationInvites = useCallback(async (
+    liveSessionId: string
+  ): Promise<LiveCollaborationInvite[]> => {
+    if (!credential || credential.collaboration) {
+      throw new Error('collaboration_invite_admin_required');
+    }
+    return listNodeCollaborationInvites(
+      credential.baseUrl,
+      credential.token,
+      liveSessionId
+    );
+  }, [credential]);
+
+  const revokeCollaborationSession = useCallback(async (
+    liveSessionId: string
+  ): Promise<number> => {
+    if (!credential || credential.collaboration) {
+      throw new Error('collaboration_invite_admin_required');
+    }
+    return revokeNodeCollaborationSession(
+      credential.baseUrl,
+      credential.token,
+      liveSessionId
+    );
+  }, [credential]);
+
   const refreshState = useCallback(async () => {
     if (!credential) throw new Error('node_not_paired');
     const refreshed = await loadNodeState(credential.baseUrl, credential.token);
@@ -368,6 +457,7 @@ export function useLiveNode() {
     text: string;
     replyToId?: string;
     relatedRequestId?: string;
+    relatedServiceItemId?: string;
   }): Promise<LiveChatMessage> => {
     if (!credential) throw new Error('node_not_paired');
     const message: LiveChatMessage = {
@@ -382,7 +472,8 @@ export function useLiveNode() {
       text: input.text.trim(),
       createdAt: new Date().toISOString(),
       ...(input.replyToId ? { replyToId: input.replyToId } : {}),
-      ...(input.relatedRequestId ? { relatedRequestId: input.relatedRequestId } : {})
+      ...(input.relatedRequestId ? { relatedRequestId: input.relatedRequestId } : {}),
+      ...(input.relatedServiceItemId ? { relatedServiceItemId: input.relatedServiceItemId } : {})
     };
 
     const response = await submitNodeChatMessage(
@@ -399,6 +490,7 @@ export function useLiveNode() {
     actorId: string;
     kind: LiveRequest['kind'];
     payload: Record<string, unknown>;
+    priority?: LiveRequest['priority'];
   }) => {
     if (!credential) throw new Error('node_not_paired');
 
@@ -410,14 +502,15 @@ export function useLiveNode() {
       actorId: input.actorId,
       kind: input.kind,
       payload: input.payload,
-      status: 'pending',
+      status: 'sent',
+      priority: input.priority || 'normal',
       createdAt: new Date().toISOString()
     };
 
     await submitNodeLiveRequest(credential.baseUrl, credential.token, request);
     await refreshState();
 
-    if (liveFeatureFlags.servicePlanWrites) {
+    if (liveFeatureFlags.servicePlanWrites && !credential.collaboration) {
       await createCloudLiveRequest(request).catch(() => undefined);
     }
 
@@ -426,7 +519,7 @@ export function useLiveNode() {
 
   const updateRequestStatus = useCallback(async (
     requestId: string,
-    status: 'accepted' | 'rejected' | 'completed',
+    status: LiveRequest['status'],
     resolvedBy: string
   ) => {
     if (!credential) throw new Error('node_not_paired');
@@ -439,7 +532,7 @@ export function useLiveNode() {
     );
     await refreshState();
 
-    if (liveFeatureFlags.servicePlanWrites) {
+    if (liveFeatureFlags.servicePlanWrites && !credential.collaboration) {
       await resolveCloudLiveRequest({
         request: response.request,
         status,
@@ -728,6 +821,10 @@ export function useLiveNode() {
     errorCode,
     beginPairing,
     finishPairing,
+    joinCollaborationInvite,
+    createCollaborationInvite,
+    listCollaborationInvites,
+    revokeCollaborationSession,
     refreshNearbyNodes,
     beginPeerPairing,
     finishPeerPairing,
