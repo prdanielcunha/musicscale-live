@@ -1,10 +1,15 @@
-import type { LiveNodeTransportKind, PairingBinding } from '@millionsnest/live-domain';
+import type {
+  LiveCollaborationGrant,
+  LiveNodeTransportKind,
+  PairingBinding
+} from '@millionsnest/live-domain';
 
 export interface StoredLiveNodeCredential {
   baseUrl: string;
   transportKind?: LiveNodeTransportKind;
   token: string;
   binding: PairingBinding;
+  collaboration?: LiveCollaborationGrant;
 }
 
 const DB_NAME = 'musicscale-live';
