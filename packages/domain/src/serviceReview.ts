@@ -251,6 +251,39 @@ function correctionForFailure(
   };
 }
 
+export function buildNextServicePlanDraft(input: {
+  previous: ServicePlan;
+  id: string;
+  scheduledAt: string;
+  title?: string;
+  now?: Date;
+}): ServicePlan {
+  const generatedAt = (input.now || new Date()).toISOString();
+  const id = input.id.trim();
+  if (!id) throw new Error('next_service_plan_id_required');
+  if (!input.scheduledAt.trim()) throw new Error('next_service_scheduled_at_required');
+
+  return {
+    ...input.previous,
+    id,
+    title: input.title?.trim() || input.previous.title,
+    scheduledAt: input.scheduledAt,
+    sourceMusicScaleId: undefined,
+    revision: 1,
+    metadata: {
+      ...(input.previous.metadata || {}),
+      clonedFromPlanId: input.previous.id,
+      clonedFromRevision: input.previous.revision,
+      clonedAt: generatedAt
+    },
+    items: input.previous.items.map((item, index) => ({
+      ...item,
+      id: `${id}:item:${index + 1}`,
+      state: 'planned'
+    }))
+  };
+}
+
 export function buildServiceReview(input: {
   plan: ServicePlan;
   events: LiveSessionEvent[];
