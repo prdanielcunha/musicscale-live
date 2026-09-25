@@ -29,6 +29,8 @@ export interface RehearsalFinding {
     | 'scene_missing'
     | 'scene_action_output_missing'
     | 'scene_action_target_invalid'
+    | 'media_cache_missing'
+    | 'media_cache_unknown'
     | 'item_ready'
     | 'scene_ready';
   message: string;
@@ -73,6 +75,12 @@ export interface RehearsalInput {
   providers: CapabilitySnapshot[];
   routing?: Partial<Record<ProviderRouteGroup, string>>;
   scenes?: Scene[];
+  offlineMedia?: Array<{
+    id: string;
+    fileName?: string;
+    sha256?: string;
+    ready: boolean;
+  }>;
   now?: Date;
 }
 
