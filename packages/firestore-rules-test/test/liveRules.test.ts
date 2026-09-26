@@ -297,6 +297,27 @@ describe('MusicScale Live Firestore tenant rules', () => {
     }));
   });
 
+  it('allows conductors to heartbeat fleet presence while keeping it tenant-scoped', async () => {
+    const operator = env.authenticatedContext('operator').firestore();
+    const other = env.authenticatedContext('other').firestore();
+
+    await assertSucceeds(setDoc(doc(operator, 'musicScaleLiveFleetPresence', 'org-a-node-a'), {
+      id: 'org-a-node-a',
+      organizationId: 'org-a',
+      venueId: 'venue-a',
+      liveSystemId: 'system-a',
+      nodeId: 'node-a',
+      displayName: 'Produção principal',
+      health: 'online',
+      providers: 3,
+      providersOnline: 3,
+      lastSeenAt: '2026-09-26T12:00:00.000Z',
+      updatedBy: 'operator'
+    }));
+
+    await assertFails(getDoc(doc(other, 'musicScaleLiveFleetPresence', 'org-a-node-a')));
+  });
+
   it('allows conductors to sync tenant audio profiles without exposing another tenant', async () => {
     const operator = env.authenticatedContext('operator').firestore();
     const other = env.authenticatedContext('other').firestore();
