@@ -5,7 +5,11 @@ import {
   type PairingChallenge,
   type PairingCompleteResponse,
   type ProviderHealth,
-  type ProviderKind
+  type ProviderKind,
+  type ProviderLink,
+  type Scene,
+  type ServicePlan,
+  type LiveNodeRuntimeState
 } from '@millionsnest/live-domain';
 import { FederatedProviderAdapter, fetchPeerProviders, makeFederatedProviderId, type PeerProviderSnapshot } from './federatedProvider';
 import { normalizeLanPeerUrl } from './networkPolicy';
@@ -173,6 +177,20 @@ function sanitizeProviderSnapshot(
         ? value.observed
         : {}
   };
+}
+
+export interface PeerStandbyPreparation {
+  nodeId: string;
+  servicePlanId: string;
+  servicePlanRevision: number;
+  scenes: number;
+  providerLinks: number;
+  stateRevision: number;
+}
+
+export interface PeerStandbyStatus {
+  nodeId: string;
+  state: LiveNodeRuntimeState;
 }
 
 export class PeerFederation {
@@ -386,6 +404,88 @@ export class PeerFederation {
     }
 
     return removed;
+  }
+
+  async prepareStandby(input: {
+    remoteNodeId: string;
+    plan: ServicePlan;
+    providerLinks: ProviderLink[];
+    scenes: Scene[];
+  }): Promise<PeerStandbyPreparation> {
+    const peer = await this.options.store.get(input.remoteNodeId);
+    if (!peer) throw new Error('peer_not_paired');
+    if (
+      input.plan.organizationId !== peer.organizationId ||
+      input.plan.venueId !== peer.venueId ||
+      input.plan.liveSystemId !== peer.liveSystemId
+    ) {
+      throw new Error('peer_standby_scope_forbidden');
+    }
+
+    return fetchJson<PeerStandbyPreparation>(
+      this.fetchImpl,
+      `${peer.baseUrl}/redundancy/prepare`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${peer.token}` },
+        body: JSON.stringify({
+          plan: input.plan,
+          providerLinks: input.providerLinks,
+          scenes: input.scenes,
+          sourceNodeId: this.options.localNodeId
+        })
+      },
+      8000
+    );
+  }
+
+  async standbyStatus(remoteNodeId: string): Promise<PeerStandbyStatus> {
+    const peer = await this.options.store.get(remoteNodeId);
+    if (!peer) throw new Error('peer_not_paired');
+
+    const response = await fetchJson<{
+      nodeId: string;
+      state: LiveNodeRuntimeState;
+    }>(
+      this.fetchImpl,
+      `${peer.baseUrl}/state`,
+      {
+        headers: { Authorization: `Bearer ${peer.token}` }
+      },
+      4000
+    );
+    if (response.nodeId !== remoteNodeId) {
+      throw new Error('peer_node_identity_mismatch');
+    }
+    return response;
+  }
+
+  async scopedFleet(): Promise<Array<{
+    nodeId: string;
+    displayName: string;
+    organizationId: string;
+    venueId: string;
+    liveSystemId: string;
+    health: PeerFederationStatus['health'];
+    providers: number;
+    providersOnline: number;
+    lastSeenAt?: string;
+  }>> {
+    const peers = await this.options.store.all();
+    return peers.map(peer => {
+      const status = this.statuses.get(peer.nodeId);
+      return {
+        nodeId: peer.nodeId,
+        displayName: status?.displayName || peer.displayName,
+        organizationId: peer.organizationId,
+        venueId: peer.venueId,
+        liveSystemId: peer.liveSystemId,
+        health: status?.health || 'offline',
+        providers: status?.providers || 0,
+        providersOnline: status?.providersOnline || 0,
+        lastSeenAt: status?.lastSeenAt || peer.lastSeenAt
+      };
+    });
   }
 
   publicStatus(): PeerFederationStatus[] {
