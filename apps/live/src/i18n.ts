@@ -386,7 +386,10 @@ const resources = {
       failoverDecision: 'Estado da reserva: {{reason}}',
       noAutomaticFailover: 'Failover automático permanece desativado para evitar duas máquinas comandando a mesma saída ao mesmo tempo.',
       standbyPrepared: 'Node de reserva recebeu o roteiro, vínculos e cenas.',
-      failoverActivated: 'Failover ativado sem enviar nenhum comando ao provider.'
+      failoverActivated: 'Failover ativado sem enviar nenhum comando ao provider.',
+      organizationFleet: 'Frota da organização',
+      organizationFleetEmpty: 'Nenhum outro Live Node publicou presença na nuvem ainda.',
+      stale: 'desatualizado'
     },
     now: 'Agora',
     timeline: 'Roteiro',
@@ -1831,7 +1834,10 @@ const resources = {
       failoverDecision: 'Standby state: {{reason}}',
       noAutomaticFailover: 'Automatic failover stays disabled so two machines cannot silently control the same output at once.',
       standbyPrepared: 'Standby Node received the plan, links and scenes.',
-      failoverActivated: 'Failover activated without sending a provider command.'
+      failoverActivated: 'Failover activated without sending a provider command.',
+      organizationFleet: 'Organization fleet',
+      organizationFleetEmpty: 'No other Live Node has published cloud presence yet.',
+      stale: 'stale'
     },
     now: 'Now', timeline: 'Run of Show',
     bible: 'Bible', media: 'Media', requests: 'Requests',
@@ -3269,7 +3275,10 @@ const resources = {
       failoverDecision: 'Estado de la reserva: {{reason}}',
       noAutomaticFailover: 'El failover automático permanece desactivado para impedir que dos máquinas controlen silenciosamente la misma salida.',
       standbyPrepared: 'El Node de reserva recibió el guion, vínculos y escenas.',
-      failoverActivated: 'Failover activado sin enviar comandos al provider.'
+      failoverActivated: 'Failover activado sin enviar comandos al provider.',
+      organizationFleet: 'Flota de la organización',
+      organizationFleetEmpty: 'Ningún otro Live Node publicó presencia en la nube todavía.',
+      stale: 'desactualizado'
     },
     now: 'Ahora', timeline: 'Guion',
     bible: 'Biblia', media: 'Media', requests: 'Requests',
