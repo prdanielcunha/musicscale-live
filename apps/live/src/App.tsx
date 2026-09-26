@@ -71,6 +71,9 @@ const UniversalMediaLibrary = lazy(() =>
 const StudioGuidedHome = lazy(() =>
   import('./StudioGuidedHome').then(module => ({ default: module.StudioGuidedHome }))
 );
+const ProductionEcosystemPanel = lazy(() =>
+  import('./ProductionEcosystemPanel').then(module => ({ default: module.ProductionEcosystemPanel }))
+);
 
 const SmartRehearsalPanel = lazy(() =>
   import('./SmartRehearsalPanel').then(module => ({ default: module.SmartRehearsalPanel }))
@@ -90,6 +93,7 @@ type StudioSection =
   | 'routing'
   | 'signal'
   | 'scenes'
+  | 'ecosystem'
   | 'diagnostics';
 
 function createEphemeralSessionId(): string {
@@ -389,6 +393,7 @@ export function App() {
     { key: 'routing', requiresNode: true },
     { key: 'signal', requiresNode: true },
     { key: 'scenes', requiresNode: true },
+    { key: 'ecosystem', requiresNode: true },
     { key: 'diagnostics', requiresNode: true }
   ];
 
@@ -758,6 +763,13 @@ export function App() {
 
         {surface === 'studio' && studioSection === 'signal' && liveNode.state === 'connected' && (
           <SignalTopologyStudio controller={liveNode} />
+        )}
+
+        {surface === 'studio' && studioSection === 'ecosystem' && liveNode.state === 'connected' && (
+          <ProductionEcosystemPanel
+            controller={liveNode}
+            actorId={user.uid}
+          />
         )}
 
         {surface === 'studio' && studioSection === 'diagnostics' && liveNode.state === 'connected' && (
