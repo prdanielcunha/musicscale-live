@@ -8,6 +8,8 @@ import {
   CAPABILITIES,
   CapabilityEngine,
   transitionLiveRequest,
+  evaluateFailoverCandidate,
+  failoverIdempotencyKey,
   routeGroupForCapability,
   type Capability,
   type CommandResult,
@@ -2975,6 +2977,228 @@ async function start(): Promise<void> {
         now: new Date().toISOString(),
         binding,
         stateRevision: (await runtimeState.load()).revision
+      });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/redundancy/status') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'redundancy_admin_required' });
+      }
+      const runtime = await runtimeState.load();
+      const fleet = (await peerFederation.scopedFleet()).filter(peer =>
+        peer.organizationId === session.binding!.organizationId &&
+        peer.venueId === session.binding!.venueId &&
+        peer.liveSystemId === session.binding!.liveSystemId
+      );
+      return send(res, 200, {
+        local: {
+          nodeId,
+          displayName: nodeDisplayName,
+          organizationId: session.binding.organizationId,
+          venueId: session.binding.venueId,
+          liveSystemId: session.binding.liveSystemId,
+          servicePlanId: runtime.servicePlan?.id || null,
+          servicePlanRevision: runtime.servicePlan?.revision || null,
+          activeLiveSessionId: runtime.activeLiveSessionId
+        },
+        peers: fleet
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/redundancy/prepare') {
+      const session = await authorize(req);
+      if (
+        !session?.binding ||
+        session.collaboration ||
+        !session.binding.deviceId.startsWith('live-node:')
+      ) {
+        return send(res, 403, { error: 'redundancy_peer_required' });
+      }
+
+      const current = await runtimeState.load();
+      if (current.activeLiveSessionId) {
+        return send(res, 409, { error: 'redundancy_target_live_active' });
+      }
+
+      const body = await readJsonWithLimit(req, 1024 * 1024);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_redundancy_prepare');
+      }
+      const candidate = body as Record<string, unknown>;
+      const plan = validateServicePlan(candidate.plan);
+      const providerLinks = validateProviderLinks(candidate.providerLinks);
+      const scenes = validateCachedScenes(candidate.scenes);
+      assertServicePlanScope(plan, session.binding);
+      assertProviderLinksScope(providerLinks, session.binding);
+      assertCachedSceneScope(scenes, session.binding);
+
+      const state = await runtimeState.patch({
+        activeLiveSessionId: null,
+        activeSession: null,
+        activeServiceItemId: null,
+        servicePlan: plan,
+        providerLinks,
+        scenes,
+        requests: []
+      });
+      return send(res, 200, {
+        nodeId,
+        servicePlanId: plan.id,
+        servicePlanRevision: plan.revision,
+        providerLinks: providerLinks.length,
+        scenes: scenes.length,
+        stateRevision: state.revision
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/redundancy/peer/prepare') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'redundancy_admin_required' });
+      }
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_redundancy_peer_prepare');
+      }
+      const remoteNodeId = String(
+        (body as Record<string, unknown>).remoteNodeId || ''
+      ).trim();
+      if (!remoteNodeId) throw new Error('peer_node_id_required');
+
+      const runtime = await runtimeState.load();
+      if (!runtime.servicePlan) {
+        return send(res, 409, { error: 'redundancy_service_plan_required' });
+      }
+
+      const prepared = await peerFederation.prepareStandby({
+        remoteNodeId,
+        plan: runtime.servicePlan,
+        providerLinks: runtime.providerLinks,
+        scenes: runtime.scenes
+      });
+      return send(res, 200, { prepared });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/redundancy/peer/inspect') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'redundancy_admin_required' });
+      }
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_redundancy_peer_inspect');
+      }
+      const remoteNodeId = String(
+        (body as Record<string, unknown>).remoteNodeId || ''
+      ).trim();
+      const local = await runtimeState.load();
+      if (!local.servicePlan) {
+        return send(res, 409, { error: 'redundancy_service_plan_required' });
+      }
+
+      const peer = await peerFederation.standbyStatus(remoteNodeId);
+      const fleetPeer = (await peerFederation.scopedFleet())
+        .find(item => item.nodeId === remoteNodeId);
+      if (!fleetPeer) throw new Error('peer_not_paired');
+
+      const decision = evaluateFailoverCandidate({
+        source: {
+          organizationId: session.binding.organizationId,
+          venueId: session.binding.venueId,
+          liveSystemId: session.binding.liveSystemId,
+          servicePlanId: local.servicePlan.id,
+          servicePlanRevision: local.servicePlan.revision
+        },
+        candidate: {
+          nodeId: remoteNodeId,
+          organizationId: fleetPeer.organizationId,
+          venueId: fleetPeer.venueId,
+          liveSystemId: fleetPeer.liveSystemId,
+          health: fleetPeer.health,
+          servicePlanId: peer.state.servicePlan?.id,
+          servicePlanRevision: peer.state.servicePlan?.revision,
+          lastSeenAt: fleetPeer.lastSeenAt
+        },
+        plan: local.servicePlan
+      });
+
+      return send(res, 200, {
+        peer: {
+          nodeId: remoteNodeId,
+          servicePlanId: peer.state.servicePlan?.id || null,
+          servicePlanRevision: peer.state.servicePlan?.revision || null,
+          activeLiveSessionId: peer.state.activeLiveSessionId
+        },
+        decision
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/redundancy/activate') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'redundancy_admin_required' });
+      }
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_redundancy_activation');
+      }
+      const candidate = body as Record<string, unknown>;
+      if (candidate.confirmed !== true) {
+        return send(res, 409, { error: 'redundancy_activation_confirmation_required' });
+      }
+
+      const expectedPlanId = String(candidate.servicePlanId || '').trim();
+      const expectedRevision = Number(candidate.servicePlanRevision);
+      const previousNodeId = String(candidate.previousNodeId || '').trim();
+      if (!expectedPlanId || !Number.isInteger(expectedRevision) || !previousNodeId) {
+        throw new Error('invalid_redundancy_activation');
+      }
+      if (previousNodeId === nodeId) {
+        throw new Error('redundancy_previous_node_invalid');
+      }
+
+      const runtime = await runtimeState.load();
+      if (runtime.activeLiveSessionId) {
+        return send(res, 409, { error: 'redundancy_target_live_active' });
+      }
+      if (
+        !runtime.servicePlan ||
+        runtime.servicePlan.id !== expectedPlanId ||
+        runtime.servicePlan.revision !== expectedRevision
+      ) {
+        return send(res, 409, { error: 'redundancy_plan_mismatch' });
+      }
+
+      const activatedAt = new Date().toISOString();
+      const liveSessionId = `failover:${runtime.servicePlan.id}:${Date.now()}`;
+      const commandNamespace = `failover:${runtime.servicePlan.id}:r${runtime.servicePlan.revision}`;
+      const state = await runtimeState.patch({
+        activeLiveSessionId: liveSessionId,
+        activeSession: {
+          id: liveSessionId,
+          mode: 'service',
+          label: `Failover de ${previousNodeId}`,
+          servicePlanId: runtime.servicePlan.id,
+          activatedAt,
+          activatedBy: String(candidate.actorId || 'operator')
+        },
+        activeServiceItemId: runtime.servicePlan.items[0]?.id || null
+      });
+
+      return send(res, 200, {
+        activated: true,
+        nodeId,
+        liveSessionId,
+        servicePlanId: runtime.servicePlan.id,
+        servicePlanRevision: runtime.servicePlan.revision,
+        commandNamespace,
+        sampleIdempotencyKey: failoverIdempotencyKey({
+          namespace: commandNamespace,
+          originalIdempotencyKey: 'next-command'
+        }),
+        stateRevision: state.revision,
+        automaticCommandSent: false
       });
     }
 
