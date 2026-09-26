@@ -67,6 +67,16 @@ import {
   ProPresenterAdapter,
   ProPresenterHttpClient
 } from '@millionsnest/live-adapter-propresenter';
+import {
+  ArtNetDmxControlClient,
+  HttpBridgeControlClient,
+  ObsWebSocketControlClient,
+  OscUdpControlClient,
+  PRODUCTION_ADAPTER_MANIFESTS,
+  ProductionControlAdapter,
+  VmixHttpControlClient
+} from '@millionsnest/live-adapters-production';
+import { ProductionProviderConfigStore } from './productionProviderConfigStore';
 import { toString as qrToString } from 'qrcode';
 
 function liveEnv(name: string): string | undefined {
@@ -159,6 +169,11 @@ const providerConfigStore = new ProviderConfigStore(
   join(STATE_DIR, 'providers.json'),
   secretProtector
 );
+const productionProviderConfigStore = new ProductionProviderConfigStore(
+  join(STATE_DIR, 'production-providers.json'),
+  secretProtector
+);
+const registeredProductionProviderIds = new Set<string>();
 const providerRoutingStore = new ProviderRoutingStore(join(STATE_DIR, 'routing.json'));
 const peerNodeStore = new PeerNodeStore(join(STATE_DIR, 'peers.json'));
 const signalTopologyStore = new SignalTopologyStore(join(STATE_DIR, 'signal-topology.json'));
@@ -368,6 +383,108 @@ async function registerProPresenterProvider(): Promise<{
     probe,
     baseUrl
   };
+}
+
+function productionManifestByKey(adapterKey: string) {
+  return Object.values(PRODUCTION_ADAPTER_MANIFESTS)
+    .find(manifest => manifest.adapterKey === adapterKey);
+}
+
+function productionControlClient(config: {
+  adapterKey: string;
+  config: Record<string, unknown>;
+}) {
+  const value = config.config;
+  switch (config.adapterKey) {
+    case 'obs-websocket':
+      return new ObsWebSocketControlClient(
+        String(value.url || ''),
+        String(value.password || '')
+      );
+    case 'vmix':
+      return new VmixHttpControlClient(String(value.baseUrl || ''));
+    case 'osc':
+      return new OscUdpControlClient(
+        String(value.host || ''),
+        Number(value.port || 8000)
+      );
+    case 'artnet-dmx':
+      return new ArtNetDmxControlClient(
+        String(value.host || ''),
+        Number(value.port || 6454),
+        Number(value.universe || 0)
+      );
+    case 'companion':
+    case 'midi':
+    case 'atem':
+      return new HttpBridgeControlClient(String(value.baseUrl || ''));
+    default:
+      throw new Error('production_adapter_unsupported');
+  }
+}
+
+async function registerProductionProviders(): Promise<Array<{
+  instanceId: string;
+  adapterKey: string;
+  reachable: boolean;
+  version?: string;
+  capabilities: Capability[];
+  reason?: string;
+}>> {
+  for (const providerId of registeredProductionProviderIds) {
+    const adapter = capabilityEngine.get(providerId);
+    await adapter?.dispose?.().catch(() => undefined);
+    capabilityEngine.unregister(providerId);
+  }
+  registeredProductionProviderIds.clear();
+
+  const configs = await productionProviderConfigStore
+    .allResolved(PRODUCTION_ADAPTER_MANIFESTS);
+  const results: Array<{
+    instanceId: string;
+    adapterKey: string;
+    reachable: boolean;
+    version?: string;
+    capabilities: Capability[];
+    reason?: string;
+  }> = [];
+
+  for (const config of configs) {
+    const manifest = productionManifestByKey(config.adapterKey);
+    if (!manifest) continue;
+
+    const adapter = new ProductionControlAdapter({
+      id: config.instanceId,
+      nodeId,
+      displayName: config.displayName,
+      manifest,
+      client: productionControlClient(config)
+    });
+    capabilityEngine.register(adapter);
+    registeredProductionProviderIds.add(config.instanceId);
+
+    const probe = await adapter.probe();
+    results.push({
+      instanceId: config.instanceId,
+      adapterKey: config.adapterKey,
+      reachable: probe.reachable,
+      version: probe.version,
+      capabilities: probe.capabilities,
+      reason: probe.reason
+    });
+
+    console.log(JSON.stringify({
+      event: 'production_provider_probe',
+      providerId: config.instanceId,
+      providerKey: config.adapterKey,
+      reachable: probe.reachable,
+      version: probe.version || null,
+      capabilities: probe.capabilities,
+      reason: probe.reason || null
+    }));
+  }
+
+  return results;
 }
 
 const providerObservationInFlight = new Set<string>();
@@ -1592,6 +1709,7 @@ async function start(): Promise<void> {
   await collaborationInviteStore.load();
   await runtimeState.load();
   await providerConfigStore.load();
+  await productionProviderConfigStore.load();
   await providerRoutingStore.load();
   await peerNodeStore.load();
   await signalTopologyStore.load();
@@ -1602,6 +1720,7 @@ async function start(): Promise<void> {
   await registerHolyricsProvider();
   await registerResolumeProvider();
   await registerProPresenterProvider();
+  await registerProductionProviders();
   await peerFederation.load();
   await peerDiscovery.start();
 
@@ -1938,6 +2057,91 @@ async function start(): Promise<void> {
       await providerConfigStore.clearProPresenter();
       capabilityEngine.unregister('propresenter-primary');
       return send(res, 200, { cleared: true });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/local/providers/production') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      return send(res, 200, {
+        catalog: Object.values(PRODUCTION_ADAPTER_MANIFESTS).map(manifest => ({
+          adapterKey: manifest.adapterKey,
+          displayName: manifest.displayName,
+          providerKind: manifest.providerKind,
+          transport: manifest.transport,
+          capabilities: manifest.capabilities,
+          setup: manifest.setup.map(field => ({
+            key: field.key,
+            label: field.label,
+            kind: field.kind,
+            required: field.required,
+            advanced: field.advanced === true,
+            secret: field.secret === true || field.kind === 'secret',
+            defaultValue: field.defaultValue,
+            help: field.help
+          })),
+          experimental: manifest.experimental === true
+        })),
+        providers: await productionProviderConfigStore
+          .allPublic(PRODUCTION_ADAPTER_MANIFESTS),
+        probes: capabilityEngine.quickSnapshot()
+          .filter(provider => registeredProductionProviderIds.has(provider.providerId))
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/local/providers/production') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_production_provider_config');
+      }
+      const candidate = body as Record<string, unknown>;
+      const adapterKey = String(candidate.adapterKey || '').trim();
+      const manifest = productionManifestByKey(adapterKey);
+      if (!manifest) throw new Error('production_adapter_unsupported');
+
+      const instanceId = String(candidate.instanceId || '').trim();
+      const displayName = String(candidate.displayName || manifest.displayName).trim();
+      const config =
+        candidate.config && typeof candidate.config === 'object' && !Array.isArray(candidate.config)
+          ? candidate.config as Record<string, unknown>
+          : {};
+
+      await productionProviderConfigStore.upsert(manifest, {
+        instanceId,
+        displayName,
+        config
+      });
+      const probes = await registerProductionProviders();
+      const publicConfig = (
+        await productionProviderConfigStore.allPublic(PRODUCTION_ADAPTER_MANIFESTS)
+      ).find(item => item.instanceId === instanceId);
+
+      return send(res, 200, {
+        provider: publicConfig || null,
+        probe: probes.find(item => item.instanceId === instanceId) || null
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/local/providers/production/remove') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_production_provider_remove');
+      }
+      const instanceId = String(
+        (body as Record<string, unknown>).instanceId || ''
+      ).trim();
+      if (!instanceId) throw new Error('production_provider_instance_required');
+
+      const removed = await productionProviderConfigStore.remove(
+        instanceId,
+        PRODUCTION_ADAPTER_MANIFESTS
+      );
+      await registerProductionProviders();
+      return send(res, 200, {
+        removed,
+        providers: await productionProviderConfigStore
+          .allPublic(PRODUCTION_ADAPTER_MANIFESTS)
+      });
     }
 
     if (req.method === 'POST' && url.pathname === '/local/routing') {
