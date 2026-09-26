@@ -2754,3 +2754,12 @@ img,video,canvas,svg{max-width:100%}
   .production-inline-form{grid-template-columns:1fr}
   .production-inline-form button,.production-backup-actions>*{width:100%}
 }
+
+/* Phase 11 fleet extension */
+.production-cloud-fleet{display:grid;gap:8px;margin-top:6px}
+.production-section-divider{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding-top:12px;border-top:1px solid rgba(255,255,255,.055)
+}
+.production-section-divider strong{font-size:14px}
+.production-section-divider span{color:#777d8e;font-size:12px}
