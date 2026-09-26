@@ -10,11 +10,13 @@ import {
   type Unsubscribe
 } from 'firebase/firestore';
 import type {
+  AudioProfile,
   AutomationRule,
   LiveEvent,
   LivePresence,
   LiveRequest,
   LiveSession,
+  LiveTemplate,
   ProviderLink,
   Scene,
   ServicePlan,
@@ -136,6 +138,86 @@ export async function syncPreparedServicePlan(
   }));
 
   await liveSyncEngine.flush();
+}
+
+export async function saveCloudAudioProfile(
+  profile: AudioProfile,
+  actorId: string
+): Promise<void> {
+  await queueLiveSync({
+    organizationId: profile.organizationId,
+    venueId: profile.venueId,
+    liveSystemId: profile.liveSystemId,
+    entityKind: 'audioProfile',
+    entityId: profile.id,
+    payload: {
+      ...profile,
+      updatedAt: new Date().toISOString()
+    },
+    origin: 'studio',
+    actorId,
+    conflictPolicy: 'manual'
+  });
+  await liveSyncEngine.flush();
+}
+
+export async function listCloudAudioProfiles(
+  organizationId: string,
+  venueId?: string,
+  liveSystemId?: string
+): Promise<AudioProfile[]> {
+  const snapshot = await getDocs(query(
+    collection(db, LIVE_COLLECTIONS.audioProfiles),
+    where('organizationId', '==', organizationId)
+  ));
+  return snapshot.docs
+    .map(item => {
+      const data = item.data() as Record<string, unknown>;
+      observeRemote('audioProfile', item.id, data);
+      return stripRemoteSync<AudioProfile>(data);
+    })
+    .filter(profile => !venueId || profile.venueId === venueId)
+    .filter(profile => !liveSystemId || profile.liveSystemId === liveSystemId)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function saveCloudLiveTemplate(
+  template: LiveTemplate,
+  actorId: string
+): Promise<void> {
+  if (!['private', 'review'].includes(template.marketplaceStatus)) {
+    throw new Error('marketplace_decision_requires_controlled_review');
+  }
+  await queueLiveSync({
+    organizationId: template.organizationId,
+    entityKind: 'template',
+    entityId: template.id,
+    payload: {
+      ...template,
+      shared: false,
+      updatedAt: new Date().toISOString()
+    },
+    origin: 'studio',
+    actorId,
+    conflictPolicy: 'manual'
+  });
+  await liveSyncEngine.flush();
+}
+
+export async function listCloudLiveTemplates(
+  organizationId: string
+): Promise<LiveTemplate[]> {
+  const snapshot = await getDocs(query(
+    collection(db, LIVE_COLLECTIONS.templates),
+    where('organizationId', '==', organizationId)
+  ));
+  return snapshot.docs
+    .map(item => {
+      const data = item.data() as Record<string, unknown>;
+      observeRemote('template', item.id, data);
+      return stripRemoteSync<LiveTemplate>(data);
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function upsertLiveSession(
