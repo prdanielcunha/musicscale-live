@@ -77,6 +77,11 @@ import {
   VmixHttpControlClient
 } from '@millionsnest/live-adapters-production';
 import { ProductionProviderConfigStore } from './productionProviderConfigStore';
+import { ProductionWorkspaceStore } from './productionWorkspaceStore';
+import {
+  createLiveNodeBackup,
+  validateLiveNodeBackup
+} from './nodeBackup';
 import { toString as qrToString } from 'qrcode';
 
 function liveEnv(name: string): string | undefined {
@@ -172,6 +177,9 @@ const providerConfigStore = new ProviderConfigStore(
 const productionProviderConfigStore = new ProductionProviderConfigStore(
   join(STATE_DIR, 'production-providers.json'),
   secretProtector
+);
+const productionWorkspaceStore = new ProductionWorkspaceStore(
+  join(STATE_DIR, 'production-workspace.json')
 );
 const registeredProductionProviderIds = new Set<string>();
 const providerRoutingStore = new ProviderRoutingStore(join(STATE_DIR, 'routing.json'));
@@ -622,17 +630,24 @@ function sendHtml(res: ServerResponse, status: number, html: string): void {
   res.end(html);
 }
 
-async function readJson(req: IncomingMessage): Promise<unknown> {
+async function readJsonWithLimit(
+  req: IncomingMessage,
+  maxBytes: number
+): Promise<unknown> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     const buffer = Buffer.from(chunk);
     size += buffer.length;
-    if (size > 256 * 1024) throw new Error('payload_too_large');
+    if (size > maxBytes) throw new Error('payload_too_large');
     chunks.push(buffer);
   }
   if (!chunks.length) return {};
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
+
+async function readJson(req: IncomingMessage): Promise<unknown> {
+  return readJsonWithLimit(req, 256 * 1024);
 }
 
 function bearerToken(req: IncomingMessage): string {
@@ -1710,6 +1725,7 @@ async function start(): Promise<void> {
   await runtimeState.load();
   await providerConfigStore.load();
   await productionProviderConfigStore.load();
+  await productionWorkspaceStore.load();
   await providerRoutingStore.load();
   await peerNodeStore.load();
   await signalTopologyStore.load();
@@ -2141,6 +2157,139 @@ async function start(): Promise<void> {
         removed,
         providers: await productionProviderConfigStore
           .allPublic(PRODUCTION_ADAPTER_MANIFESTS)
+      });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/production/workspace') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'production_workspace_admin_required' });
+      }
+      const scope = session.binding;
+      return send(res, 200, {
+        audioProfiles: await productionWorkspaceStore.audioProfiles(scope),
+        templates: await productionWorkspaceStore.templates(scope.organizationId)
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/production/audio-profiles') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'production_workspace_admin_required' });
+      }
+      const profile = await productionWorkspaceStore.upsertAudioProfile(
+        await readJson(req),
+        session.binding
+      );
+      return send(res, 200, { profile });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/production/templates') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'production_workspace_admin_required' });
+      }
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') throw new Error('live_template_invalid');
+      const candidate = body as Record<string, unknown>;
+      const actorId = String(candidate.createdBy || '').trim();
+      if (!actorId) throw new Error('live_template_creator_invalid');
+      const template = await productionWorkspaceStore.upsertTemplate(
+        candidate,
+        session.binding.organizationId,
+        actorId
+      );
+      return send(res, 200, { template });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/local/production/templates/decision') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('live_template_review_invalid');
+      }
+      const candidate = body as Record<string, unknown>;
+      const decision = String(candidate.decision || '');
+      if (!['approved', 'rejected'].includes(decision)) {
+        throw new Error('live_template_review_invalid');
+      }
+      const template = await productionWorkspaceStore.decideMarketplace({
+        organizationId: String(candidate.organizationId || ''),
+        templateId: String(candidate.templateId || ''),
+        decision: decision as 'approved' | 'rejected',
+        reviewerId: String(candidate.reviewerId || '')
+      });
+      return send(res, 200, { template });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/backup/export') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'backup_admin_required' });
+      }
+      const [runtime, routing, signalTopology, audioProfiles, templates] =
+        await Promise.all([
+          runtimeState.load(),
+          providerRoutingStore.all(),
+          signalTopologyStore.load(),
+          productionWorkspaceStore.audioProfiles(session.binding),
+          productionWorkspaceStore.templates(session.binding.organizationId)
+        ]);
+
+      return send(res, 200, createLiveNodeBackup({
+        appVersion: VERSION,
+        nodeId,
+        organizationId: session.binding.organizationId,
+        venueId: session.binding.venueId,
+        liveSystemId: session.binding.liveSystemId,
+        servicePlan: runtime.servicePlan,
+        providerLinks: runtime.providerLinks,
+        scenes: runtime.scenes,
+        routing,
+        signalTopology,
+        audioProfiles,
+        templates
+      }));
+    }
+
+    if (req.method === 'POST' && url.pathname === '/backup/restore') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'backup_admin_required' });
+      }
+      const current = await runtimeState.load();
+      if (current.activeLiveSessionId) {
+        return send(res, 409, { error: 'backup_restore_blocked_during_live' });
+      }
+
+      const bundle = validateLiveNodeBackup(
+        await readJsonWithLimit(req, 2 * 1024 * 1024),
+        session.binding
+      );
+      await providerRoutingStore.replace(bundle.data.routing);
+      await signalTopologyStore.replace(bundle.data.signalTopology);
+      await productionWorkspaceStore.replaceFromBackup({
+        audioProfiles: bundle.data.audioProfiles,
+        templates: bundle.data.templates,
+        organizationId: session.binding.organizationId,
+        venueId: session.binding.venueId,
+        liveSystemId: session.binding.liveSystemId
+      });
+      const state = await runtimeState.patch({
+        activeLiveSessionId: null,
+        activeSession: null,
+        activeServiceItemId: null,
+        providerObservedState: {},
+        servicePlan: bundle.data.servicePlan,
+        providerLinks: bundle.data.providerLinks,
+        scenes: bundle.data.scenes,
+        requests: []
+      });
+      return send(res, 200, {
+        restored: true,
+        backupId: bundle.manifest.backupId,
+        stateRevision: state.revision,
+        servicePlanId: state.servicePlan?.id || null
       });
     }
 
