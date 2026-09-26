@@ -74,7 +74,7 @@ function isCapability(value: string): value is Capability {
 }
 
 function safeKey(value: string): boolean {
-  return /^[a-z][a-z0-9._-]{1,63}$/.test(value);
+  return /^[A-Za-z][A-Za-z0-9._-]{1,63}$/.test(value);
 }
 
 export function defineAdapterManifest(
