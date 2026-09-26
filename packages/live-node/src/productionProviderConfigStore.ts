@@ -106,11 +106,22 @@ export class ProductionProviderConfigStore {
   ): Promise<ProductionProviderConfig> {
     await this.load();
 
+    const instanceId = input.instanceId.trim();
+    const existing = this.file.providers.find(
+      item => item.instanceId === instanceId
+    );
+    if (existing && existing.adapterKey !== manifest.adapterKey) {
+      throw new Error('adapter_instance_kind_conflict');
+    }
+
     const registration: AdapterSdkRegistration = {
       manifest,
-      instanceId: input.instanceId.trim(),
+      instanceId,
       displayName: input.displayName.trim(),
-      config: { ...input.config }
+      config: {
+        ...(existing?.config || {}),
+        ...input.config
+      }
     };
     validateAdapterRegistration(registration);
 
@@ -141,10 +152,6 @@ export class ProductionProviderConfigStore {
       }
       normalized[field.key] = value;
     }
-
-    const existing = this.file.providers.find(
-      item => item.instanceId === registration.instanceId
-    );
 
     if (existing) {
       for (const field of manifest.setup.filter(field => field.secret || field.kind === 'secret')) {
