@@ -140,6 +140,46 @@ export async function syncPreparedServicePlan(
   await liveSyncEngine.flush();
 }
 
+export interface CloudFleetNode {
+  id: string;
+  organizationId: string;
+  venueId: string;
+  liveSystemId: string;
+  nodeId: string;
+  displayName: string;
+  health: string;
+  providers: number;
+  providersOnline: number;
+  version?: string;
+  lastSeenAt: string;
+  updatedBy: string;
+}
+
+export async function upsertCloudFleetPresence(input: Omit<CloudFleetNode, 'id'>): Promise<void> {
+  const id = stableDocId([input.organizationId, input.nodeId]);
+  await setDoc(doc(db, LIVE_COLLECTIONS.fleetPresence, id), {
+    id,
+    ...input
+  }, { merge: true });
+}
+
+export function subscribeCloudFleet(
+  organizationId: string,
+  onChange: (nodes: CloudFleetNode[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  const q = query(
+    collection(db, LIVE_COLLECTIONS.fleetPresence),
+    where('organizationId', '==', organizationId)
+  );
+  return onSnapshot(q, snapshot => {
+    const nodes = snapshot.docs
+      .map(item => item.data() as CloudFleetNode)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    onChange(nodes);
+  }, error => onError?.(error));
+}
+
 export async function saveCloudAudioProfile(
   profile: AudioProfile,
   actorId: string
