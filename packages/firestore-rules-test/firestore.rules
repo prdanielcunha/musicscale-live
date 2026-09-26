@@ -286,6 +286,32 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /musicScaleLiveAudioProfiles/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        canConduct(request.resource.data.organizationId) &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        canConduct(resource.data.organizationId) &&
+        noSecretFields();
+      allow delete: if canConduct(resource.data.organizationId);
+    }
+
+    match /musicScaleLiveTemplates/{id} {
+      allow read: if memberRead();
+      allow create: if validTenantCreate() &&
+        canConduct(request.resource.data.organizationId) &&
+        request.resource.data.marketplaceStatus in ['private', 'review'] &&
+        request.resource.data.shared == false &&
+        noSecretFields();
+      allow update: if immutableTenant() &&
+        canConduct(resource.data.organizationId) &&
+        request.resource.data.marketplaceStatus in ['private', 'review'] &&
+        request.resource.data.shared == false &&
+        noSecretFields();
+      allow delete: if canConduct(resource.data.organizationId);
+    }
+
     match /musicScaleLiveMediaAssets/{id} {
       allow read: if memberRead();
       allow create: if validTenantCreate() &&
