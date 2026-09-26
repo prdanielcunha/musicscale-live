@@ -2608,3 +2608,71 @@ img,video,canvas,svg{max-width:100%}
   .ai-insight-head{align-items:stretch;flex-direction:column}
   .ai-insight-head button{width:100%}
 }
+
+/* Roadmap Phase 9/10 — training + factual follow-up */
+.smart-rehearsal-panel>header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.smart-rehearsal-panel>header>button{flex:none;min-height:44px}
+.smart-rehearsal-training{
+  display:grid;
+  gap:12px;
+  margin:12px 0;
+  padding:14px;
+  border:1px solid rgba(124,92,255,.16);
+  border-radius:14px;
+  background:rgba(124,92,255,.045);
+}
+.smart-rehearsal-training>div{display:grid;gap:3px}
+.smart-rehearsal-training>div small{color:#8b7ff0;font-weight:760;letter-spacing:.08em}
+.smart-rehearsal-training>div span,.smart-rehearsal-training>small{color:#777d8d;line-height:1.45}
+.smart-rehearsal-training ol{display:grid;gap:7px;margin:0;padding-left:24px}
+.smart-rehearsal-training li{padding:9px 10px;border-radius:10px;background:rgba(10,11,16,.58)}
+.smart-rehearsal-training li strong,.smart-rehearsal-training li span{display:block}
+.smart-rehearsal-training li span{margin-top:3px;color:#7d8291;line-height:1.4}
+.smart-rehearsal-training li.attention{border:1px solid rgba(255,184,77,.13)}
+.smart-rehearsal-training li.ready{border:1px solid rgba(74,220,155,.10)}
+.service-review-attention .correction{
+  padding:10px;
+  border:1px solid rgba(124,92,255,.14);
+  border-radius:10px;
+  background:rgba(124,92,255,.04);
+}
+.service-review-attention .correction small{color:#9185ef}
+.service-review-next{
+  display:grid;
+  gap:12px;
+  margin-top:14px;
+  padding:14px;
+  border:1px solid rgba(255,255,255,.065);
+  border-radius:14px;
+  background:rgba(255,255,255,.018);
+}
+.service-review-next>div:first-child{display:grid;gap:3px}
+.service-review-next>div:first-child small{color:#8177c4;font-weight:760;letter-spacing:.08em}
+.service-review-next>div:first-child span{color:#777d8d;line-height:1.45}
+.service-review-next-fields{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(190px,.8fr) auto;
+  gap:8px;
+  align-items:end;
+}
+.service-review-next-fields label{display:grid;gap:4px;min-width:0}
+.service-review-next-fields label span{color:#777d8d}
+.service-review-next-fields input{
+  min-width:0;
+  min-height:44px;
+  box-sizing:border-box;
+  padding:9px 10px;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:9px;
+  background:#0d0e14;
+  color:#eef0f6;
+  font:inherit;
+}
+.service-review-next-fields button{min-height:44px}
+.service-review-next-note{color:#b8a77f}
+.service-review-next-success{color:#71cba4}
+@media(max-width:760px){
+  .smart-rehearsal-panel>header{flex-direction:column}
+  .smart-rehearsal-panel>header>button{width:100%}
+  .service-review-next-fields{grid-template-columns:1fr}
+}
