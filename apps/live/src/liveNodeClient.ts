@@ -99,6 +99,43 @@ export interface LiveNodeStateResponse {
   liveDrop?: LiveDropAsset[];
 }
 
+export interface ProductionAdapterCatalogItem {
+  adapterKey: string;
+  displayName: string;
+  providerKind: string;
+  transport: string;
+  capabilities: string[];
+  setup: Array<{
+    key: string;
+    label: string;
+    kind: string;
+    required: boolean;
+    advanced: boolean;
+    secret: boolean;
+    defaultValue?: string | number | boolean;
+    help?: string;
+  }>;
+  experimental: boolean;
+}
+
+export interface LocalProductionProviderConfig {
+  instanceId: string;
+  adapterKey: string;
+  displayName: string;
+  config: Record<string, unknown>;
+  updatedAt: string;
+}
+
+export interface LocalProductionProviderCatalog {
+  catalog: ProductionAdapterCatalogItem[];
+  providers: LocalProductionProviderConfig[];
+  probes: Array<{
+    providerId: string;
+    health: string;
+    capabilities: string[];
+  }>;
+}
+
 export interface ProductionWorkspaceResponse {
   audioProfiles: AudioProfile[];
   templates: LiveTemplate[];
@@ -539,6 +576,47 @@ export async function cacheNodeServicePlan(
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ plan, providerLinks })
+  }, 5000);
+}
+
+export async function loadLocalProductionProviderCatalog(
+  baseUrl: string
+): Promise<LocalProductionProviderCatalog> {
+  return requestJson(baseUrl, '/local/providers/production', {}, 5000);
+}
+
+export async function saveLocalProductionProvider(
+  baseUrl: string,
+  input: {
+    instanceId: string;
+    adapterKey: string;
+    displayName: string;
+    config: Record<string, unknown>;
+  }
+): Promise<{
+  provider: LocalProductionProviderConfig | null;
+  probe: {
+    instanceId: string;
+    adapterKey: string;
+    reachable: boolean;
+    version?: string;
+    capabilities: string[];
+    reason?: string;
+  } | null;
+}> {
+  return requestJson(baseUrl, '/local/providers/production', {
+    method: 'POST',
+    body: JSON.stringify(input)
+  }, 10_000);
+}
+
+export async function removeLocalProductionProvider(
+  baseUrl: string,
+  instanceId: string
+): Promise<{ removed: boolean; providers: LocalProductionProviderConfig[] }> {
+  return requestJson(baseUrl, '/local/providers/production/remove', {
+    method: 'POST',
+    body: JSON.stringify({ instanceId })
   }, 5000);
 }
 
