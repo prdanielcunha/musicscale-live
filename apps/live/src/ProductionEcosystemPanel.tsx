@@ -13,6 +13,10 @@ import type {
 } from '@millionsnest/live-domain';
 import type { useLiveNode } from './useLiveNode';
 import {
+  subscribeCloudFleet,
+  type CloudFleetNode
+} from './liveCloudRepository';
+import {
   activateNodeFailover,
   exportNodeBackup,
   inspectNodeStandbyPeer,
@@ -79,6 +83,7 @@ export function ProductionEcosystemPanel({
 }) {
   const { t } = useTranslation();
   const credential = controller.credential;
+  const [cloudFleet, setCloudFleet] = useState<CloudFleetNode[]>([]);
   const [workspace, setWorkspace] = useState<ProductionWorkspaceResponse>({
     audioProfiles: [],
     templates: []
@@ -127,6 +132,19 @@ export function ProductionEcosystemPanel({
       setMessage(error instanceof Error ? error.message : 'production_ecosystem_load_failed');
     });
   }, [refresh]);
+
+  useEffect(() => {
+    const organizationId = credential?.binding.organizationId;
+    if (!organizationId || credential?.collaboration) {
+      setCloudFleet([]);
+      return;
+    }
+    return subscribeCloudFleet(
+      organizationId,
+      nodes => setCloudFleet(nodes),
+      () => setCloudFleet([])
+    );
+  }, [credential?.binding.organizationId, credential?.collaboration]);
 
   const manifest = useMemo(
     () => catalog?.catalog.find(item => item.adapterKey === selectedAdapter) || null,
@@ -729,6 +747,34 @@ export function ProductionEcosystemPanel({
             </div>
           ))}
           <small>{t('productionEcosystem.noAutomaticFailover')}</small>
+
+          <div className="production-cloud-fleet">
+            <div className="production-section-divider">
+              <strong>{t('productionEcosystem.organizationFleet')}</strong>
+              <span>{cloudFleet.length}</span>
+            </div>
+            {cloudFleet.length === 0 ? (
+              <small>{t('productionEcosystem.organizationFleetEmpty')}</small>
+            ) : cloudFleet.map(node => {
+              const ageMs = Date.now() - Date.parse(node.lastSeenAt);
+              const stale = !Number.isFinite(ageMs) || ageMs > 90_000;
+              return (
+                <div className="production-row" key={node.id}>
+                  <div>
+                    <strong>{node.displayName}</strong>
+                    <span>
+                      {node.venueId} · {node.liveSystemId} · {node.providersOnline}/{node.providers}
+                    </span>
+                  </div>
+                  <b className={stale ? 'offline' : node.health}>
+                    {stale
+                      ? t('productionEcosystem.stale')
+                      : node.health}
+                  </b>
+                </div>
+              );
+            })}
+          </div>
         </article>
       </div>
     </section>
