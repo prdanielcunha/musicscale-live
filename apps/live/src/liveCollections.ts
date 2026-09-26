@@ -4,6 +4,7 @@ export const LIVE_COLLECTIONS = {
   venues: 'musicScaleLiveVenues',
   systems: 'musicScaleLiveSystems',
   nodes: 'musicScaleLiveNodes',
+  fleetPresence: 'musicScaleLiveFleetPresence',
   profiles: 'musicScaleLiveProfiles',
   scenes: 'musicScaleLiveScenes',
   automations: 'musicScaleLiveAutomations',
