@@ -246,11 +246,15 @@ Gate remains open: review availability after session close, retention/organizati
 
 # Phase 11 — Production ecosystem
 
-**Status:** BLOCKED BY PHASE 10 GATE.
+**Status:** SOFTWARE FOUNDATION IMPLEMENTED; physical/provider acceptance remains behind the Phase 10 gate.
 
-Add OBS, Companion, OSC, MIDI, ATEM, vMix and Art-Net/DMX through adapters/capabilities only; Audio Profiles and human aliases; adapter SDK; controlled templates/marketplace; backup/restore; Live Node redundancy; fleet/multi-venue operations.
+A vendor-neutral adapter SDK now defines transport, capabilities, setup schema, observed-state fields and local-secret policy without adding vendor conditionals to the core capability domain. The production adapter workspace provides OBS WebSocket and vMix HTTP clients, direct OSC and Art-Net/DMX UDP transports, and explicit local bridge contracts for Companion, MIDI and ATEM. Every adapter still executes through the same ProviderAdapter/CapabilityEngine path used by the core providers.
 
-Gate: new adapters require no vendor conditionals in core domain; failover keeps plan and does not duplicate commands; fleet remains tenant isolated.
+Production provider configuration is stored only on the Live Node, restricts network targets to loopback/private LAN, and protects secret fields with the existing OS-vault abstraction. Studio now has a production workspace for Audio Profiles/human aliases, reusable production templates, secret-free checksummed backup/restore, standby preparation, manual failover and tenant-scoped local/cloud fleet visibility. Direct client writes can submit templates for review but cannot self-approve marketplace publication.
+
+Redundancy deliberately remains operator-confirmed. Standby preparation copies the exact ServicePlan revision, provider links and scenes but does not start a Live session or send provider commands. Failover activation requires an exact plan/revision match and explicit confirmation and sends zero automatic provider commands.
+
+Gate remains open for hardware evidence: each production adapter must be exercised against supported real vendor versions; failover must be proven on two physical Nodes without a duplicate output action; multi-venue fleet isolation must be verified with real tenant accounts; audio aliases/templates/backup restore must pass operator acceptance.
 
 ---
 

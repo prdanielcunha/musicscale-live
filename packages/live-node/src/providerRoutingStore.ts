@@ -50,6 +50,26 @@ export class ProviderRoutingStore {
     return this.file.routes[group] || null;
   }
 
+  async replace(
+    routes: Partial<Record<ProviderRouteGroup, string>>
+  ): Promise<Partial<Record<ProviderRouteGroup, string>>> {
+    await this.load();
+    const next: Partial<Record<ProviderRouteGroup, string>> = {};
+    for (const [rawGroup, rawProviderId] of Object.entries(routes || {})) {
+      const group = rawGroup as ProviderRouteGroup;
+      if (!GROUPS.includes(group)) throw new Error('invalid_route_group');
+      const providerId = String(rawProviderId || '').trim();
+      if (providerId) next[group] = providerId;
+    }
+
+    this.writeQueue = this.writeQueue.then(async () => {
+      this.file.routes = next;
+      await this.persist();
+    });
+    await this.writeQueue;
+    return structuredClone(this.file.routes);
+  }
+
   async set(group: ProviderRouteGroup, providerId: string | null): Promise<void> {
     await this.load();
     if (!GROUPS.includes(group)) throw new Error('invalid_route_group');

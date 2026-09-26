@@ -1,4 +1,5 @@
 import type {
+  AudioProfile,
   CommandResult,
   LiveChatMessage,
   LiveCollaborationGrant,
@@ -6,8 +7,10 @@ import type {
   LiveCollaborationRole,
   LiveCommand,
   LiveDropAsset,
+  LiveNodeBackupManifest,
   LiveNodeHealth,
   LiveNodeRuntimeState,
+  LiveTemplate,
   LiveRequest,
   LiveSessionEventPage,
   PairingChallenge,
@@ -94,6 +97,88 @@ export interface LiveNodeStateResponse {
   peers?: PeerNodeStatus[];
   signalTopology?: SignalTopology;
   liveDrop?: LiveDropAsset[];
+}
+
+export interface ProductionAdapterCatalogItem {
+  adapterKey: string;
+  displayName: string;
+  providerKind: string;
+  transport: string;
+  capabilities: string[];
+  setup: Array<{
+    key: string;
+    label: string;
+    kind: string;
+    required: boolean;
+    advanced: boolean;
+    secret: boolean;
+    defaultValue?: string | number | boolean;
+    help?: string;
+  }>;
+  experimental: boolean;
+}
+
+export interface LocalProductionProviderConfig {
+  instanceId: string;
+  adapterKey: string;
+  displayName: string;
+  config: Record<string, unknown>;
+  updatedAt: string;
+}
+
+export interface LocalProductionProviderCatalog {
+  catalog: ProductionAdapterCatalogItem[];
+  providers: LocalProductionProviderConfig[];
+  probes: Array<{
+    providerId: string;
+    health: string;
+    capabilities: string[];
+  }>;
+}
+
+export interface ProductionWorkspaceResponse {
+  audioProfiles: AudioProfile[];
+  templates: LiveTemplate[];
+}
+
+export interface RedundancyFleetPeer {
+  nodeId: string;
+  displayName: string;
+  organizationId: string;
+  venueId: string;
+  liveSystemId: string;
+  health: 'online' | 'degraded' | 'offline';
+  providers: number;
+  providersOnline: number;
+  lastSeenAt?: string;
+}
+
+export interface RedundancyStatusResponse {
+  local: {
+    nodeId: string;
+    displayName: string;
+    organizationId: string;
+    venueId: string;
+    liveSystemId: string;
+    servicePlanId: string | null;
+    servicePlanRevision: number | null;
+    activeLiveSessionId: string | null;
+  };
+  peers: RedundancyFleetPeer[];
+}
+
+export interface LiveNodeBackupBundle {
+  schemaVersion: 1;
+  manifest: LiveNodeBackupManifest;
+  data: {
+    servicePlan: ServicePlan | null;
+    providerLinks: ProviderLink[];
+    scenes: Scene[];
+    routing: Partial<Record<ProviderRouteGroup, string>>;
+    signalTopology: SignalTopology;
+    audioProfiles: AudioProfile[];
+    templates: LiveTemplate[];
+  };
 }
 
 export class LiveNodeApiError extends Error {
@@ -491,6 +576,206 @@ export async function cacheNodeServicePlan(
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ plan, providerLinks })
+  }, 5000);
+}
+
+export async function loadLocalProductionProviderCatalog(
+  baseUrl: string
+): Promise<LocalProductionProviderCatalog> {
+  return requestJson(baseUrl, '/local/providers/production', {}, 5000);
+}
+
+export async function saveLocalProductionProvider(
+  baseUrl: string,
+  input: {
+    instanceId: string;
+    adapterKey: string;
+    displayName: string;
+    config: Record<string, unknown>;
+  }
+): Promise<{
+  provider: LocalProductionProviderConfig | null;
+  probe: {
+    instanceId: string;
+    adapterKey: string;
+    reachable: boolean;
+    version?: string;
+    capabilities: string[];
+    reason?: string;
+  } | null;
+}> {
+  return requestJson(baseUrl, '/local/providers/production', {
+    method: 'POST',
+    body: JSON.stringify(input)
+  }, 10_000);
+}
+
+export async function removeLocalProductionProvider(
+  baseUrl: string,
+  instanceId: string
+): Promise<{ removed: boolean; providers: LocalProductionProviderConfig[] }> {
+  return requestJson(baseUrl, '/local/providers/production/remove', {
+    method: 'POST',
+    body: JSON.stringify({ instanceId })
+  }, 5000);
+}
+
+export async function loadNodeProductionWorkspace(
+  baseUrl: string,
+  token: string
+): Promise<ProductionWorkspaceResponse> {
+  return requestJson(baseUrl, '/production/workspace', {
+    headers: { Authorization: `Bearer ${token}` }
+  }, 5000);
+}
+
+export async function saveNodeAudioProfile(
+  baseUrl: string,
+  token: string,
+  profile: AudioProfile
+): Promise<AudioProfile> {
+  const response = await requestJson<{ profile: AudioProfile }>(
+    baseUrl,
+    '/production/audio-profiles',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(profile)
+    },
+    5000
+  );
+  return response.profile;
+}
+
+export async function saveNodeProductionTemplate(
+  baseUrl: string,
+  token: string,
+  template: Partial<LiveTemplate> & {
+    id: string;
+    name: string;
+    kind: LiveTemplate['kind'];
+    payload: Record<string, unknown>;
+    createdBy: string;
+  }
+): Promise<LiveTemplate> {
+  const response = await requestJson<{ template: LiveTemplate }>(
+    baseUrl,
+    '/production/templates',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(template)
+    },
+    5000
+  );
+  return response.template;
+}
+
+export async function exportNodeBackup(
+  baseUrl: string,
+  token: string
+): Promise<LiveNodeBackupBundle> {
+  return requestJson(baseUrl, '/backup/export', {
+    headers: { Authorization: `Bearer ${token}` }
+  }, 10_000);
+}
+
+export async function restoreNodeBackup(
+  baseUrl: string,
+  token: string,
+  backup: LiveNodeBackupBundle
+): Promise<{
+  restored: true;
+  backupId: string;
+  stateRevision: number;
+  servicePlanId: string | null;
+}> {
+  return requestJson(baseUrl, '/backup/restore', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(backup)
+  }, 15_000);
+}
+
+export async function loadNodeRedundancyStatus(
+  baseUrl: string,
+  token: string
+): Promise<RedundancyStatusResponse> {
+  return requestJson(baseUrl, '/redundancy/status', {
+    headers: { Authorization: `Bearer ${token}` }
+  }, 5000);
+}
+
+export async function prepareNodeStandbyPeer(
+  baseUrl: string,
+  token: string,
+  remoteNodeId: string
+): Promise<{
+  prepared: {
+    nodeId: string;
+    servicePlanId: string;
+    servicePlanRevision: number;
+    scenes: number;
+    providerLinks: number;
+    stateRevision: number;
+  };
+}> {
+  return requestJson(baseUrl, '/redundancy/peer/prepare', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ remoteNodeId })
+  }, 12_000);
+}
+
+export async function inspectNodeStandbyPeer(
+  baseUrl: string,
+  token: string,
+  remoteNodeId: string
+): Promise<{
+  peer: {
+    nodeId: string;
+    servicePlanId: string | null;
+    servicePlanRevision: number | null;
+    activeLiveSessionId: string | null;
+  };
+  decision: {
+    eligible: boolean;
+    reason: string;
+    targetNodeId?: string;
+    commandNamespace?: string;
+  };
+}> {
+  return requestJson(baseUrl, '/redundancy/peer/inspect', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ remoteNodeId })
+  }, 8000);
+}
+
+export async function activateNodeFailover(
+  baseUrl: string,
+  token: string,
+  input: {
+    servicePlanId: string;
+    servicePlanRevision: number;
+    previousNodeId: string;
+    actorId: string;
+    confirmed: true;
+  }
+): Promise<{
+  activated: true;
+  nodeId: string;
+  liveSessionId: string;
+  servicePlanId: string;
+  servicePlanRevision: number;
+  commandNamespace: string;
+  stateRevision: number;
+  automaticCommandSent: false;
+}> {
+  return requestJson(baseUrl, '/redundancy/activate', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input)
   }, 5000);
 }
 

@@ -2676,3 +2676,90 @@ img,video,canvas,svg{max-width:100%}
   .smart-rehearsal-panel>header>button{width:100%}
   .service-review-next-fields{grid-template-columns:1fr}
 }
+
+/* Roadmap Phase 11 — production ecosystem */
+.production-ecosystem{display:grid;gap:18px}
+.production-ecosystem-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
+  padding:20px 22px;border:1px solid rgba(255,255,255,.07);border-radius:20px;
+  background:radial-gradient(circle at 92% 0,rgba(124,92,255,.10),transparent 35%),rgba(17,18,25,.75)
+}
+.production-ecosystem-head h2{margin:4px 0 6px;font-size:24px;letter-spacing:-.035em}
+.production-ecosystem-head p{margin:0;max-width:760px;color:#8e93a5;line-height:1.55}
+.production-ecosystem-message{
+  min-height:44px;display:flex;align-items:center;padding:10px 14px;border-radius:12px;
+  border:1px solid rgba(124,92,255,.15);background:rgba(124,92,255,.055);color:#cbc6ff
+}
+.production-ecosystem-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.production-ecosystem-grid>.panel{display:grid;align-content:start;gap:14px;min-width:0}
+.production-ecosystem-grid>.panel>header{
+  display:flex;align-items:center;justify-content:space-between;gap:12px
+}
+.production-ecosystem-grid>.panel>header>div{display:grid;gap:3px}
+.production-ecosystem-grid>.panel>header small{color:#777d8e;font-size:12px;font-weight:700;letter-spacing:.06em}
+.production-ecosystem-grid>.panel>header strong{font-size:17px}
+.production-ecosystem-grid>.panel>header>span{
+  min-width:32px;height:32px;display:grid;place-items:center;border-radius:999px;
+  background:rgba(255,255,255,.045);color:#9ea3b3
+}
+.production-ecosystem-grid>.panel>p{margin:0;color:#858a98;line-height:1.55}
+.production-chip-grid{display:flex;flex-wrap:wrap;gap:7px}
+.production-chip-grid span{
+  padding:7px 9px;border:1px solid rgba(255,255,255,.065);border-radius:999px;
+  background:rgba(255,255,255,.025);color:#aeb2bf;font-size:12px
+}
+.production-safe-note{
+  display:grid;gap:5px;padding:12px;border:1px solid rgba(255,184,77,.11);
+  border-radius:12px;background:rgba(255,184,77,.035)
+}
+.production-safe-note span{color:#8e93a5;line-height:1.5}
+.production-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.production-form-grid label{display:grid;gap:5px}
+.production-form-grid label>span{color:#8e93a5;font-size:12px}
+.production-form-grid input,.production-form-grid select,.production-inline-form input{
+  width:100%;min-height:44px;border:1px solid #2a2d38;border-radius:11px;
+  background:#101118;color:#f4f5f8;padding:9px 11px;font:inherit
+}
+.production-form-grid button{align-self:end;min-height:44px}
+.production-inline-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px}
+.production-inline-form button{min-height:44px}
+.production-row{
+  min-height:54px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:9px 10px;border:1px solid rgba(255,255,255,.055);border-radius:12px;
+  background:rgba(255,255,255,.018)
+}
+.production-row>div{display:grid;gap:3px;min-width:0}
+.production-row strong{overflow:hidden;text-overflow:ellipsis}
+.production-row span{color:#787e8e;font-size:12px;overflow-wrap:anywhere}
+.production-row>b{font-size:12px;text-transform:uppercase;color:#9ba0af}
+.production-row>b.online{color:#6bd2a4}.production-row>b.degraded{color:#e0b36f}.production-row>b.offline{color:#db7d86}
+.production-backup-actions{display:flex;flex-wrap:wrap;gap:8px}
+.button-like{
+  min-height:44px;display:inline-flex;align-items:center;justify-content:center;position:relative;
+  padding:0 14px;border-radius:10px;cursor:pointer
+}
+.button-like input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.production-fleet-card{grid-column:1/-1}
+.production-peer{display:grid;gap:8px}
+.production-peer-actions{display:flex;flex-wrap:wrap;gap:8px}
+.production-peer-actions button{min-height:44px}
+.production-peer-result{color:#8e93a5;padding-left:10px}
+@media(max-width:900px){
+  .production-ecosystem-grid{grid-template-columns:1fr}
+  .production-fleet-card{grid-column:auto}
+}
+@media(max-width:640px){
+  .production-ecosystem-head{flex-direction:column}
+  .production-form-grid{grid-template-columns:1fr}
+  .production-inline-form{grid-template-columns:1fr}
+  .production-inline-form button,.production-backup-actions>*{width:100%}
+}
+
+/* Phase 11 fleet extension */
+.production-cloud-fleet{display:grid;gap:8px;margin-top:6px}
+.production-section-divider{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding-top:12px;border-top:1px solid rgba(255,255,255,.055)
+}
+.production-section-divider strong{font-size:14px}
+.production-section-divider span{color:#777d8e;font-size:12px}

@@ -4,6 +4,7 @@ export const LIVE_COLLECTIONS = {
   venues: 'musicScaleLiveVenues',
   systems: 'musicScaleLiveSystems',
   nodes: 'musicScaleLiveNodes',
+  fleetPresence: 'musicScaleLiveFleetPresence',
   profiles: 'musicScaleLiveProfiles',
   scenes: 'musicScaleLiveScenes',
   automations: 'musicScaleLiveAutomations',
@@ -17,6 +18,8 @@ export const LIVE_COLLECTIONS = {
   sharedConfig: 'musicScaleLiveSharedConfig',
   routes: 'musicScaleLiveRoutes',
   signalTopologies: 'musicScaleLiveSignalTopologies',
+  audioProfiles: 'musicScaleLiveAudioProfiles',
+  templates: 'musicScaleLiveTemplates',
   changeHistory: 'musicScaleLiveChangeHistory'
 } as const;
 
@@ -28,5 +31,7 @@ export const SYNC_COLLECTION_BY_ENTITY: Record<SyncEntityKind, string> = {
   presence: LIVE_COLLECTIONS.presence,
   liveConfig: LIVE_COLLECTIONS.sharedConfig,
   route: LIVE_COLLECTIONS.routes,
-  signalTopology: LIVE_COLLECTIONS.signalTopologies
+  signalTopology: LIVE_COLLECTIONS.signalTopologies,
+  audioProfile: LIVE_COLLECTIONS.audioProfiles,
+  template: LIVE_COLLECTIONS.templates
 };
