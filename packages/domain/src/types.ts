@@ -596,7 +596,9 @@ export type SyncEntityKind =
   | 'presence'
   | 'liveConfig'
   | 'route'
-  | 'signalTopology';
+  | 'signalTopology'
+  | 'audioProfile'
+  | 'template';
 
 export type SyncStatus =
   | 'local'
