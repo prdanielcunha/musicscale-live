@@ -22,6 +22,7 @@ import { useLiveFocus } from './useLiveFocus';
 import { useOperatorViewport } from './useOperatorViewport';
 import { useLiveSyncSummary } from './useLiveSync';
 import { LiveSessionPulse } from './LiveSessionPulse';
+import { CloudFleetPulse } from './CloudFleetPulse';
 import { TeamChatPanel } from './TeamChatPanel';
 import { LiveSceneBar } from './LiveSceneBar';
 import { PlaylistSyncAutomation } from './PlaylistSyncAutomation';
@@ -682,6 +683,13 @@ export function App() {
               {t('liveWorkspace.gotIt')}
             </button>
           </section>
+        )}
+
+        {liveNode.state === 'connected' && (
+          <CloudFleetPulse
+            controller={liveNode}
+            actorId={user.uid}
+          />
         )}
 
         {liveNode.state === 'connected' && scale && nodeScopeMatchesScale && (
