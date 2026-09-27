@@ -12,10 +12,11 @@ class TestProtector implements SecretProtector {
     return value.startsWith('protected:');
   }
   async protect(value: string) {
-    return `protected:${value}`;
+    return `protected:${Buffer.from(value, 'utf8').toString('base64url')}`;
   }
   async unprotect(value: string) {
-    return value.replace(/^protected:/, '');
+    const encoded = value.replace(/^protected:/, '');
+    return Buffer.from(encoded, 'base64url').toString('utf8');
   }
   async delete() {}
 }
