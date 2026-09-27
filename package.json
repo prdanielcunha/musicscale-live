@@ -17,7 +17,8 @@
     "test:reliability": "npm run test:reliability --workspace=@millionsnest/live-node",
     "test:firestore-rules": "npm run test --workspace=@millionsnest/live-firestore-rules-test",
     "check:ui": "node scripts/check-ui-contract.mjs",
-    "check:release": "node scripts/check-release-contract.mjs"
+    "check:release": "node scripts/check-release-contract.mjs",
+    "check:production-certification": "node scripts/check-production-certification.mjs"
   },
   "engines": {
     "node": ">=24 <25"
