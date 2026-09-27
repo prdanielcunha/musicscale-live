@@ -59,8 +59,10 @@ jobs:
           set -euo pipefail
           npm run check:brand
           npm run check:ui
+          npm run check:release
           npm run typecheck
           npm test
+          npm run check:production-certification
           npm run build --workspace=@millionsnest/live-web
           test -f apps/live/dist/index.html
 
