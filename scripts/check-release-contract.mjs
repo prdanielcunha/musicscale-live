@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-const expected = '0.1.0-beta.1';
+const expected = '0.1.0-beta.2';
 const [nodeIndex, inno, packagesWorkflow, domainVersion] = await Promise.all([
   readFile(new URL('../packages/live-node/src/index.ts', import.meta.url), 'utf8'),
   readFile(new URL('../distribution/windows/MusicScaleLiveNode.iss', import.meta.url), 'utf8'),
