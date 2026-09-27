@@ -1,10 +1,11 @@
 import { readFile } from 'node:fs/promises';
 
 const expected = '0.1.0-beta.1';
-const [nodeIndex, inno, packagesWorkflow] = await Promise.all([
+const [nodeIndex, inno, packagesWorkflow, domainVersion] = await Promise.all([
   readFile(new URL('../packages/live-node/src/index.ts', import.meta.url), 'utf8'),
   readFile(new URL('../distribution/windows/MusicScaleLiveNode.iss', import.meta.url), 'utf8'),
-  readFile(new URL('../.github/workflows/node-packages.yml', import.meta.url), 'utf8')
+  readFile(new URL('../.github/workflows/node-packages.yml', import.meta.url), 'utf8'),
+  readFile(new URL('../packages/domain/src/version.ts', import.meta.url), 'utf8')
 ]);
 
 const checks = [
@@ -19,6 +20,12 @@ const checks = [
   {
     name: 'package workflow',
     ok: packagesWorkflow.includes(`LIVE_NODE_VERSION: ${expected}`)
+  },
+  {
+    name: 'domain compatibility contract',
+    ok:
+      domainVersion.includes('MUSICSCALE_LIVE_DOMAIN_CONTRACT_VERSION = 1') &&
+      domainVersion.includes('MUSICSCALE_LIVE_ADAPTER_SDK_VERSION = 1')
   }
 ];
 

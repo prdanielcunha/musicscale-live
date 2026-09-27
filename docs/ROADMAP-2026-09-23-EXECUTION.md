@@ -63,9 +63,9 @@ The critical path must work without cloud, AI, or Internet after the service is 
 | Windows+iPad / Windows+Android / two-PC matrix | Packaging exists | Physical execution open |
 | Latency/error measurement | Command results/events carry latency/error; local certification JSON report implemented | Collect physical command→observed p95 and attach report |
 | CI before merge | CI exists | Keep Phase 0 reliability gate mandatory |
-| main/production protection | CI exists; repository policy is not enforced in code | Enable repository ruleset/branch protection |
-| Signed installer/update | Alpha installer exists | Certificates/notarization/update signing open |
-| Secrets in OS vault | Local-only 0600 file exists | SecretStore migration open |
+| main/production protection | CI exists; GitHub reports both branches unprotected as of 2026-09-27 | Enable repository ruleset/branch protection with repository-admin access |
+| Signed installer/update | Fail-closed Authenticode + Developer ID/notarization workflow exists | Real signing identities/certificates and target-machine trust proof remain external |
+| Secrets in OS vault | Windows DPAPI + macOS Keychain implemented and exercised in CI | Physical packaged-Node proof remains open |
 | No duplicate command after reconnect/restart | **Persistent idempotency implemented in this branch** | CI + physical restart proof |
 
 ## Acceptance evidence
@@ -82,6 +82,7 @@ Phase 0 is not closed until all are recorded:
 6. Installer/update trust chain validated on target OS.
 7. Provider credentials stored through the approved OS secret mechanism.
 8. CI required before main/production merges.
+9. Public domain compatibility contract remains explicitly versioned; current domain and adapter SDK major are v1.
 
 ---
 
