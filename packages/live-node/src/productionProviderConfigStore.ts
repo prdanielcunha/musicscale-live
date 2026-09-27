@@ -143,10 +143,12 @@ export class ProductionProviderConfigStore {
       } else if (field.kind === 'secret' || field.secret) {
         const secret = String(raw);
         if (!secret) throw new Error(`production_secret_required:${field.key}`);
-        value = await this.secretProtector.protect(
-          secret,
-          purpose(registration.instanceId, field.key)
-        );
+        value = this.secretProtector.isProtected(secret)
+          ? secret
+          : await this.secretProtector.protect(
+              secret,
+              purpose(registration.instanceId, field.key)
+            );
       } else {
         value = String(raw).trim();
       }
