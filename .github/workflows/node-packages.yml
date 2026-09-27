@@ -5,7 +5,7 @@ on:
   push:
     branches: [production]
   pull_request:
-    branches: [main]
+    branches: [main, production]
     paths:
       - 'packages/live-node/**'
       - 'apps/live/**'

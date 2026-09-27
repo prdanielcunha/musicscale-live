@@ -42,11 +42,11 @@ npm run dev:live
 npm run dev:node
 ```
 
-## Pacotes alpha do Live Node
+## Pacotes beta do Live Node
 
-O workflow manual **Build Live Node alpha packages** valida typecheck/testes, compila a PWA, gera o executável SEA e publica artefatos temporários para Windows x64, macOS arm64 e Linux x64. Os pacotes incluem SHA-256.
+O workflow **Build MusicScale Live Node beta packages** valida typecheck/testes, compila a PWA, gera o executável SEA e publica artefatos temporários para Windows x64, macOS arm64 e Linux x64. Os pacotes incluem SHA-256.
 
-Esses artefatos são **alpha e não assinados**. Não devem ser tratados como distribuição pública final antes de Authenticode no Windows e Developer ID + notarização no macOS.
+Esses artefatos são **beta e não assinados**. Não devem ser tratados como distribuição pública final antes de Authenticode no Windows e Developer ID + notarização no macOS.
 
 ## Primeiro setup do Live Node
 

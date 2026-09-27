@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "candidateVersion": "0.1.0-beta.2",
+  "status": "blocked",
+  "approvedAt": null,
+  "approvedBy": null,
+  "evidence": {
+    "windowsIpad": null,
+    "windowsAndroid": null,
+    "holyricsResolumeTwoPc": null,
+    "propresenterOnly": null,
+    "internetCutLanContinuity": null,
+    "nodeRestartNoReplay": null,
+    "providerFailureIsolation": null,
+    "commandObservedP95": null,
+    "threeSimulatedServices": null,
+    "accompaniedRealService": null,
+    "volunteerUx": null,
+    "realDeviceAccessibility": null,
+    "windowsSignedInstallerTrust": null,
+    "macosSignedNotarizedTrust": null,
+    "branchProtection": null
+  }
+}
