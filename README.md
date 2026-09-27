@@ -58,7 +58,7 @@ Esses artefatos são **alpha e não assinados**. Não devem ser tratados como di
 6. No Studio conectado à nuvem, execute o preflight da próxima escala. Correspondências seguras são vinculadas automaticamente; ambiguidades exigem escolha humana.
 7. Quando o preflight fica resolvido, o ServicePlan + ProviderLinks são armazenados no Node. O modo Local Recovery passa a operar o culto mesmo sem Firebase/internet.
 
-Credenciais de providers nunca são enviadas ao browser ou à nuvem. A configuração local permanece no Node; migração para credential vault nativo do sistema operacional continua como hardening obrigatório antes de release estável.
+Credenciais de providers nunca são enviadas ao browser ou à nuvem. A configuração local permanece no Node. Windows usa DPAPI `CurrentUser` e macOS usa Keychain; o canal Linux continua beta e não faz parte do gate público assinado.
 
 ## Compatibilidade com MusicScale
 
@@ -68,7 +68,7 @@ As credenciais/configurações web do Firebase presentes no client não são tra
 
 ## Estado dos gates
 
-- **Phase 0 — Foundation:** base de engenharia concluída; Hosting dedicado `mn-live-555464791734` e domínio `live.millionsnest.com` já foram provisionados. Restam RBAC cloud final, Rules/emulator e QA em dispositivos reais.
+- **Phase 0 — Foundation:** base de engenharia concluída; Hosting dedicado `mn-live-555464791734`, domínio `live.millionsnest.com`, RBAC/Rules do Live, emulator gate, SecretStore Windows/macOS e contrato público v1 estão implementados. Restam branch protection administrativa, credenciais reais de assinatura e certificação física em dispositivos/providers reais.
 - **Phase 1 — LAN / Offline:** caminho local implementado em código e matriz de artefatos criada; falta certificação física Windows/macOS + iPad/Android e teste real de queda de internet.
 - **Phase 2 — Holyrics:** adapter profundo implementado em código; falta matriz em instalação Holyrics real.
 - **Resolume Arena / ProPresenter:** adapters já existem e seguem o mesmo domínio neutro; continuam sujeitos aos respectivos gates de hardware/API.
