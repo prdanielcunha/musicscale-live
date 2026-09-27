@@ -39,7 +39,10 @@ describe('ProductionProviderConfigStore', () => {
     expect(value.config.password).toBe('my-password');
     const persisted = await readFile(path, 'utf8');
     expect(persisted).not.toContain('my-password');
-    expect(persisted).toContain('protected:my-password');
+    const stored = JSON.parse(persisted) as {
+      providers: Array<{ config: Record<string, unknown> }>;
+    };
+    expect(String(stored.providers[0]?.config.password || '')).toMatch(/^protected:/);
 
     const publicList = await store.allPublic(PRODUCTION_ADAPTER_MANIFESTS);
     expect(publicList[0]?.config.password).toBe('[stored-in-os-vault]');
