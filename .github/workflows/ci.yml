@@ -2,7 +2,7 @@ name: MusicScale Live CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, production]
   push:
     branches: [main]
   workflow_dispatch:
