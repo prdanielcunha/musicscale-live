@@ -56,6 +56,30 @@ for (const key of requiredEvidence) {
   }
 }
 
+const latency = manifest?.evidence?.commandObservedP95;
+if (
+  latency?.result === 'PASS' &&
+  (!Number.isFinite(latency.p95Ms) || latency.p95Ms < 0 || latency.p95Ms >= 300)
+) {
+  errors.push('evidence.commandObservedP95.p95Ms must be >= 0 and < 300');
+}
+
+const simulated = manifest?.evidence?.threeSimulatedServices;
+if (
+  simulated?.result === 'PASS' &&
+  (!Number.isInteger(simulated.count) || simulated.count < 3)
+) {
+  errors.push('evidence.threeSimulatedServices.count must be an integer >= 3');
+}
+
+const realService = manifest?.evidence?.accompaniedRealService;
+if (
+  realService?.result === 'PASS' &&
+  (!Number.isInteger(realService.count) || realService.count < 1)
+) {
+  errors.push('evidence.accompaniedRealService.count must be an integer >= 1');
+}
+
 if (errors.length) {
   console.error('MusicScale Live production certification gate is CLOSED:');
   for (const error of errors) console.error(`- ${error}`);
