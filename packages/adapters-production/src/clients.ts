@@ -469,10 +469,10 @@ export class ObsWebSocketControlClient implements ProductionControlClient {
 
   async getState(): Promise<Record<string, unknown>> {
     const [program, preview, stream, record] = await Promise.all([
-      this.request('GetCurrentProgramScene').catch(() => ({})),
-      this.request('GetCurrentPreviewScene').catch(() => ({})),
-      this.request('GetStreamStatus').catch(() => ({})),
-      this.request('GetRecordStatus').catch(() => ({}))
+      this.request('GetCurrentProgramScene').catch((): Record<string, unknown> => ({})),
+      this.request('GetCurrentPreviewScene').catch((): Record<string, unknown> => ({})),
+      this.request('GetStreamStatus').catch((): Record<string, unknown> => ({})),
+      this.request('GetRecordStatus').catch((): Record<string, unknown> => ({}))
     ]);
     return {
       programScene: program.currentProgramSceneName || null,
