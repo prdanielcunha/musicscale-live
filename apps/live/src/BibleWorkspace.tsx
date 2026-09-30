@@ -828,6 +828,19 @@ export function BibleWorkspace({
     const text = query.trim();
     if (!text) return;
     setView('search');
+
+    const directReference = parseReference(text);
+    const matchingBook = directReference ? undefined : findBibleBook(books, text);
+    if (matchingBook) {
+      setPickerOpen(true);
+      setPickerBookId(matchingBook.id);
+      setPickerChapter('1');
+      setResults([]);
+      setSelected(null);
+      setMessage(null);
+      return;
+    }
+
     const matches = await performSearch(text);
     const parsed = parseReference(matches[0]?.reference || text);
     if (parsed) void loadChapter(parsed);
@@ -892,6 +905,21 @@ export function BibleWorkspace({
     if (!externalQuery || !externalQueryNonce) return;
     setQuery(externalQuery);
     setView('search');
+
+    const directReference = parseReference(externalQuery);
+    if (!directReference) {
+      setPickerOpen(true);
+      setResults([]);
+      setSelected(null);
+      const matchingBook = findBibleBook(books, externalQuery);
+      if (matchingBook) {
+        setPickerBookId(matchingBook.id);
+        setPickerChapter('1');
+        setMessage(null);
+      }
+      return;
+    }
+
     void (async () => {
       const matches = await performSearch(externalQuery);
       const parsed = parseReference(matches[0]?.reference || externalQuery);
@@ -900,6 +928,16 @@ export function BibleWorkspace({
     // nonce intentionally turns repeated same-query commands into a new action.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalQueryNonce]);
+
+  useEffect(() => {
+    if (!externalQuery || !externalQueryNonce || !books.length || parseReference(externalQuery)) return;
+    const matchingBook = findBibleBook(books, externalQuery);
+    if (!matchingBook) return;
+    setPickerOpen(true);
+    setPickerBookId(matchingBook.id);
+    setPickerChapter('1');
+    setMessage(null);
+  }, [books, externalQuery, externalQueryNonce]);
 
   async function putOnAir(match: BibleReferenceMatch) {
     if (!canPresent || busy) return;
@@ -1164,15 +1202,21 @@ export function BibleWorkspace({
     setPickerOpen(current => !current);
   }
 
+  async function selectPickerChapter(book: BibleBook, chapter: number) {
+    if (busy !== null || !Number.isInteger(chapter) || chapter <= 0) return;
+    setPickerBookId(book.id);
+    setPickerChapter(String(chapter));
+    const snapshot = await loadChapter(contextForBook(book, chapter));
+    if (!snapshot) return;
+    setQuery(`${snapshot.context.bookLabel} ${snapshot.context.chapter}`);
+  }
+
   async function loadPickerChapter() {
     if (busy !== null) return;
     const book = books.find(item => item.id === pickerBookId);
     const chapter = Number.parseInt(pickerChapter, 10);
     if (!book || !Number.isFinite(chapter) || chapter <= 0) return;
-
-    const snapshot = await loadChapter(contextForBook(book, chapter));
-    if (!snapshot) return;
-    setQuery(`${snapshot.context.bookLabel} ${snapshot.context.chapter}`);
+    await selectPickerChapter(book, chapter);
   }
 
   const collection = view === 'favorites' ? favorites : history;
@@ -1190,6 +1234,8 @@ export function BibleWorkspace({
 
   const pickerBook = books.find(item => item.id === pickerBookId);
   const pickerChapterNumber = Number.parseInt(pickerChapter, 10);
+  const pickerChapterCount = chapterCountForBook(pickerBook);
+  const pickerChapters = Array.from({ length: pickerChapterCount }, (_, index) => index + 1);
   const pickerContext =
     pickerBook && Number.isFinite(pickerChapterNumber) && pickerChapterNumber > 0
       ? contextForBook(pickerBook, pickerChapterNumber)
