@@ -471,11 +471,12 @@ export function LiveControlPanel({
         ? providerLinks.find(link => link.id === item.providerLinkId) || null
         : null
     );
-    const complete = links.every((link): link is ProviderLink => Boolean(link?.externalId));
+    const resolvedLinks = links.filter(
+      (link): link is ProviderLink => Boolean(link?.externalId)
+    );
+    const complete = resolvedLinks.length === songItems.length;
     const providerIds = new Set(
-      links
-        .filter((link): link is ProviderLink => Boolean(link))
-        .map(link => link.providerInstanceId)
+      resolvedLinks.map(link => link.providerInstanceId)
     );
     const providerId = providerIds.size === 1 ? [...providerIds][0]! : '';
     const provider = providerId
@@ -492,7 +493,7 @@ export function LiveControlPanel({
       ready: complete && providerIds.size === 1 && providerReady,
       providerId,
       providerName: provider?.displayName || provider?.providerKey || '',
-      ids: complete ? links.map(link => link.externalId) : [],
+      ids: complete ? resolvedLinks.map(link => link.externalId) : [],
       reason: !complete
         ? 'unresolved'
         : providerIds.size !== 1
