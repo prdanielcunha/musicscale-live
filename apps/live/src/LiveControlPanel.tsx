@@ -364,7 +364,10 @@ export function LiveControlPanel({
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [clearArmed, setClearArmed] = useState(false);
+  const [playlistSyncArmed, setPlaylistSyncArmed] = useState(false);
   const clearTimer = useRef<number | null>(null);
+  const playlistSyncTimer = useRef<number | null>(null);
+  const toolSurfaceRef = useRef<HTMLSpanElement | null>(null);
   const previewRequestSignature = useRef<string>('');
   const slideRailRef = useRef<HTMLDivElement | null>(null);
   const sectionRailRef = useRef<HTMLDivElement | null>(null);
@@ -432,6 +435,11 @@ export function LiveControlPanel({
   }, [providers]);
 
   const can = (capability: Capability) => capabilitySet.has(capability);
+  const providerSupports = (providerId: string, capability: Capability) => providers.some(provider =>
+    provider.providerId === providerId &&
+    (provider.health === 'online' || provider.health === 'degraded') &&
+    provider.capabilities.includes(capability)
+  );
   const canPreviewSnapshot = capabilitySet.has('preview.snapshot');
   const canBackgroundRead = capabilitySet.has('presentation.background.read');
   const canBackgroundSet = capabilitySet.has('presentation.background.set');
@@ -444,6 +452,61 @@ export function LiveControlPanel({
   const presentationRouteMissing =
     presentationProviders.length > 1 &&
     !controller.nodeState?.routing?.presentation;
+
+  const playlistSyncPlan = useMemo(() => {
+    const songItems = servicePlan?.items.filter(item => item.type === 'song') || [];
+    if (!songItems.length) {
+      return {
+        hasSongs: false,
+        ready: false,
+        providerId: '',
+        providerName: '',
+        ids: [] as string[],
+        reason: 'no_songs'
+      };
+    }
+
+    const links = songItems.map(item =>
+      item.providerLinkId
+        ? providerLinks.find(link => link.id === item.providerLinkId) || null
+        : null
+    );
+    const resolvedLinks = links.filter(
+      (link): link is ProviderLink => Boolean(link?.externalId)
+    );
+    const complete = resolvedLinks.length === songItems.length;
+    const providerIds = new Set(
+      resolvedLinks.map(link => link.providerInstanceId)
+    );
+    const providerId = providerIds.size === 1 ? [...providerIds][0]! : '';
+    const provider = providerId
+      ? providers.find(candidate => candidate.providerId === providerId)
+      : undefined;
+    const providerReady = Boolean(
+      provider &&
+      (provider.health === 'online' || provider.health === 'degraded') &&
+      provider.capabilities.includes('playlist.sync')
+    );
+
+    return {
+      hasSongs: true,
+      ready: complete && providerIds.size === 1 && providerReady,
+      providerId,
+      providerName: provider?.displayName || provider?.providerKey || '',
+      ids: complete ? resolvedLinks.map(link => link.externalId) : [],
+      reason: !complete
+        ? 'unresolved'
+        : providerIds.size !== 1
+          ? 'multiple_providers'
+          : !provider
+            ? 'provider_offline'
+            : !provider.capabilities.includes('playlist.sync')
+              ? 'capability_missing'
+              : provider.health !== 'online' && provider.health !== 'degraded'
+                ? 'provider_offline'
+                : ''
+    };
+  }, [providerLinks, providers, servicePlan]);
 
   const commandFailure = (code: string) => t(
     `liveControls.errors.${code}`,
@@ -471,7 +534,23 @@ export function LiveControlPanel({
     setSelectedBackground(null);
     setMessage(null);
     setClearArmed(false);
+    setPlaylistSyncArmed(false);
   }, [liveSessionId]);
+
+  useEffect(() => () => {
+    if (clearTimer.current) window.clearTimeout(clearTimer.current);
+    if (playlistSyncTimer.current) window.clearTimeout(playlistSyncTimer.current);
+  }, []);
+
+  function openTool(mode: ToolMode) {
+    setToolMode(mode);
+    window.requestAnimationFrame(() => {
+      toolSurfaceRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    });
+  }
 
   useEffect(() => {
     if (toolAvailability[toolMode]) return;
@@ -720,9 +799,9 @@ export function LiveControlPanel({
 
   function buildServiceItemCue(item: ServiceItem): PreparedProgramCue | null {
     if (item.type === 'song') {
-      if (!item.providerLinkId || !can('songs.present')) return null;
+      if (!item.providerLinkId) return null;
       const link = providerLinks.find(candidate => candidate.id === item.providerLinkId);
-      if (!link) return null;
+      if (!link || !providerSupports(link.providerInstanceId, 'songs.present')) return null;
       return {
         id: `service-item:${item.id}`,
         kind: 'song',
@@ -736,8 +815,11 @@ export function LiveControlPanel({
     }
 
     if (item.type === 'bible') {
-      if (!can('bible.present')) return null;
       const payload = item.payload || {};
+      const providerId = String(payload.providerId || '').trim();
+      if (providerId
+        ? !providerSupports(providerId, 'bible.present')
+        : !can('bible.present')) return null;
       const ids = Array.isArray(payload.ids)
         ? payload.ids.map(String).filter(Boolean)
         : [];
@@ -757,18 +839,18 @@ export function LiveControlPanel({
           ...(ids.length ? { ids } : { references: reference }),
           ...(payload.version ? { version: String(payload.version) } : {})
         },
-        targetProviderIds: payload.providerId
-          ? [String(payload.providerId)]
-          : undefined,
+        targetProviderIds: providerId ? [providerId] : undefined,
         serviceItemId: item.id
       };
     }
 
     if (item.type === 'video' || item.type === 'image' || item.type === 'audio') {
-      if (!can('media.open')) return null;
       const payload = item.payload || {};
       const source = String(payload.source || 'provider');
       const providerId = String(payload.providerId || '').trim();
+      if (providerId
+        ? !providerSupports(providerId, 'media.open')
+        : !can('media.open')) return null;
 
       if (source === 'live-drop') {
         const assetId = String(payload.assetId || '').trim();
@@ -813,7 +895,10 @@ export function LiveControlPanel({
 
       if (source === 'quick-text') {
         const text = String(payload.text || '').trim();
-        if (!text || !can('text.quick.present')) return null;
+        const canPresentQuick = providerId
+          ? providerSupports(providerId, 'text.quick.present')
+          : can('text.quick.present');
+        if (!text || !canPresentQuick) return null;
         return {
           id: `service-item:${item.id}`,
           kind: 'text',
@@ -827,7 +912,10 @@ export function LiveControlPanel({
       }
 
       const id = String(payload.id || '').trim();
-      if (!id || !can('text.present')) return null;
+      const canPresentText = providerId
+        ? providerSupports(providerId, 'text.present')
+        : can('text.present');
+      if (!id || !canPresentText) return null;
       return {
         id: `service-item:${item.id}`,
         kind: 'text',
@@ -841,12 +929,14 @@ export function LiveControlPanel({
     }
 
     if (item.type === 'announcement') {
-      if (!can('announcement.present')) return null;
       const payload = item.payload || {};
       const id = String(payload.id || '').trim();
       const name = String(payload.name || item.title || '').trim();
       const providerId = String(payload.providerId || '').trim();
-      if (!id && !name) return null;
+      const canPresentAnnouncement = providerId
+        ? providerSupports(providerId, 'announcement.present')
+        : can('announcement.present');
+      if (!canPresentAnnouncement || (!id && !name)) return null;
       return {
         id: `service-item:${item.id}`,
         kind: 'announcement',
@@ -882,7 +972,10 @@ export function LiveControlPanel({
   async function playServiceSong(item: ServiceItem) {
     if (item.type !== 'song' || !item.providerLinkId || busy !== null) return;
     const link = providerLinks.find(candidate => candidate.id === item.providerLinkId);
-    if (!link) return;
+    if (!link || !providerSupports(link.providerInstanceId, 'songs.present')) {
+      setMessage(t('liveControls.serviceItemUnavailable', { type: item.type }));
+      return;
+    }
     const results = await run(
       `service-song-now:${item.id}`,
       'songs.present',
@@ -1501,17 +1594,17 @@ export function LiveControlPanel({
               : 'song';
 
     if (inferredScope === 'bible') {
-      setToolMode('bible');
+      openTool('bible');
       setBibleCommand({ text: query, nonce: Date.now() });
       return;
     }
     if (inferredScope === 'media') {
-      setToolMode('media');
+      openTool('media');
       await searchMedia(query);
       return;
     }
     if (inferredScope === 'text') {
-      setToolMode('text');
+      openTool('text');
       setTextQuery(query);
       if (requested === 'aviso' || requested === 'announcement') {
         await loadAnnouncements(true);
@@ -1522,7 +1615,7 @@ export function LiveControlPanel({
       }
       return;
     }
-    setToolMode('song');
+    openTool('song');
     await searchSongs(query);
   }
 
@@ -1554,6 +1647,40 @@ export function LiveControlPanel({
     }
     setClearArmed(false);
     void run('clear', 'presentation.clear', {}, 'guarded', undefined, undefined, true);
+  }
+
+  async function syncServicePlaylist() {
+    if (!playlistSyncPlan.ready || busy !== null) return;
+
+    if (!playlistSyncArmed) {
+      setPlaylistSyncArmed(true);
+      setMessage(t('liveControls.playlistSyncReplaceWarning', {
+        provider: playlistSyncPlan.providerName || t('liveControls.connectedApp')
+      }));
+      if (playlistSyncTimer.current) window.clearTimeout(playlistSyncTimer.current);
+      playlistSyncTimer.current = window.setTimeout(() => {
+        setPlaylistSyncArmed(false);
+        setMessage(null);
+      }, 6000);
+      return;
+    }
+
+    setPlaylistSyncArmed(false);
+    if (playlistSyncTimer.current) window.clearTimeout(playlistSyncTimer.current);
+    const results = await run(
+      'playlist-sync',
+      'playlist.sync',
+      { ids: playlistSyncPlan.ids },
+      'guarded',
+      undefined,
+      [playlistSyncPlan.providerId],
+      true
+    );
+    if (results.length > 0 && results.every(result => result.accepted)) {
+      setMessage(t('liveControls.playlistSyncSuccess', {
+        provider: playlistSyncPlan.providerName || t('liveControls.connectedApp')
+      }));
+    }
   }
 
   const currentPresentationProviderId = providers.find(provider => {
@@ -1892,7 +2019,7 @@ export function LiveControlPanel({
               aria-selected={toolMode === mode}
               className={toolMode === mode ? 'active' : ''}
               disabled={!toolAvailability[mode]}
-              onClick={() => setToolMode(mode)}
+              onClick={() => openTool(mode)}
             >
               <span>{t(`liveControls.toolTabs.${mode}`)}</span>
               <small>{toolAvailability[mode] ? t('liveControls.available') : t('liveControls.unavailable')}</small>
@@ -2325,7 +2452,28 @@ export function LiveControlPanel({
                 <small>{t('liveControls.fullRunOfShow')}</small>
                 <strong>{servicePlan.title}</strong>
               </div>
-              <span>{t('liveControls.runOfShowHint')}</span>
+              <div className="service-plan-head-actions">
+                <span>{t('liveControls.runOfShowHint')}</span>
+                {playlistSyncPlan.hasSongs && (
+                  <button
+                    type="button"
+                    className={playlistSyncArmed ? 'playlist-sync armed' : 'playlist-sync'}
+                    disabled={!playlistSyncPlan.ready || busy !== null}
+                    title={!playlistSyncPlan.ready
+                      ? t(`liveControls.playlistSyncReasons.${playlistSyncPlan.reason}`)
+                      : t('liveControls.playlistSyncHint', {
+                          provider: playlistSyncPlan.providerName || t('liveControls.connectedApp')
+                        })}
+                    onClick={() => void syncServicePlaylist()}
+                  >
+                    {playlistSyncArmed
+                      ? t('liveControls.playlistSyncConfirm')
+                      : t('liveControls.playlistSync', {
+                          provider: playlistSyncPlan.providerName || t('liveControls.connectedApp')
+                        })}
+                  </button>
+                )}
+              </div>
             </header>
             <div className="service-plan-timeline-rail">
               {servicePlan.items.map((item, index) => {
@@ -2381,6 +2529,7 @@ export function LiveControlPanel({
           </section>
         ) : null}
 
+        <span ref={toolSurfaceRef} className="live-tool-anchor" aria-hidden="true" />
         {toolMode === 'song' && toolAvailability.song && (
         <article className="operator-card live-tool-card song-library-card">
           <div className="operator-card-head">

@@ -96,7 +96,7 @@ export function LiveNodeSetup({
               <span className="status ok" />
               <div>
                 <small>{t('nodeSetup.readyLabel')}</small>
-                <strong>{controller.health?.hostname || t('nodeSetup.connected')}</strong>
+                <strong>{controller.health?.displayName || controller.health?.hostname || t('nodeSetup.connected')}</strong>
                 <span>{t('nodeSetup.readyDescription')}</span>
               </div>
               <button className="secondary" onClick={controller.disconnect}>
