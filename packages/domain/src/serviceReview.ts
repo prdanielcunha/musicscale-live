@@ -1,8 +1,10 @@
 import type {
+  LiveRequestStatus,
   LiveSessionEvent,
   ServiceItem,
   ServicePlan
 } from './types';
+import { normalizeLiveRequestStatus } from './requestWorkflow';
 
 const RUN_OF_SHOW_EVENT_TYPES = new Set([
   'song.presented',
@@ -28,6 +30,9 @@ export interface PlannedItemReview {
   executionEvents: number;
   firstObservedAt?: string;
   lastObservedAt?: string;
+  plannedDurationSeconds?: number;
+  observedWindowSeconds?: number;
+  durationDeltaSeconds?: number;
 }
 
 export interface ActualRunOfShowEntry {
@@ -50,12 +55,30 @@ export interface ServiceReviewFailure {
   errorCodes: string[];
 }
 
+export interface ServiceReviewCorrection {
+  id: string;
+  code:
+    | 'review_provider_failure'
+    | 'check_provider_connection'
+    | 'review_provider_latency';
+  title: string;
+  reason: string;
+  serviceItemId?: string;
+  providerId?: string;
+  errorCode?: string;
+}
+
 export interface ServiceReviewRequestSummary {
   created: number;
+  sent: number;
+  seen: number;
   accepted: number;
+  prepared: number;
+  executed: number;
   rejected: number;
+  /** @deprecated compatibility alias for pre-Phase-7 reports. */
   completed: number;
-  latestStatusByRequest: Record<string, string>;
+  latestStatusByRequest: Record<string, LiveRequestStatus>;
 }
 
 export interface ServiceReviewLatency {
@@ -77,11 +100,14 @@ export interface ServiceReviewReport {
   adHocRunOfShowActions: number;
   warningEvents: number;
   errorEvents: number;
+  plannedDurationSeconds?: number;
+  observedRunOfShowDurationSeconds?: number;
   requestSummary: ServiceReviewRequestSummary;
   providerLatency: ServiceReviewLatency;
   items: PlannedItemReview[];
   adHoc: ActualRunOfShowEntry[];
   failures: ServiceReviewFailure[];
+  corrections: ServiceReviewCorrection[];
   originCounts: Record<string, number>;
   eventTypeCounts: Record<string, number>;
   factsOnly: true;
@@ -118,6 +144,16 @@ function percentile(values: number[], quantile: number): number | undefined {
   return sorted[index];
 }
 
+function secondsBetween(start?: string, end?: string): number | undefined {
+  if (!start || !end) return undefined;
+  const startMs = Date.parse(start);
+  const endMs = Date.parse(end);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) {
+    return undefined;
+  }
+  return Math.round((endMs - startMs) / 1000);
+}
+
 function providerFacts(event: LiveSessionEvent): Array<{
   providerId: string;
   accepted: boolean;
@@ -148,7 +184,7 @@ function providerFacts(event: LiveSessionEvent): Array<{
 }
 
 function reviewRequests(events: LiveSessionEvent[]): ServiceReviewRequestSummary {
-  const latestStatusByRequest: Record<string, string> = {};
+  const latestStatusByRequest: Record<string, LiveRequestStatus> = {};
   let created = 0;
 
   const chronological = events
@@ -163,18 +199,88 @@ function reviewRequests(events: LiveSessionEvent[]): ServiceReviewRequestSummary
     const payload = eventPayload(event);
     const requestId =
       typeof payload.requestId === 'string' ? payload.requestId : event.correlationId;
-    const status = typeof payload.status === 'string' ? payload.status : '';
+    if (!requestId) continue;
     if (event.type === 'request.created') created += 1;
-    if (requestId && status) latestStatusByRequest[requestId] = status;
+    latestStatusByRequest[requestId] = normalizeLiveRequestStatus(payload.status);
   }
 
   const statuses = Object.values(latestStatusByRequest);
+  const count = (status: LiveRequestStatus) =>
+    statuses.filter(value => value === status).length;
+  const executed = count('executed');
+
   return {
     created,
-    accepted: statuses.filter(status => status === 'accepted').length,
-    rejected: statuses.filter(status => status === 'rejected').length,
-    completed: statuses.filter(status => status === 'completed').length,
+    sent: count('sent'),
+    seen: count('seen'),
+    accepted: count('accepted'),
+    prepared: count('prepared'),
+    executed,
+    rejected: count('rejected'),
+    completed: executed,
     latestStatusByRequest
+  };
+}
+
+function correctionForFailure(
+  failure: ServiceReviewFailure
+): ServiceReviewCorrection {
+  const timeoutCode = failure.errorCodes.find(code => /timeout|unreachable|offline|connection/i.test(code));
+  if (timeoutCode) {
+    return {
+      id: `correction:${failure.eventId}:connection`,
+      code: 'check_provider_connection',
+      title: 'Review provider connection',
+      reason: `Observed failure ${timeoutCode}. Check the affected provider and local network path before the next service.`,
+      serviceItemId: failure.serviceItemId,
+      providerId: failure.providerIds[0],
+      errorCode: timeoutCode
+    };
+  }
+
+  return {
+    id: `correction:${failure.eventId}:provider`,
+    code: 'review_provider_failure',
+    title: 'Review provider failure',
+    reason: failure.errorCodes.length
+      ? `Observed provider error: ${failure.errorCodes.join(', ')}.`
+      : `Observed ${failure.type} as an error event.`,
+    serviceItemId: failure.serviceItemId,
+    providerId: failure.providerIds[0],
+    errorCode: failure.errorCodes[0]
+  };
+}
+
+export function buildNextServicePlanDraft(input: {
+  previous: ServicePlan;
+  id: string;
+  scheduledAt: string;
+  title?: string;
+  now?: Date;
+}): ServicePlan {
+  const generatedAt = (input.now || new Date()).toISOString();
+  const id = input.id.trim();
+  if (!id) throw new Error('next_service_plan_id_required');
+  if (!input.scheduledAt.trim()) throw new Error('next_service_scheduled_at_required');
+
+  return {
+    ...input.previous,
+    id,
+    title: input.title?.trim() || input.previous.title,
+    scheduledAt: input.scheduledAt,
+    sourceMusicScaleId: undefined,
+    revision: 1,
+    metadata: {
+      ...(input.previous.metadata || {}),
+      clonedFromPlanId: input.previous.id,
+      clonedFromRevision: input.previous.revision,
+      clonedAt: generatedAt
+    },
+    items: input.previous.items.map((item, index) => ({
+      ...item,
+      id: `${id}:item:${index + 1}`,
+      state: 'planned'
+    }))
   };
 }
 
@@ -248,17 +354,31 @@ export function buildServiceReview(input: {
   }
 
   const items: PlannedItemReview[] = input.plan.items.map(item => {
-    const itemEvents = (byItem.get(item.id) || [])
-      .filter(event =>
-        RUN_OF_SHOW_EVENT_TYPES.has(event.type) &&
-        event.level !== 'error'
-      );
+    const allItemEvents = (byItem.get(item.id) || [])
+      .filter(event => event.level !== 'error')
+      .slice()
+      .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+    const executionEvents = allItemEvents.filter(event =>
+      RUN_OF_SHOW_EVENT_TYPES.has(event.type)
+    );
     const status: PlannedItemReviewStatus =
       item.state === 'skipped'
         ? 'skipped'
-        : itemEvents.length
+        : executionEvents.length
           ? 'executed'
           : 'not-observed';
+
+    const observedWindowSeconds = allItemEvents.length >= 2
+      ? secondsBetween(
+          allItemEvents[0]?.occurredAt,
+          allItemEvents[allItemEvents.length - 1]?.occurredAt
+        )
+      : undefined;
+    const durationDeltaSeconds =
+      typeof item.plannedDurationSeconds === 'number' &&
+      typeof observedWindowSeconds === 'number'
+        ? observedWindowSeconds - item.plannedDurationSeconds
+        : undefined;
 
     return {
       serviceItemId: item.id,
@@ -266,11 +386,52 @@ export function buildServiceReview(input: {
       type: item.type,
       plannedState: item.state,
       status,
-      executionEvents: itemEvents.length,
-      firstObservedAt: itemEvents[0]?.occurredAt,
-      lastObservedAt: itemEvents[itemEvents.length - 1]?.occurredAt
+      executionEvents: executionEvents.length,
+      firstObservedAt: allItemEvents[0]?.occurredAt,
+      lastObservedAt: allItemEvents[allItemEvents.length - 1]?.occurredAt,
+      plannedDurationSeconds: item.plannedDurationSeconds,
+      observedWindowSeconds,
+      durationDeltaSeconds
     };
   });
+
+  const runOfShowEvents = scopedEvents.filter(event =>
+    RUN_OF_SHOW_EVENT_TYPES.has(event.type) && event.level !== 'error'
+  );
+  const plannedDurationValues = input.plan.items
+    .map(item => item.plannedDurationSeconds)
+    .filter((value): value is number =>
+      typeof value === 'number' && Number.isFinite(value) && value >= 0
+    );
+  const plannedDurationSeconds = plannedDurationValues.length
+    ? Math.round(plannedDurationValues.reduce((sum, value) => sum + value, 0))
+    : undefined;
+  const observedRunOfShowDurationSeconds = runOfShowEvents.length >= 2
+    ? secondsBetween(
+        runOfShowEvents[0]?.occurredAt,
+        runOfShowEvents[runOfShowEvents.length - 1]?.occurredAt
+      )
+    : undefined;
+
+  const providerLatency: ServiceReviewLatency = {
+    samples: latencies.length,
+    p50Ms: percentile(latencies, 0.5),
+    p95Ms: percentile(latencies, 0.95),
+    maxMs: latencies.length ? Math.max(...latencies) : undefined
+  };
+
+  const corrections = failures.map(correctionForFailure);
+  if (
+    typeof providerLatency.p95Ms === 'number' &&
+    providerLatency.p95Ms > 300
+  ) {
+    corrections.push({
+      id: 'correction:provider-latency',
+      code: 'review_provider_latency',
+      title: 'Review provider response latency',
+      reason: `Observed provider-response p95 was ${Math.round(providerLatency.p95Ms)} ms. This is not the full command-to-observed latency gate; measure the complete local path before the next service.`
+    });
+  }
 
   return {
     planId: input.plan.id,
@@ -284,16 +445,14 @@ export function buildServiceReview(input: {
     adHocRunOfShowActions: adHoc.length,
     warningEvents: scopedEvents.filter(event => event.level === 'warning').length,
     errorEvents: scopedEvents.filter(event => event.level === 'error').length,
+    plannedDurationSeconds,
+    observedRunOfShowDurationSeconds,
     requestSummary: reviewRequests(scopedEvents),
-    providerLatency: {
-      samples: latencies.length,
-      p50Ms: percentile(latencies, 0.5),
-      p95Ms: percentile(latencies, 0.95),
-      maxMs: latencies.length ? Math.max(...latencies) : undefined
-    },
+    providerLatency,
     items,
     adHoc,
     failures,
+    corrections,
     originCounts,
     eventTypeCounts,
     factsOnly: true

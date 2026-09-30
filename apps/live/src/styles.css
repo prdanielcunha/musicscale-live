@@ -2355,3 +2355,518 @@ img,video,canvas,svg{max-width:100%}
   .service-review-block-head{flex-direction:column}
   .service-review-block-head>span{max-width:none;text-align:left}
 }
+
+
+/* Roadmap Phase 3 — five-minute onboarding */
+.node-safe-test,
+.node-tutorial{
+  margin-top:12px;
+  padding:14px;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:14px;
+  background:rgba(255,255,255,.022);
+}
+.node-safe-test{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px 14px;
+  align-items:center;
+}
+.node-safe-test small,
+.node-tutorial small{display:block;color:#777d8e}
+.node-safe-test strong,
+.node-tutorial strong{display:block;margin-top:3px}
+.node-safe-test span,
+.node-tutorial span,
+.node-tutorial p{display:block;margin:4px 0 0;color:#7f8495;line-height:1.5}
+.node-test-result{grid-column:1/-1;margin:0!important}
+.node-test-result.ok{color:#72d7ad}
+.node-test-result.warn{color:#e4a65c}
+.node-tutorial-progress{
+  display:flex;
+  align-items:baseline;
+  gap:8px 12px;
+  flex-wrap:wrap;
+}
+.node-tutorial-progress strong{margin:0}
+.node-tutorial-progress span{margin:0 0 0 auto}
+.node-tutorial-step{
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr);
+  gap:12px;
+  margin-top:12px;
+  padding:12px;
+  border:1px solid rgba(124,92,255,.12);
+  border-radius:12px;
+  background:rgba(124,92,255,.035);
+}
+.node-tutorial-step>b{
+  display:grid;
+  place-items:center;
+  width:42px;
+  height:42px;
+  border-radius:12px;
+  background:#171421;
+  color:#a89bff;
+}
+.node-tutorial-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:10px;
+}
+@media(max-width:640px){
+  .node-safe-test{grid-template-columns:1fr}
+  .node-safe-test button{width:100%}
+  .node-test-result{grid-column:auto}
+  .node-tutorial-progress span{margin-left:0;width:100%}
+  .node-tutorial-actions button{flex:1}
+}
+
+
+/* Roadmap Phase 4 — exception-based preparation */
+.preflight-exception-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:12px 0 8px;
+  padding:11px 12px;
+  border:1px solid rgba(255,255,255,.055);
+  border-radius:12px;
+  background:rgba(255,255,255,.02);
+}
+.preflight-exception-bar strong{display:block;font-size:14px}
+.preflight-exception-bar small{display:block;margin-top:3px;color:#747989}
+.preflight-exception-bar button{flex:none}
+@media(max-width:640px){
+  .preflight-exception-bar{align-items:stretch;flex-direction:column}
+  .preflight-exception-bar button{width:100%}
+}
+
+/* Roadmap Phase 5/6 — guarded cockpit + local-first universal search */
+.universal-local-results{
+  display:grid;
+  gap:6px;
+  margin-top:8px;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:13px;
+  background:rgba(8,9,13,.92);
+}
+.universal-local-results-head{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+}
+.universal-local-results-head strong{font-size:14px}
+.universal-local-results-head span{color:#737989}
+.universal-local-results>button{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-height:52px;
+  padding:8px 10px;
+  border:1px solid rgba(255,255,255,.045);
+  border-radius:10px;
+  background:rgba(255,255,255,.018);
+  color:inherit;
+  text-align:left;
+}
+.universal-local-results>button.prepared{border-color:rgba(124,92,255,.24);background:rgba(124,92,255,.055)}
+.universal-local-results>button span{min-width:0}
+.universal-local-results>button strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.universal-local-results>button small{display:block;margin-top:2px;color:#747989}
+.universal-local-results>button em{flex:none;color:#9c90ee;font-style:normal}
+.universal-prepared-next{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:8px;
+  padding:10px 12px;
+  border:1px solid rgba(124,92,255,.18);
+  border-radius:12px;
+  background:linear-gradient(90deg,rgba(124,92,255,.08),rgba(124,92,255,.025));
+}
+.universal-prepared-next small{display:block;color:#8178af}
+.universal-prepared-next strong{display:block;margin-top:2px}
+.universal-prepared-next button{min-width:96px}
+.live-shortcut-settings{
+  margin-top:7px;
+  padding-top:7px;
+  border-top:1px solid rgba(255,255,255,.045);
+}
+.live-shortcut-settings>summary{cursor:pointer;color:#777d8e}
+.live-shortcut-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+  margin-top:9px;
+}
+.live-shortcut-grid label{display:grid;gap:4px}
+.live-shortcut-grid span{color:#7b8090}
+.live-shortcut-grid select{
+  min-height:44px;
+  padding:8px;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:9px;
+  background:#101118;
+  color:#eef0f6;
+}
+.live-shortcut-settings>small{display:block;margin-top:7px;color:#686e7d;line-height:1.45}
+@media(max-width:640px){
+  .universal-local-results-head{align-items:flex-start;flex-direction:column}
+  .universal-prepared-next{align-items:stretch;flex-direction:column}
+  .universal-prepared-next button{width:100%}
+  .live-shortcut-grid{grid-template-columns:1fr}
+}
+
+/* Roadmap Phase 7 — request priority + explicit lifecycle */
+.request-compose-meta{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:4px 0 8px;
+}
+.request-compose-meta .request-kind-hint{margin:0;min-width:0}
+.request-priority{
+  flex:none;
+  min-height:44px;
+  padding:8px 12px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.025);
+  color:var(--text-muted,#858b9a);
+}
+.request-priority.active{
+  border-color:rgba(255,176,64,.34);
+  background:rgba(255,176,64,.09);
+  color:var(--text,#f3f4f8);
+}
+.request-history-item.status-prepared,
+.request-history-item.status-accepted{border-color:rgba(124,92,255,.16)}
+.request-history-item.status-executed{opacity:.72}
+@media(max-width:640px){
+  .request-compose-meta{align-items:stretch;flex-direction:column}
+  .request-priority{width:100%}
+}
+
+/* Roadmap Phase 8 — controlled AI assist */
+.ai-insight-panel{
+  display:grid;
+  gap:10px;
+  margin-top:12px;
+  padding:14px;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:14px;
+  background:linear-gradient(135deg,rgba(124,92,255,.06),rgba(255,255,255,.018));
+}
+.ai-insight-panel.compact{padding:12px}
+.ai-insight-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+}
+.ai-insight-head>div{display:grid;gap:3px;min-width:0}
+.ai-insight-head small{color:#8a7ee8;font-size:12px;font-weight:700;letter-spacing:.04em}
+.ai-insight-head strong{font-size:14px}
+.ai-insight-head span{color:#777d8e;line-height:1.45}
+.ai-insight-result{display:grid;gap:10px}
+.ai-insight-result>p{margin:0;line-height:1.55;color:#d8dbe5}
+.ai-insight-suggestions{display:grid;gap:7px}
+.ai-insight-suggestions article{
+  display:grid;
+  gap:3px;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.055);
+  border-radius:10px;
+  background:rgba(10,11,16,.56);
+}
+.ai-insight-suggestions article small{color:#8a7ee8;text-transform:uppercase;letter-spacing:.04em}
+.ai-insight-suggestions article span{color:#858a98;line-height:1.45}
+.ai-insight-warnings{display:grid;gap:5px}
+.ai-insight-warnings span{
+  padding:8px 10px;
+  border-radius:9px;
+  background:rgba(255,184,77,.07);
+  color:#b9a98d;
+}
+.ai-insight-result footer{display:flex;flex-wrap:wrap;gap:8px;color:#6f7482}
+.ai-insight-result footer span{
+  padding:4px 7px;
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:999px;
+}
+.ai-insight-fallback{display:grid;gap:3px;padding:10px;border-radius:10px;background:rgba(255,255,255,.025)}
+.ai-insight-fallback span,.ai-insight-fallback small{color:#777d8e}
+@media(max-width:640px){
+  .ai-insight-head{align-items:stretch;flex-direction:column}
+  .ai-insight-head button{width:100%}
+}
+
+/* Roadmap Phase 9/10 — training + factual follow-up */
+.smart-rehearsal-panel>header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.smart-rehearsal-panel>header>button{flex:none;min-height:44px}
+.smart-rehearsal-training{
+  display:grid;
+  gap:12px;
+  margin:12px 0;
+  padding:14px;
+  border:1px solid rgba(124,92,255,.16);
+  border-radius:14px;
+  background:rgba(124,92,255,.045);
+}
+.smart-rehearsal-training>div{display:grid;gap:3px}
+.smart-rehearsal-training>div small{color:#8b7ff0;font-weight:760;letter-spacing:.08em}
+.smart-rehearsal-training>div span,.smart-rehearsal-training>small{color:#777d8d;line-height:1.45}
+.smart-rehearsal-training ol{display:grid;gap:7px;margin:0;padding-left:24px}
+.smart-rehearsal-training li{padding:9px 10px;border-radius:10px;background:rgba(10,11,16,.58)}
+.smart-rehearsal-training li strong,.smart-rehearsal-training li span{display:block}
+.smart-rehearsal-training li span{margin-top:3px;color:#7d8291;line-height:1.4}
+.smart-rehearsal-training li.attention{border:1px solid rgba(255,184,77,.13)}
+.smart-rehearsal-training li.ready{border:1px solid rgba(74,220,155,.10)}
+.service-review-attention .correction{
+  padding:10px;
+  border:1px solid rgba(124,92,255,.14);
+  border-radius:10px;
+  background:rgba(124,92,255,.04);
+}
+.service-review-attention .correction small{color:#9185ef}
+.service-review-next{
+  display:grid;
+  gap:12px;
+  margin-top:14px;
+  padding:14px;
+  border:1px solid rgba(255,255,255,.065);
+  border-radius:14px;
+  background:rgba(255,255,255,.018);
+}
+.service-review-next>div:first-child{display:grid;gap:3px}
+.service-review-next>div:first-child small{color:#8177c4;font-weight:760;letter-spacing:.08em}
+.service-review-next>div:first-child span{color:#777d8d;line-height:1.45}
+.service-review-next-fields{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(190px,.8fr) auto;
+  gap:8px;
+  align-items:end;
+}
+.service-review-next-fields label{display:grid;gap:4px;min-width:0}
+.service-review-next-fields label span{color:#777d8d}
+.service-review-next-fields input{
+  min-width:0;
+  min-height:44px;
+  box-sizing:border-box;
+  padding:9px 10px;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:9px;
+  background:#0d0e14;
+  color:#eef0f6;
+  font:inherit;
+}
+.service-review-next-fields button{min-height:44px}
+.service-review-next-note{color:#b8a77f}
+.service-review-next-success{color:#71cba4}
+@media(max-width:760px){
+  .smart-rehearsal-panel>header{flex-direction:column}
+  .smart-rehearsal-panel>header>button{width:100%}
+  .service-review-next-fields{grid-template-columns:1fr}
+}
+
+/* Roadmap Phase 11 — production ecosystem */
+.production-ecosystem{display:grid;gap:18px}
+.production-ecosystem-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
+  padding:20px 22px;border:1px solid rgba(255,255,255,.07);border-radius:20px;
+  background:radial-gradient(circle at 92% 0,rgba(124,92,255,.10),transparent 35%),rgba(17,18,25,.75)
+}
+.production-ecosystem-head h2{margin:4px 0 6px;font-size:24px;letter-spacing:-.035em}
+.production-ecosystem-head p{margin:0;max-width:760px;color:#8e93a5;line-height:1.55}
+.production-ecosystem-message{
+  min-height:44px;display:flex;align-items:center;padding:10px 14px;border-radius:12px;
+  border:1px solid rgba(124,92,255,.15);background:rgba(124,92,255,.055);color:#cbc6ff
+}
+.production-ecosystem-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.production-ecosystem-grid>.panel{display:grid;align-content:start;gap:14px;min-width:0}
+.production-ecosystem-grid>.panel>header{
+  display:flex;align-items:center;justify-content:space-between;gap:12px
+}
+.production-ecosystem-grid>.panel>header>div{display:grid;gap:3px}
+.production-ecosystem-grid>.panel>header small{color:#777d8e;font-size:12px;font-weight:700;letter-spacing:.06em}
+.production-ecosystem-grid>.panel>header strong{font-size:17px}
+.production-ecosystem-grid>.panel>header>span{
+  min-width:32px;height:32px;display:grid;place-items:center;border-radius:999px;
+  background:rgba(255,255,255,.045);color:#9ea3b3
+}
+.production-ecosystem-grid>.panel>p{margin:0;color:#858a98;line-height:1.55}
+.production-chip-grid{display:flex;flex-wrap:wrap;gap:7px}
+.production-chip-grid span{
+  padding:7px 9px;border:1px solid rgba(255,255,255,.065);border-radius:999px;
+  background:rgba(255,255,255,.025);color:#aeb2bf;font-size:12px
+}
+.production-safe-note{
+  display:grid;gap:5px;padding:12px;border:1px solid rgba(255,184,77,.11);
+  border-radius:12px;background:rgba(255,184,77,.035)
+}
+.production-safe-note span{color:#8e93a5;line-height:1.5}
+.production-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.production-form-grid label{display:grid;gap:5px}
+.production-form-grid label>span{color:#8e93a5;font-size:12px}
+.production-form-grid input,.production-form-grid select,.production-inline-form input{
+  width:100%;min-height:44px;border:1px solid #2a2d38;border-radius:11px;
+  background:#101118;color:#f4f5f8;padding:9px 11px;font:inherit
+}
+.production-form-grid button{align-self:end;min-height:44px}
+.production-inline-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px}
+.production-inline-form button{min-height:44px}
+.production-row{
+  min-height:54px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:9px 10px;border:1px solid rgba(255,255,255,.055);border-radius:12px;
+  background:rgba(255,255,255,.018)
+}
+.production-row>div{display:grid;gap:3px;min-width:0}
+.production-row strong{overflow:hidden;text-overflow:ellipsis}
+.production-row span{color:#787e8e;font-size:12px;overflow-wrap:anywhere}
+.production-row>b{font-size:12px;text-transform:uppercase;color:#9ba0af}
+.production-row>b.online{color:#6bd2a4}.production-row>b.degraded{color:#e0b36f}.production-row>b.offline{color:#db7d86}
+.production-backup-actions{display:flex;flex-wrap:wrap;gap:8px}
+.button-like{
+  min-height:44px;display:inline-flex;align-items:center;justify-content:center;position:relative;
+  padding:0 14px;border-radius:10px;cursor:pointer
+}
+.button-like input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.production-fleet-card{grid-column:1/-1}
+.production-peer{display:grid;gap:8px}
+.production-peer-actions{display:flex;flex-wrap:wrap;gap:8px}
+.production-peer-actions button{min-height:44px}
+.production-peer-result{color:#8e93a5;padding-left:10px}
+@media(max-width:900px){
+  .production-ecosystem-grid{grid-template-columns:1fr}
+  .production-fleet-card{grid-column:auto}
+}
+@media(max-width:640px){
+  .production-ecosystem-head{flex-direction:column}
+  .production-form-grid{grid-template-columns:1fr}
+  .production-inline-form{grid-template-columns:1fr}
+  .production-inline-form button,.production-backup-actions>*{width:100%}
+}
+
+/* Phase 11 fleet extension */
+.production-cloud-fleet{display:grid;gap:8px;margin-top:6px}
+.production-section-divider{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding-top:12px;border-top:1px solid rgba(255,255,255,.055)
+}
+.production-section-divider strong{font-size:14px}
+.production-section-divider span{color:#777d8e;font-size:12px}
+
+
+/* 2026-09 operator fixes — human playlist sync, fast tool focus and Bible navigation. */
+.service-plan-head-actions{
+  display:flex;align-items:flex-end;justify-content:flex-end;gap:8px;flex-wrap:wrap;
+}
+.service-plan-head-actions>span{max-width:290px}
+.playlist-sync{
+  min-height:36px;padding:7px 10px;border:1px solid rgba(124,92,255,.22);border-radius:10px;
+  background:rgba(124,92,255,.09);color:#d7d1ff;font:inherit;font-size:12px;font-weight:760;
+  cursor:pointer;white-space:nowrap;transition:background .16s ease,border-color .16s ease,transform .16s ease;
+}
+.playlist-sync:hover:not(:disabled){background:rgba(124,92,255,.16);border-color:rgba(124,92,255,.34);transform:translateY(-1px)}
+.playlist-sync.armed{border-color:rgba(244,163,64,.30);background:rgba(244,163,64,.09);color:#f1c88e}
+.playlist-sync:disabled{opacity:.42;cursor:not-allowed;transform:none}
+.live-tool-anchor{display:block;height:1px;scroll-margin-top:86px}
+
+.bible-holyrics-picker{
+  display:grid;grid-template-columns:minmax(0,1.35fr) minmax(230px,.65fr);gap:10px;
+}
+.bible-picker-panel{
+  min-width:0;padding:10px;border:1px solid rgba(255,255,255,.05);border-radius:13px;
+  background:rgba(9,10,15,.72);
+}
+.bible-picker-panel>header{
+  display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:9px;
+}
+.bible-picker-panel>header>span{
+  color:#d5d1ef;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+}
+.bible-picker-panel>header>small{
+  color:#6f7483;font-size:12px;line-height:1.35;text-align:right;
+}
+.bible-book-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:5px;
+  max-height:300px;overflow:auto;padding:1px;scrollbar-width:thin;
+}
+.bible-book-tile{
+  position:relative;display:flex;min-width:0;min-height:58px;flex-direction:column;align-items:flex-start;
+  justify-content:center;gap:3px;padding:7px 8px;border:1px solid rgba(255,255,255,.045);border-radius:10px;
+  background:#101118;color:#dadce4;text-align:left;overflow:hidden;
+}
+.bible-book-tile:before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:#716a8e;opacity:.78;
+}
+.bible-book-tile strong{font-size:15px;line-height:1;font-weight:790;letter-spacing:-.015em}
+.bible-book-tile small{
+  width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6f7484;font-size:12px;
+}
+.bible-book-tile.law:before{background:#c8a45a}
+.bible-book-tile.history:before{background:#c5784d}
+.bible-book-tile.wisdom:before{background:#8f6be5}
+.bible-book-tile.prophets:before{background:#a45fa6}
+.bible-book-tile.gospels:before{background:#4f8ed8}
+.bible-book-tile.letters:before{background:#3da782}
+.bible-book-tile.revelation:before{background:#ba8c48}
+.bible-book-tile:hover:not(:disabled){
+  border-color:rgba(124,92,255,.18);background:#12131b;
+}
+.bible-book-tile.active{
+  border-color:rgba(124,92,255,.32);background:linear-gradient(145deg,rgba(124,92,255,.14),#11121a);
+  box-shadow:0 8px 24px rgba(62,43,139,.12);
+}
+.bible-book-tile.active small{color:#aaa3d1}
+.bible-chapter-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:5px;max-height:226px;
+  overflow:auto;padding:1px;scrollbar-width:thin;
+}
+.bible-chapter-grid button{
+  min-height:42px;border:1px solid rgba(255,255,255,.045);border-radius:9px;background:#101118;
+  color:#afb3c0;font:inherit;font-size:13px;font-variant-numeric:tabular-nums;
+}
+.bible-chapter-grid button:hover:not(:disabled){border-color:rgba(124,92,255,.22);background:#141520;color:#e0ddff}
+.bible-chapter-grid button.active{
+  border-color:rgba(124,92,255,.32);background:rgba(124,92,255,.13);color:#e0dbff;font-weight:800;
+}
+.bible-chapter-direct{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:end;margin-top:9px;padding-top:9px;
+  border-top:1px solid rgba(255,255,255,.045);
+}
+.bible-chapter-direct label{display:grid;gap:5px}
+.bible-chapter-direct label>span{color:#666b79;font-size:12px}
+.bible-chapter-direct input{
+  width:100%;min-height:42px;padding:0 10px;border:1px solid rgba(255,255,255,.06);border-radius:9px;
+  background:#101118;color:#e1e3e9;font:inherit;font-size:13px;
+}
+.bible-chapter-direct .bible-reference-picker-load{min-height:42px}
+
+@media(max-width:760px){
+  .service-plan-timeline>header{align-items:flex-start;flex-direction:column}
+  .service-plan-head-actions{width:100%;align-items:stretch;justify-content:stretch}
+  .service-plan-head-actions>span{max-width:none;text-align:left!important;flex:1}
+  .playlist-sync{width:100%;min-height:44px;white-space:normal}
+  .bible-holyrics-picker{grid-template-columns:1fr}
+  .bible-book-grid{grid-template-columns:repeat(4,minmax(0,1fr));max-height:330px}
+  .bible-picker-panel>header{align-items:flex-start;flex-direction:column;gap:3px}
+  .bible-picker-panel>header>small{text-align:left}
+  .bible-chapter-grid{grid-template-columns:repeat(7,minmax(0,1fr));max-height:260px}
+  .bible-chapter-grid button{min-height:44px}
+}
+@media(max-width:430px){
+  .bible-book-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .bible-chapter-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .bible-book-tile{min-height:62px}
+  .bible-chapter-direct{grid-template-columns:1fr}
+  .bible-chapter-direct .bible-reference-picker-load{width:100%}
+}

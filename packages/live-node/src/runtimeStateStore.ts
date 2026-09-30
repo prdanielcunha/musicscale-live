@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import type { LiveNodeRuntimeState } from '@millionsnest/live-domain';
+import { migrateLegacyLiveRequest, type LiveNodeRuntimeState } from '@millionsnest/live-domain';
 
 export class RuntimeStateStore {
   private state: LiveNodeRuntimeState;
@@ -22,7 +22,9 @@ export class RuntimeStateStore {
             ...parsed,
             providerObservedState: parsed.providerObservedState || {},
             providerLinks: Array.isArray(parsed.providerLinks) ? parsed.providerLinks : [],
-            requests: Array.isArray(parsed.requests) ? parsed.requests : [],
+            requests: Array.isArray(parsed.requests)
+              ? parsed.requests.map(migrateLegacyLiveRequest)
+              : [],
             scenes: Array.isArray(parsed.scenes) ? parsed.scenes : [],
             servicePlan: parsed.servicePlan || null
           }

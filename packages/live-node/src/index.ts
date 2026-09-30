@@ -7,6 +7,9 @@ import { dirname, extname, join, resolve, sep } from 'node:path';
 import {
   CAPABILITIES,
   CapabilityEngine,
+  transitionLiveRequest,
+  evaluateFailoverCandidate,
+  failoverIdempotencyKey,
   routeGroupForCapability,
   type Capability,
   type CommandResult,
@@ -14,6 +17,8 @@ import {
   type LiveChatMessage,
   type LiveDropAsset,
   type LiveRequest,
+  type LiveRequestStatus,
+  type LiveCollaborationRole,
   type PairingRequest,
   type ProviderAssetRequest,
   type ProviderLink,
@@ -25,6 +30,7 @@ import {
 } from '@millionsnest/live-domain';
 import { IdempotencyStore } from './idempotencyStore';
 import { PairingStore } from './pairingStore';
+import { CollaborationInviteStore } from './collaborationInviteStore';
 import { RuntimeStateStore } from './runtimeStateStore';
 import { ProviderConfigStore } from './providerConfigStore';
 import { createPlatformSecretProtector } from './secretProtector';
@@ -40,6 +46,7 @@ import {
 import { stageAndOpenPeerLiveDrop } from './liveDropFederation';
 import { buildLiveNodeDiagnostics } from './diagnostics';
 import { buildCertificationReport } from './certificationReport';
+import { NodeProfileStore } from './nodeProfileStore';
 import { isTrustedLiveWebOrigin } from './networkPolicy';
 import { SceneExecutor } from './sceneExecutor';
 import { PeerDiscovery } from './peerDiscovery';
@@ -62,6 +69,21 @@ import {
   ProPresenterAdapter,
   ProPresenterHttpClient
 } from '@millionsnest/live-adapter-propresenter';
+import {
+  ArtNetDmxControlClient,
+  HttpBridgeControlClient,
+  ObsWebSocketControlClient,
+  OscUdpControlClient,
+  PRODUCTION_ADAPTER_MANIFESTS,
+  ProductionControlAdapter,
+  VmixHttpControlClient
+} from '@millionsnest/live-adapters-production';
+import { ProductionProviderConfigStore } from './productionProviderConfigStore';
+import { ProductionWorkspaceStore } from './productionWorkspaceStore';
+import {
+  createLiveNodeBackup,
+  validateLiveNodeBackup
+} from './nodeBackup';
 import { toString as qrToString } from 'qrcode';
 
 function liveEnv(name: string): string | undefined {
@@ -73,7 +95,7 @@ function liveEnv(name: string): string | undefined {
 
 const PORT = Number(liveEnv('NODE_PORT') || 4317);
 const HOST = liveEnv('NODE_HOST') || '0.0.0.0';
-const VERSION = '0.1.0-alpha.1';
+const VERSION = '0.1.0-beta.2';
 const DEV_TOKEN = liveEnv('DEV_TOKEN') || '';
 const PAIRING_ENABLED = liveEnv('PAIRING_ENABLED') !== 'false';
 const HOLYRICS_TOKEN = liveEnv('HOLYRICS_TOKEN')?.trim() || '';
@@ -144,17 +166,31 @@ const sceneIdempotency = new IdempotencyStore<SceneExecutionResult>(
   join(STATE_DIR, 'idempotency-scenes.json')
 );
 const pairingStore = new PairingStore(join(STATE_DIR, 'pairings.json'), nodeId);
+const collaborationInviteStore = new CollaborationInviteStore(
+  join(STATE_DIR, 'collaboration.json'),
+  nodeId
+);
 const runtimeState = new RuntimeStateStore(join(STATE_DIR, 'runtime.json'), nodeId);
 const secretProtector = createPlatformSecretProtector();
 const providerConfigStore = new ProviderConfigStore(
   join(STATE_DIR, 'providers.json'),
   secretProtector
 );
+const productionProviderConfigStore = new ProductionProviderConfigStore(
+  join(STATE_DIR, 'production-providers.json'),
+  secretProtector
+);
+const productionWorkspaceStore = new ProductionWorkspaceStore(
+  join(STATE_DIR, 'production-workspace.json')
+);
+const registeredProductionProviderIds = new Set<string>();
 const providerRoutingStore = new ProviderRoutingStore(join(STATE_DIR, 'routing.json'));
 const peerNodeStore = new PeerNodeStore(join(STATE_DIR, 'peers.json'));
 const signalTopologyStore = new SignalTopologyStore(join(STATE_DIR, 'signal-topology.json'));
 const eventLogStore = new LiveEventLogStore(join(STATE_DIR, 'events.json'));
 const liveChatStore = new LiveChatStore(join(STATE_DIR, 'chat.json'));
+const nodeProfileStore = new NodeProfileStore(join(STATE_DIR, 'profile.json'), hostname());
+let nodeDisplayName = hostname();
 const liveDropStore = new LiveDropStore(
   join(STATE_DIR, 'live-drop'),
   undefined,
@@ -169,13 +205,13 @@ const liveDropStore = new LiveDropStore(
 );
 const peerFederation = new PeerFederation({
   localNodeId: nodeId,
-  localDisplayName: hostname(),
+  localDisplayName: nodeDisplayName,
   capabilityEngine,
   store: peerNodeStore
 });
 const peerDiscovery = new PeerDiscovery({
   nodeId,
-  displayName: hostname(),
+  displayName: nodeDisplayName,
   httpPort: PORT,
   version: VERSION
 });
@@ -359,6 +395,108 @@ async function registerProPresenterProvider(): Promise<{
   };
 }
 
+function productionManifestByKey(adapterKey: string) {
+  return Object.values(PRODUCTION_ADAPTER_MANIFESTS)
+    .find(manifest => manifest.adapterKey === adapterKey);
+}
+
+function productionControlClient(config: {
+  adapterKey: string;
+  config: Record<string, unknown>;
+}) {
+  const value = config.config;
+  switch (config.adapterKey) {
+    case 'obs-websocket':
+      return new ObsWebSocketControlClient(
+        String(value.url || ''),
+        String(value.password || '')
+      );
+    case 'vmix':
+      return new VmixHttpControlClient(String(value.baseUrl || ''));
+    case 'osc':
+      return new OscUdpControlClient(
+        String(value.host || ''),
+        Number(value.port || 8000)
+      );
+    case 'artnet-dmx':
+      return new ArtNetDmxControlClient(
+        String(value.host || ''),
+        Number(value.port || 6454),
+        Number(value.universe || 0)
+      );
+    case 'companion':
+    case 'midi':
+    case 'atem':
+      return new HttpBridgeControlClient(String(value.baseUrl || ''));
+    default:
+      throw new Error('production_adapter_unsupported');
+  }
+}
+
+async function registerProductionProviders(): Promise<Array<{
+  instanceId: string;
+  adapterKey: string;
+  reachable: boolean;
+  version?: string;
+  capabilities: Capability[];
+  reason?: string;
+}>> {
+  for (const providerId of registeredProductionProviderIds) {
+    const adapter = capabilityEngine.get(providerId);
+    await adapter?.dispose?.().catch(() => undefined);
+    capabilityEngine.unregister(providerId);
+  }
+  registeredProductionProviderIds.clear();
+
+  const configs = await productionProviderConfigStore
+    .allResolved(PRODUCTION_ADAPTER_MANIFESTS);
+  const results: Array<{
+    instanceId: string;
+    adapterKey: string;
+    reachable: boolean;
+    version?: string;
+    capabilities: Capability[];
+    reason?: string;
+  }> = [];
+
+  for (const config of configs) {
+    const manifest = productionManifestByKey(config.adapterKey);
+    if (!manifest) continue;
+
+    const adapter = new ProductionControlAdapter({
+      id: config.instanceId,
+      nodeId,
+      displayName: config.displayName,
+      manifest,
+      client: productionControlClient(config)
+    });
+    capabilityEngine.register(adapter);
+    registeredProductionProviderIds.add(config.instanceId);
+
+    const probe = await adapter.probe();
+    results.push({
+      instanceId: config.instanceId,
+      adapterKey: config.adapterKey,
+      reachable: probe.reachable,
+      version: probe.version,
+      capabilities: probe.capabilities,
+      reason: probe.reason
+    });
+
+    console.log(JSON.stringify({
+      event: 'production_provider_probe',
+      providerId: config.instanceId,
+      providerKey: config.adapterKey,
+      reachable: probe.reachable,
+      version: probe.version || null,
+      capabilities: probe.capabilities,
+      reason: probe.reason || null
+    }));
+  }
+
+  return results;
+}
+
 const providerObservationInFlight = new Set<string>();
 const providerLastObservedAt = new Map<string, number>();
 
@@ -494,17 +632,24 @@ function sendHtml(res: ServerResponse, status: number, html: string): void {
   res.end(html);
 }
 
-async function readJson(req: IncomingMessage): Promise<unknown> {
+async function readJsonWithLimit(
+  req: IncomingMessage,
+  maxBytes: number
+): Promise<unknown> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     const buffer = Buffer.from(chunk);
     size += buffer.length;
-    if (size > 256 * 1024) throw new Error('payload_too_large');
+    if (size > maxBytes) throw new Error('payload_too_large');
     chunks.push(buffer);
   }
   if (!chunks.length) return {};
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
+
+async function readJson(req: IncomingMessage): Promise<unknown> {
+  return readJsonWithLimit(req, 256 * 1024);
 }
 
 function bearerToken(req: IncomingMessage): string {
@@ -859,6 +1004,9 @@ function validateLiveChatMessage(value: unknown): LiveChatMessage {
   if (candidate.relatedRequestId !== undefined && typeof candidate.relatedRequestId !== 'string') {
     throw new Error('invalid_live_chat_request');
   }
+  if (candidate.relatedServiceItemId !== undefined && typeof candidate.relatedServiceItemId !== 'string') {
+    throw new Error('invalid_live_chat_service_item');
+  }
 
   return {
     ...(candidate as LiveChatMessage),
@@ -894,10 +1042,13 @@ function validateLiveRequest(value: unknown): LiveRequest {
   if (required.some(item => typeof item !== 'string' || !item)) {
     throw new Error('invalid_live_request');
   }
-  if (!['bible','section','media','message'].includes(String(candidate.kind))) {
+  if (!['bible','song','section','media','message'].includes(String(candidate.kind))) {
     throw new Error('invalid_live_request_kind');
   }
-  if (candidate.status !== 'pending') throw new Error('invalid_live_request_status');
+  if (candidate.status !== 'sent') throw new Error('invalid_live_request_status');
+  if (candidate.priority !== undefined && !['normal','urgent'].includes(String(candidate.priority))) {
+    throw new Error('invalid_live_request_priority');
+  }
   if (!candidate.payload || typeof candidate.payload !== 'object' || Array.isArray(candidate.payload)) {
     throw new Error('invalid_live_request_payload');
   }
@@ -920,10 +1071,50 @@ function assertLiveRequestScope(
 async function authorize(req: IncomingMessage) {
   const token = bearerToken(req);
   if (DEV_TOKEN && token === DEV_TOKEN) {
-    return { dev: true as const, token, binding: null };
+    return { dev: true as const, token, binding: null, collaboration: null };
   }
   const binding = await pairingStore.authorize(token);
-  return binding ? { dev: false as const, token, binding } : null;
+  if (binding) {
+    return { dev: false as const, token, binding, collaboration: null };
+  }
+  const collaboration = await collaborationInviteStore.authorize(token);
+  return collaboration
+    ? {
+        dev: false as const,
+        token,
+        binding: collaboration.binding,
+        collaboration: collaboration.grant
+      }
+    : null;
+}
+
+function collaborationRouteAllowed(
+  method: string | undefined,
+  pathname: string
+): boolean {
+  if (method === 'GET' && ['/health', '/state', '/capabilities', '/chat', '/requests'].includes(pathname)) {
+    return true;
+  }
+  if (method === 'POST' && ['/heartbeat', '/chat', '/requests', '/commands'].includes(pathname)) {
+    return true;
+  }
+  return Boolean(
+    method === 'POST' &&
+    pathname.startsWith('/requests/') &&
+    pathname.endsWith('/status')
+  );
+}
+
+function collaborationCanRequest(
+  grant: NonNullable<Awaited<ReturnType<typeof authorize>>>['collaboration'],
+  request: LiveRequest
+): boolean {
+  if (!grant) return true;
+  if (request.liveSessionId !== grant.liveSessionId || request.actorId !== grant.actorId) {
+    return false;
+  }
+  const permission = `request.${request.kind}`;
+  return grant.permissions.includes(permission as (typeof grant.permissions)[number]);
 }
 
 function liveDropScopeFromSession(
@@ -1227,9 +1418,14 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 </head>
 <body><main>
 <div class="brand">MUSICSCALE / LIVE NODE</div>
-<h1>${hostname()}</h1>
+<h1 id="node-display-name">${nodeDisplayName}</h1>
 <p class="muted">Node <code>${nodeId}</code> · v${VERSION}</p>
 <div class="hero-note"><strong>Conexão local, sem complicação</strong><span>Use o mesmo Wi‑Fi ou a mesma rede cabeada da igreja. A internet não é necessária para operar localmente. Redes de convidados podem impedir que os aparelhos se encontrem.</span></div>
+<div class="box provider-card">
+<header><div><small>NOME DESTE COMPUTADOR</small><strong>Use um nome que qualquer voluntário reconheça</strong></div><button class="btn" onclick="saveNodeProfile()">Salvar</button></header>
+<div class="field"><span>Ex.: Computador da Projeção</span><input id="node-name" value="" maxlength="64" autocomplete="off"/></div>
+<div id="profile-status" class="statusline">Carregando nome…</div>
+</div>
 <div class="box connect-card">
 <img src="/local/connect-qr.svg" alt="QR para abrir o MusicScale Live na rede local"/>
 <div><small>CONECTAR TABLET OU CELULAR</small><h2>Escaneie e continue</h2><p>Abra a câmera do aparelho do operador e escaneie este QR. O Live abre pelo caminho local correto — sem digitar IP ou porta.</p><span class="connect-badge">Internet não obrigatória</span></div>
@@ -1282,6 +1478,31 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 </div>
 <details class="box advanced"><summary>Detalhes técnicos da rede</summary><div class="tech-list"><p>Use estes endereços somente para diagnóstico ou fallback manual.</p><ul>${addresses || '<li>Nenhum IPv4 LAN detectado</li>'}</ul></div></details>
 <script>
+async function refreshNodeProfile(){
+  try{
+    const r=await fetch('/local/profile',{cache:'no-store'});
+    const d=await r.json();
+    if(!r.ok)return;
+    document.getElementById('node-name').value=d.displayName||'';
+    document.getElementById('node-display-name').textContent=d.displayName||'MusicScale Live Node';
+    document.getElementById('profile-status').textContent=d.tutorialCompletedAt?'Nome salvo · tutorial concluído':'Nome salvo · finalize o guia rápido no tablet.';
+  }catch{}
+}
+async function saveNodeProfile(){
+  const input=document.getElementById('node-name');
+  const status=document.getElementById('profile-status');
+  const displayName=input.value.trim();
+  if(!displayName){status.textContent='Digite um nome simples para este computador.';return}
+  status.textContent='Salvando…';
+  try{
+    const r=await fetch('/local/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({displayName})});
+    const d=await r.json();
+    if(!r.ok){status.textContent='Não foi possível salvar.';return}
+    input.value=d.displayName||displayName;
+    document.getElementById('node-display-name').textContent=d.displayName||displayName;
+    status.textContent='Pronto. Este nome aparecerá na descoberta da rede.';
+  }catch{status.textContent='Não foi possível salvar.'}
+}
 async function refresh(){
   try{
     const r=await fetch('/local/pairing',{cache:'no-store'});
@@ -1493,7 +1714,7 @@ async function saveHolyrics(){
     el.textContent='Holyrics conectado · '+(d.capabilities||[]).length+' capacidades · v'+(d.version||'detectada');
   }catch{el.textContent='Não foi possível salvar a configuração.'}
 }
-refresh();refreshProvider();setInterval(refresh,1000);
+refreshNodeProfile();refresh();refreshProvider();setInterval(refresh,1000);
 </script>
 </main></body></html>`;
 }
@@ -1502,14 +1723,22 @@ async function start(): Promise<void> {
   await idempotency.load();
   await sceneIdempotency.load();
   await pairingStore.load();
+  await collaborationInviteStore.load();
   await runtimeState.load();
   await providerConfigStore.load();
+  await productionProviderConfigStore.load();
+  await productionWorkspaceStore.load();
   await providerRoutingStore.load();
   await peerNodeStore.load();
   await signalTopologyStore.load();
+  const profile = await nodeProfileStore.load();
+  nodeDisplayName = profile.displayName;
+  peerDiscovery.setDisplayName(nodeDisplayName);
+  peerFederation.setLocalDisplayName(nodeDisplayName);
   await registerHolyricsProvider();
   await registerResolumeProvider();
   await registerProPresenterProvider();
+  await registerProductionProviders();
   await peerFederation.load();
   await peerDiscovery.start();
 
@@ -1527,6 +1756,29 @@ async function start(): Promise<void> {
       return sendHtml(res, 200, localConsoleHtml());
     }
 
+    if (req.method === 'GET' && url.pathname === '/local/profile') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      return send(res, 200, await nodeProfileStore.load());
+    }
+
+    if (req.method === 'POST' && url.pathname === '/local/profile') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') throw new Error('invalid_node_profile');
+      const displayName = String((body as Record<string, unknown>).displayName || '').trim();
+      if (!displayName) throw new Error('node_display_name_required');
+      const profile = await nodeProfileStore.setDisplayName(displayName);
+      nodeDisplayName = profile.displayName;
+      peerDiscovery.setDisplayName(nodeDisplayName);
+      peerFederation.setLocalDisplayName(nodeDisplayName);
+      return send(res, 200, profile);
+    }
+
+    if (req.method === 'POST' && url.pathname === '/local/tutorial-complete') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      return send(res, 200, await nodeProfileStore.markTutorialComplete());
+    }
+
     if (
       req.method === 'GET' &&
       (
@@ -1540,6 +1792,7 @@ async function start(): Promise<void> {
         version: VERSION,
         nodeId,
         hostname: hostname(),
+        displayName: nodeDisplayName,
         port: PORT
       });
     }
@@ -1551,6 +1804,7 @@ async function start(): Promise<void> {
         version: VERSION,
         nodeId,
         hostname: hostname(),
+        displayName: nodeDisplayName,
         health: providerSnapshot.some(provider => provider.health === 'degraded') ? 'degraded' : 'online',
         lanAddresses: lanAddresses(),
         providers: providerSnapshot.length,
@@ -1823,6 +2077,224 @@ async function start(): Promise<void> {
       return send(res, 200, { cleared: true });
     }
 
+    if (req.method === 'GET' && url.pathname === '/local/providers/production') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      return send(res, 200, {
+        catalog: Object.values(PRODUCTION_ADAPTER_MANIFESTS).map(manifest => ({
+          adapterKey: manifest.adapterKey,
+          displayName: manifest.displayName,
+          providerKind: manifest.providerKind,
+          transport: manifest.transport,
+          capabilities: manifest.capabilities,
+          setup: manifest.setup.map(field => ({
+            key: field.key,
+            label: field.label,
+            kind: field.kind,
+            required: field.required,
+            advanced: field.advanced === true,
+            secret: field.secret === true || field.kind === 'secret',
+            defaultValue: field.defaultValue,
+            help: field.help
+          })),
+          experimental: manifest.experimental === true
+        })),
+        providers: await productionProviderConfigStore
+          .allPublic(PRODUCTION_ADAPTER_MANIFESTS),
+        probes: capabilityEngine.quickSnapshot()
+          .filter(provider => registeredProductionProviderIds.has(provider.providerId))
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/local/providers/production') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_production_provider_config');
+      }
+      const candidate = body as Record<string, unknown>;
+      const adapterKey = String(candidate.adapterKey || '').trim();
+      const manifest = productionManifestByKey(adapterKey);
+      if (!manifest) throw new Error('production_adapter_unsupported');
+
+      const instanceId = String(candidate.instanceId || '').trim();
+      const displayName = String(candidate.displayName || manifest.displayName).trim();
+      const config =
+        candidate.config && typeof candidate.config === 'object' && !Array.isArray(candidate.config)
+          ? candidate.config as Record<string, unknown>
+          : {};
+
+      await productionProviderConfigStore.upsert(manifest, {
+        instanceId,
+        displayName,
+        config
+      });
+      const probes = await registerProductionProviders();
+      const publicConfig = (
+        await productionProviderConfigStore.allPublic(PRODUCTION_ADAPTER_MANIFESTS)
+      ).find(item => item.instanceId === instanceId);
+
+      return send(res, 200, {
+        provider: publicConfig || null,
+        probe: probes.find(item => item.instanceId === instanceId) || null
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/local/providers/production/remove') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_production_provider_remove');
+      }
+      const instanceId = String(
+        (body as Record<string, unknown>).instanceId || ''
+      ).trim();
+      if (!instanceId) throw new Error('production_provider_instance_required');
+
+      const removed = await productionProviderConfigStore.remove(
+        instanceId,
+        PRODUCTION_ADAPTER_MANIFESTS
+      );
+      await registerProductionProviders();
+      return send(res, 200, {
+        removed,
+        providers: await productionProviderConfigStore
+          .allPublic(PRODUCTION_ADAPTER_MANIFESTS)
+      });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/production/workspace') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'production_workspace_admin_required' });
+      }
+      const scope = session.binding;
+      return send(res, 200, {
+        audioProfiles: await productionWorkspaceStore.audioProfiles(scope),
+        templates: await productionWorkspaceStore.templates(scope.organizationId)
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/production/audio-profiles') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'production_workspace_admin_required' });
+      }
+      const profile = await productionWorkspaceStore.upsertAudioProfile(
+        await readJson(req),
+        session.binding
+      );
+      return send(res, 200, { profile });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/production/templates') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'production_workspace_admin_required' });
+      }
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') throw new Error('live_template_invalid');
+      const candidate = body as Record<string, unknown>;
+      const actorId = String(candidate.createdBy || '').trim();
+      if (!actorId) throw new Error('live_template_creator_invalid');
+      const template = await productionWorkspaceStore.upsertTemplate(
+        candidate,
+        session.binding.organizationId,
+        actorId
+      );
+      return send(res, 200, { template });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/local/production/templates/decision') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('live_template_review_invalid');
+      }
+      const candidate = body as Record<string, unknown>;
+      const decision = String(candidate.decision || '');
+      if (!['approved', 'rejected'].includes(decision)) {
+        throw new Error('live_template_review_invalid');
+      }
+      const template = await productionWorkspaceStore.decideMarketplace({
+        organizationId: String(candidate.organizationId || ''),
+        templateId: String(candidate.templateId || ''),
+        decision: decision as 'approved' | 'rejected',
+        reviewerId: String(candidate.reviewerId || '')
+      });
+      return send(res, 200, { template });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/backup/export') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'backup_admin_required' });
+      }
+      const [runtime, routing, signalTopology, audioProfiles, templates] =
+        await Promise.all([
+          runtimeState.load(),
+          providerRoutingStore.all(),
+          signalTopologyStore.load(),
+          productionWorkspaceStore.audioProfiles(session.binding),
+          productionWorkspaceStore.templates(session.binding.organizationId)
+        ]);
+
+      return send(res, 200, createLiveNodeBackup({
+        appVersion: VERSION,
+        nodeId,
+        organizationId: session.binding.organizationId,
+        venueId: session.binding.venueId,
+        liveSystemId: session.binding.liveSystemId,
+        servicePlan: runtime.servicePlan,
+        providerLinks: runtime.providerLinks,
+        scenes: runtime.scenes,
+        routing,
+        signalTopology,
+        audioProfiles,
+        templates
+      }));
+    }
+
+    if (req.method === 'POST' && url.pathname === '/backup/restore') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'backup_admin_required' });
+      }
+      const current = await runtimeState.load();
+      if (current.activeLiveSessionId) {
+        return send(res, 409, { error: 'backup_restore_blocked_during_live' });
+      }
+
+      const bundle = validateLiveNodeBackup(
+        await readJsonWithLimit(req, 2 * 1024 * 1024),
+        session.binding
+      );
+      await providerRoutingStore.replace(bundle.data.routing);
+      await signalTopologyStore.replace(bundle.data.signalTopology);
+      await productionWorkspaceStore.replaceFromBackup({
+        audioProfiles: bundle.data.audioProfiles,
+        templates: bundle.data.templates,
+        organizationId: session.binding.organizationId,
+        venueId: session.binding.venueId,
+        liveSystemId: session.binding.liveSystemId
+      });
+      const state = await runtimeState.patch({
+        activeLiveSessionId: null,
+        activeSession: null,
+        activeServiceItemId: null,
+        providerObservedState: {},
+        servicePlan: bundle.data.servicePlan,
+        providerLinks: bundle.data.providerLinks,
+        scenes: bundle.data.scenes,
+        requests: []
+      });
+      return send(res, 200, {
+        restored: true,
+        backupId: bundle.manifest.backupId,
+        stateRevision: state.revision,
+        servicePlanId: state.servicePlan?.id || null
+      });
+    }
+
     if (req.method === 'POST' && url.pathname === '/local/routing') {
       if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
       const body = await readJson(req);
@@ -2018,6 +2490,133 @@ async function start(): Promise<void> {
       return send(res, 201, completed);
     }
 
+    if (req.method === 'POST' && url.pathname === '/collaboration/redeem') {
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_collaboration_redeem');
+      }
+      const candidate = body as Record<string, unknown>;
+      requireStrings(
+        candidate,
+        ['inviteId', 'secret', 'actorId', 'deviceId', 'deviceName'],
+        'invalid_collaboration_redeem'
+      );
+      const redeemed = await collaborationInviteStore.redeem({
+        inviteId: String(candidate.inviteId),
+        secret: String(candidate.secret),
+        actorId: String(candidate.actorId),
+        deviceId: String(candidate.deviceId),
+        deviceName: String(candidate.deviceName)
+      });
+      return send(res, 201, {
+        nodeId,
+        token: redeemed.token,
+        binding: redeemed.binding,
+        collaboration: redeemed.grant
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/collaboration/invites') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      if (!session.binding || session.collaboration) {
+        return send(res, 403, { error: 'collaboration_invite_admin_required' });
+      }
+
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_collaboration_invite');
+      }
+      const candidate = body as Record<string, unknown>;
+      requireStrings(
+        candidate,
+        ['liveSessionId', 'role', 'createdBy'],
+        'invalid_collaboration_invite'
+      );
+      const role = String(candidate.role) as LiveCollaborationRole;
+      if (!['pastor', 'conductor', 'viewer'].includes(role)) {
+        throw new Error('invalid_collaboration_role');
+      }
+      const liveSessionId = String(candidate.liveSessionId);
+      const runtime = await runtimeState.load();
+      const activeSessionId = runtime.activeLiveSessionId || '';
+      if (activeSessionId && activeSessionId !== liveSessionId) {
+        return send(res, 409, { error: 'collaboration_session_not_active' });
+      }
+
+      const ttlMinutesRaw = Number(candidate.ttlMinutes);
+      const maxUsesRaw = Number(candidate.maxUses);
+      const created = await collaborationInviteStore.createInvite({
+        binding: session.binding,
+        liveSessionId,
+        role,
+        createdBy: String(candidate.createdBy),
+        ...(Number.isFinite(ttlMinutesRaw)
+          ? { ttlMs: Math.max(5, Math.min(720, ttlMinutesRaw)) * 60_000 }
+          : {}),
+        ...(Number.isFinite(maxUsesRaw)
+          ? { maxUses: Math.max(1, Math.min(50, Math.floor(maxUsesRaw))) }
+          : {})
+      });
+
+      const lan = lanAddresses();
+      const socketAddress = (req.socket.localAddress || '').replace(/^::ffff:/, '');
+      const ip = lan.includes(socketAddress) ? socketAddress : (lan[0] || '127.0.0.1');
+      const joinUrl =
+        `http://${ip}:${PORT}/?collabInvite=${encodeURIComponent(created.invite.id)}&collabRole=${encodeURIComponent(created.invite.role)}#collabSecret=${encodeURIComponent(created.secret)}`;
+      const qrSvg = await qrToString(joinUrl, {
+        type: 'svg',
+        margin: 1,
+        width: 320,
+        errorCorrectionLevel: 'M'
+      });
+
+      return send(res, 201, {
+        invite: created.invite,
+        joinUrl,
+        qrSvg
+      });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/collaboration/invites') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      if (!session.binding || session.collaboration) {
+        return send(res, 403, { error: 'collaboration_invite_admin_required' });
+      }
+      const liveSessionId = String(url.searchParams.get('liveSessionId') || '').trim();
+      return send(res, 200, {
+        invites: await collaborationInviteStore.listActive(liveSessionId || undefined)
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/collaboration/revoke-session') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      if (!session.binding || session.collaboration) {
+        return send(res, 403, { error: 'collaboration_invite_admin_required' });
+      }
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_collaboration_revoke');
+      }
+      const liveSessionId = String(
+        (body as Record<string, unknown>).liveSessionId || ''
+      ).trim();
+      if (!liveSessionId) throw new Error('invalid_collaboration_revoke');
+      return send(res, 200, {
+        revoked: await collaborationInviteStore.revokeSession(liveSessionId)
+      });
+    }
+
+    const collaborationRouteSession = bearerToken(req) ? await authorize(req) : null;
+    if (
+      collaborationRouteSession?.collaboration &&
+      !collaborationRouteAllowed(req.method, url.pathname)
+    ) {
+      return send(res, 403, { error: 'collaboration_scope_forbidden' });
+    }
+
     if (req.method === 'GET' && url.pathname === '/capabilities') {
       const session = await authorize(req);
       if (!session) return send(res, 401, { error: 'unauthorized' });
@@ -2045,7 +2644,7 @@ async function start(): Promise<void> {
 
       return send(res, 200, {
         nodeId,
-        hostname: hostname(),
+        hostname: nodeDisplayName,
         providers
       });
     }
@@ -2084,17 +2683,27 @@ async function start(): Promise<void> {
             {}
         };
       });
-      const liveDrop = session.binding
+      const collaborationState = session.collaboration
+        ? {
+            ...state,
+            activeLiveSessionId: session.collaboration.liveSessionId,
+            requests: state.requests.filter(
+              item => item.liveSessionId === session.collaboration!.liveSessionId
+            )
+          }
+        : state;
+      const liveDrop = session.binding && !session.collaboration
         ? await liveDropStore.list(liveDropScopeFromSession(session))
         : [];
       return send(res, 200, {
         nodeId,
-        state,
+        state: collaborationState,
         providers,
         routing: await providerRoutingStore.all(),
-        peers: peerFederation.publicStatus(),
-        signalTopology: await signalTopologyStore.load(),
-        liveDrop
+        peers: session.collaboration ? [] : peerFederation.publicStatus(),
+        signalTopology: session.collaboration ? null : await signalTopologyStore.load(),
+        liveDrop,
+        ...(session.collaboration ? { collaboration: session.collaboration } : {})
       });
     }
 
@@ -2371,6 +2980,228 @@ async function start(): Promise<void> {
       });
     }
 
+    if (req.method === 'GET' && url.pathname === '/redundancy/status') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'redundancy_admin_required' });
+      }
+      const runtime = await runtimeState.load();
+      const fleet = (await peerFederation.scopedFleet()).filter(peer =>
+        peer.organizationId === session.binding!.organizationId &&
+        peer.venueId === session.binding!.venueId &&
+        peer.liveSystemId === session.binding!.liveSystemId
+      );
+      return send(res, 200, {
+        local: {
+          nodeId,
+          displayName: nodeDisplayName,
+          organizationId: session.binding.organizationId,
+          venueId: session.binding.venueId,
+          liveSystemId: session.binding.liveSystemId,
+          servicePlanId: runtime.servicePlan?.id || null,
+          servicePlanRevision: runtime.servicePlan?.revision || null,
+          activeLiveSessionId: runtime.activeLiveSessionId
+        },
+        peers: fleet
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/redundancy/prepare') {
+      const session = await authorize(req);
+      if (
+        !session?.binding ||
+        session.collaboration ||
+        !session.binding.deviceId.startsWith('live-node:')
+      ) {
+        return send(res, 403, { error: 'redundancy_peer_required' });
+      }
+
+      const current = await runtimeState.load();
+      if (current.activeLiveSessionId) {
+        return send(res, 409, { error: 'redundancy_target_live_active' });
+      }
+
+      const body = await readJsonWithLimit(req, 1024 * 1024);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_redundancy_prepare');
+      }
+      const candidate = body as Record<string, unknown>;
+      const plan = validateServicePlan(candidate.plan);
+      const providerLinks = validateProviderLinks(candidate.providerLinks);
+      const scenes = validateCachedScenes(candidate.scenes);
+      assertServicePlanScope(plan, session.binding);
+      assertProviderLinksScope(providerLinks, session.binding);
+      assertCachedSceneScope(scenes, session.binding);
+
+      const state = await runtimeState.patch({
+        activeLiveSessionId: null,
+        activeSession: null,
+        activeServiceItemId: null,
+        servicePlan: plan,
+        providerLinks,
+        scenes,
+        requests: []
+      });
+      return send(res, 200, {
+        nodeId,
+        servicePlanId: plan.id,
+        servicePlanRevision: plan.revision,
+        providerLinks: providerLinks.length,
+        scenes: scenes.length,
+        stateRevision: state.revision
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/redundancy/peer/prepare') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'redundancy_admin_required' });
+      }
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_redundancy_peer_prepare');
+      }
+      const remoteNodeId = String(
+        (body as Record<string, unknown>).remoteNodeId || ''
+      ).trim();
+      if (!remoteNodeId) throw new Error('peer_node_id_required');
+
+      const runtime = await runtimeState.load();
+      if (!runtime.servicePlan) {
+        return send(res, 409, { error: 'redundancy_service_plan_required' });
+      }
+
+      const prepared = await peerFederation.prepareStandby({
+        remoteNodeId,
+        plan: runtime.servicePlan,
+        providerLinks: runtime.providerLinks,
+        scenes: runtime.scenes
+      });
+      return send(res, 200, { prepared });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/redundancy/peer/inspect') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'redundancy_admin_required' });
+      }
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_redundancy_peer_inspect');
+      }
+      const remoteNodeId = String(
+        (body as Record<string, unknown>).remoteNodeId || ''
+      ).trim();
+      const local = await runtimeState.load();
+      if (!local.servicePlan) {
+        return send(res, 409, { error: 'redundancy_service_plan_required' });
+      }
+
+      const peer = await peerFederation.standbyStatus(remoteNodeId);
+      const fleetPeer = (await peerFederation.scopedFleet())
+        .find(item => item.nodeId === remoteNodeId);
+      if (!fleetPeer) throw new Error('peer_not_paired');
+
+      const decision = evaluateFailoverCandidate({
+        source: {
+          organizationId: session.binding.organizationId,
+          venueId: session.binding.venueId,
+          liveSystemId: session.binding.liveSystemId,
+          servicePlanId: local.servicePlan.id,
+          servicePlanRevision: local.servicePlan.revision
+        },
+        candidate: {
+          nodeId: remoteNodeId,
+          organizationId: fleetPeer.organizationId,
+          venueId: fleetPeer.venueId,
+          liveSystemId: fleetPeer.liveSystemId,
+          health: fleetPeer.health,
+          servicePlanId: peer.state.servicePlan?.id,
+          servicePlanRevision: peer.state.servicePlan?.revision,
+          lastSeenAt: fleetPeer.lastSeenAt
+        },
+        plan: local.servicePlan
+      });
+
+      return send(res, 200, {
+        peer: {
+          nodeId: remoteNodeId,
+          servicePlanId: peer.state.servicePlan?.id || null,
+          servicePlanRevision: peer.state.servicePlan?.revision || null,
+          activeLiveSessionId: peer.state.activeLiveSessionId
+        },
+        decision
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/redundancy/activate') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'redundancy_admin_required' });
+      }
+      const body = await readJson(req);
+      if (!body || typeof body !== 'object') {
+        throw new Error('invalid_redundancy_activation');
+      }
+      const candidate = body as Record<string, unknown>;
+      if (candidate.confirmed !== true) {
+        return send(res, 409, { error: 'redundancy_activation_confirmation_required' });
+      }
+
+      const expectedPlanId = String(candidate.servicePlanId || '').trim();
+      const expectedRevision = Number(candidate.servicePlanRevision);
+      const previousNodeId = String(candidate.previousNodeId || '').trim();
+      if (!expectedPlanId || !Number.isInteger(expectedRevision) || !previousNodeId) {
+        throw new Error('invalid_redundancy_activation');
+      }
+      if (previousNodeId === nodeId) {
+        throw new Error('redundancy_previous_node_invalid');
+      }
+
+      const runtime = await runtimeState.load();
+      if (runtime.activeLiveSessionId) {
+        return send(res, 409, { error: 'redundancy_target_live_active' });
+      }
+      if (
+        !runtime.servicePlan ||
+        runtime.servicePlan.id !== expectedPlanId ||
+        runtime.servicePlan.revision !== expectedRevision
+      ) {
+        return send(res, 409, { error: 'redundancy_plan_mismatch' });
+      }
+
+      const activatedAt = new Date().toISOString();
+      const liveSessionId = `failover:${runtime.servicePlan.id}:${Date.now()}`;
+      const commandNamespace = `failover:${runtime.servicePlan.id}:r${runtime.servicePlan.revision}`;
+      const state = await runtimeState.patch({
+        activeLiveSessionId: liveSessionId,
+        activeSession: {
+          id: liveSessionId,
+          mode: 'service',
+          label: `Failover de ${previousNodeId}`,
+          servicePlanId: runtime.servicePlan.id,
+          activatedAt,
+          activatedBy: String(candidate.actorId || 'operator')
+        },
+        activeServiceItemId: runtime.servicePlan.items[0]?.id || null
+      });
+
+      return send(res, 200, {
+        activated: true,
+        nodeId,
+        liveSessionId,
+        servicePlanId: runtime.servicePlan.id,
+        servicePlanRevision: runtime.servicePlan.revision,
+        commandNamespace,
+        sampleIdempotencyKey: failoverIdempotencyKey({
+          namespace: commandNamespace,
+          originalIdempotencyKey: 'next-command'
+        }),
+        stateRevision: state.revision,
+        automaticCommandSent: false
+      });
+    }
+
     if (req.method === 'POST' && url.pathname === '/service-plan') {
       const session = await authorize(req);
       if (!session) return send(res, 401, { error: 'unauthorized' });
@@ -2462,6 +3293,12 @@ async function start(): Promise<void> {
 
       const liveSessionId = String(url.searchParams.get('liveSessionId') || '').trim();
       if (!liveSessionId) throw new Error('invalid_live_chat_session');
+      if (
+        session.collaboration &&
+        liveSessionId !== session.collaboration.liveSessionId
+      ) {
+        return send(res, 403, { error: 'collaboration_scope_forbidden' });
+      }
       const requestedLimit = Number(url.searchParams.get('limit') || '100');
       const limit = Number.isFinite(requestedLimit)
         ? Math.max(1, Math.min(300, Math.floor(requestedLimit)))
@@ -2483,6 +3320,22 @@ async function start(): Promise<void> {
 
       const message = validateLiveChatMessage(await readJson(req));
       assertLiveChatScope(message, session.binding);
+      if (session.collaboration) {
+        const expectedSender =
+          session.collaboration.role === 'pastor'
+            ? 'pastor'
+            : session.collaboration.role === 'conductor'
+              ? 'conductor'
+              : 'team';
+        if (
+          !session.collaboration.permissions.includes('chat.write') ||
+          message.liveSessionId !== session.collaboration.liveSessionId ||
+          message.actorId !== session.collaboration.actorId ||
+          message.senderContext !== expectedSender
+        ) {
+          return send(res, 403, { error: 'collaboration_scope_forbidden' });
+        }
+      }
       await liveChatStore.append(message);
       return send(res, 201, { message });
     }
@@ -2519,7 +3372,15 @@ async function start(): Promise<void> {
       const session = await authorize(req);
       if (!session) return send(res, 401, { error: 'unauthorized' });
       const state = await runtimeState.load();
-      const liveSessionId = String(url.searchParams.get('liveSessionId') || '');
+      const requestedSessionId = String(url.searchParams.get('liveSessionId') || '');
+      if (
+        session.collaboration &&
+        requestedSessionId &&
+        requestedSessionId !== session.collaboration.liveSessionId
+      ) {
+        return send(res, 403, { error: 'collaboration_scope_forbidden' });
+      }
+      const liveSessionId = session.collaboration?.liveSessionId || requestedSessionId;
       const requests = state.requests
         .filter(item => !liveSessionId || item.liveSessionId === liveSessionId)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -2532,6 +3393,12 @@ async function start(): Promise<void> {
 
       const request = validateLiveRequest(await readJson(req));
       assertLiveRequestScope(request, session.binding);
+      if (
+        session.collaboration &&
+        !collaborationCanRequest(session.collaboration, request)
+      ) {
+        return send(res, 403, { error: 'collaboration_scope_forbidden' });
+      }
 
       const state = await runtimeState.load();
       const existing = state.requests.find(item => item.id === request.id);
@@ -2562,8 +3429,8 @@ async function start(): Promise<void> {
       const body = await readJson(req);
       if (!body || typeof body !== 'object') throw new Error('invalid_live_request_status');
       const candidate = body as Record<string, unknown>;
-      const status = String(candidate.status || '');
-      if (!['accepted','rejected','completed'].includes(status)) {
+      const status = String(candidate.status || '') as LiveRequestStatus;
+      if (!['seen','accepted','prepared','executed','rejected'].includes(status)) {
         throw new Error('invalid_live_request_status');
       }
       const resolvedBy = String(candidate.resolvedBy || '');
@@ -2573,18 +3440,28 @@ async function start(): Promise<void> {
       const current = state.requests.find(item => item.id === requestId);
       if (!current) return send(res, 404, { error: 'live_request_not_found' });
       assertLiveRequestScope(current, session.binding);
+      if (
+        session.collaboration &&
+        (
+          status !== 'rejected' ||
+          current.actorId !== session.collaboration.actorId ||
+          current.liveSessionId !== session.collaboration.liveSessionId ||
+          resolvedBy !== session.collaboration.actorId
+        )
+      ) {
+        return send(res, 403, { error: 'collaboration_scope_forbidden' });
+      }
 
       const now = new Date().toISOString();
+      let transitioned: LiveRequest;
+      try {
+        transitioned = transitionLiveRequest(current, status, resolvedBy, now);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : 'invalid_live_request_transition';
+        return send(res, 409, { error: code });
+      }
       const requests = state.requests.map(item =>
-        item.id === requestId
-          ? {
-              ...item,
-              status: status as LiveRequest['status'],
-              updatedAt: now,
-              resolvedAt: status === 'accepted' ? item.resolvedAt : now,
-              resolvedBy
-            }
-          : item
+        item.id === requestId ? transitioned : item
       );
       const next = await runtimeState.patch({ requests });
       const updatedRequest = requests.find(item => item.id === requestId);
@@ -2646,6 +3523,24 @@ async function start(): Promise<void> {
 
       const command = validateCommand(await readJson(req));
       assertCommandScope(command, session.binding);
+      if (session.collaboration) {
+        const allowedCapability =
+          (
+            command.capability === 'bible.search' &&
+            session.collaboration.permissions.includes('request.bible')
+          ) ||
+          (
+            command.capability === 'songs.search' &&
+            session.collaboration.permissions.includes('request.song')
+          );
+        if (
+          !allowedCapability ||
+          command.liveSessionId !== session.collaboration.liveSessionId ||
+          command.actorId !== session.collaboration.actorId
+        ) {
+          return send(res, 403, { error: 'collaboration_command_forbidden' });
+        }
+      }
 
       if (command.safetyLevel === 'critical' && liveEnv('CRITICAL_ACTIONS_ENABLED') !== 'true') {
         return send(res, 403, { error: 'critical_action_blocked' });
@@ -2672,10 +3567,16 @@ async function start(): Promise<void> {
     const message = error instanceof Error ? error.message : 'internal_error';
     const status =
       message === 'payload_too_large' || message === 'live_drop_file_too_large' ? 413 :
-      message === 'forbidden_scope' || message === 'live_drop_pairing_scope_required' ? 403 :
+      message === 'forbidden_scope' ||
+      message === 'live_drop_pairing_scope_required' ||
+      message === 'collaboration_scope_forbidden' ||
+      message === 'collaboration_command_forbidden' ||
+      message === 'collaboration_invite_admin_required' ? 403 :
       message === 'live_drop_asset_not_found' ? 404 :
       message === 'live_drop_file_type_not_allowed' || message === 'live_drop_content_type_mismatch' ? 415 :
       message === 'provider_link_target_missing' ? 409 :
+      message === 'collaboration_session_not_active' ||
+      message === 'collaboration_invite_exhausted' ? 409 :
       message === 'stale_service_plan' ? 409 :
       message === 'idempotency_previous_attempt_uncertain' ? 409 :
       message === 'live_drop_asset_not_ready' ||

@@ -10,14 +10,15 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --config vitest.config.ts",
     "package:sea": "npm run build && node scripts/build-sea.mjs",
-    "test:reliability": "vitest run --config vitest.config.ts test/idempotencyStore.test.ts test/runtimeStateStore.test.ts test/liveEventLogStore.test.ts test/pairingStore.test.ts test/providerConfigStore.test.ts test/secretProtector.test.ts"
+    "test:reliability": "vitest run --config vitest.config.ts test/idempotencyStore.test.ts test/runtimeStateStore.test.ts test/liveEventLogStore.test.ts test/pairingStore.test.ts test/providerConfigStore.test.ts test/secretProtector.test.ts test/productionProviderConfigStore.test.ts"
   },
   "dependencies": {
     "@millionsnest/live-domain": "0.0.1",
     "@millionsnest/live-adapter-holyrics": "0.0.1",
     "qrcode": "^1.5.4",
     "@millionsnest/live-adapter-resolume": "0.0.1",
-    "@millionsnest/live-adapter-propresenter": "0.0.1"
+    "@millionsnest/live-adapter-propresenter": "0.0.1",
+    "@millionsnest/live-adapters-production": "0.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

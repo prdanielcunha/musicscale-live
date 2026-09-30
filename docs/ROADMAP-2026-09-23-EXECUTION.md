@@ -63,9 +63,9 @@ The critical path must work without cloud, AI, or Internet after the service is 
 | Windows+iPad / Windows+Android / two-PC matrix | Packaging exists | Physical execution open |
 | Latency/error measurement | Command results/events carry latency/error; local certification JSON report implemented | Collect physical command→observed p95 and attach report |
 | CI before merge | CI exists | Keep Phase 0 reliability gate mandatory |
-| main/production protection | CI exists; repository policy is not enforced in code | Enable repository ruleset/branch protection |
-| Signed installer/update | Alpha installer exists | Certificates/notarization/update signing open |
-| Secrets in OS vault | Local-only 0600 file exists | SecretStore migration open |
+| main/production protection | CI exists; GitHub reports both branches unprotected as of 2026-09-27 | Enable repository ruleset/branch protection with repository-admin access |
+| Signed installer/update | Fail-closed Authenticode + Developer ID/notarization workflow exists | Real signing identities/certificates and target-machine trust proof remain external |
+| Secrets in OS vault | Windows DPAPI + macOS Keychain implemented and exercised in CI | Physical packaged-Node proof remains open |
 | No duplicate command after reconnect/restart | **Persistent idempotency implemented in this branch** | CI + physical restart proof |
 
 ## Acceptance evidence
@@ -82,6 +82,7 @@ Phase 0 is not closed until all are recorded:
 6. Installer/update trust chain validated on target OS.
 7. Provider credentials stored through the approved OS secret mechanism.
 8. CI required before main/production merges.
+9. Public domain compatibility contract remains explicitly versioned; current domain and adapter SDK major are v1.
 
 ---
 
@@ -156,89 +157,105 @@ Gate: untrained user completes first pairing in ≤ 5 minutes without terminal, 
 
 # Phase 4 — Exception-based preparation
 
-**Status:** BLOCKED BY PHASE 3 GATE.
+**Status:** CODE FOUNDATION IMPLEMENTED; physical timing acceptance remains behind the Phase 3 gate.
 
-Reconcile plan/playlist in background. Collapse healthy items. Match songs by normalized title/artist/version/lyrics/fingerprint/history. Explain confidence and allow safe batch confirmation. Validate media, Bible, tone/BPM metadata, routes, outputs and offline cache.
+Preparation now collapses healthy song rows by default and leaves exceptions visible. Song matching is deterministic and explainable: normalized title/artist, arrangement/version, optional lyrics fingerprint and locally confirmed history contribute to a bounded confidence score. Automatic linking is reserved for high-confidence, clearly separated candidates; uncertain candidates remain explicit operator choices with score visibility. Key/BPM continue into the prepared ServicePlan, while ProductionPreflight validates provider/routes/output/cache readiness.
 
-Gate: normal service with no exceptions prepared in ≤ 2 minutes.
+Gate remains open until a normal no-exception service is physically prepared in ≤ 2 minutes on the certified provider matrix.
 
 ---
 
 # Phase 5 — Definitive Live cockpit
 
-**Status:** BLOCKED BY PHASE 4 GATE.
+**Status:** CODE FOUNDATION IMPLEMENTED; physical operator acceptance remains behind the Phase 4 gate.
 
-First fold: NOW, NEXT, TAKE, timeline, universal search entry and compact health. Selecting always prepares NEXT; only TAKE executes. Provider observed state is the only source of NOW truth.
+The cockpit keeps NOW/NEXT/TAKE/timeline/search/health in the primary flow. Provider-observed state remains NOW truth. Selection prepares; TAKE executes. Critical TAKE paths now use a short duplicate-action fence and progressive haptic feedback where supported. Previous/Next/TAKE shortcuts are locally configurable, collision-safe and route through the same visible guarded actions.
 
-Gate: ≥ 90% normal actions require one click/key after NEXT selection; TAKE stays in the same location across supported breakpoints.
+Gate remains open: ≥ 90% normal actions require one click/key after NEXT selection; TAKE stays in the same location across supported breakpoints.
 
 ---
 
 # Phase 6 — Universal search and commands
 
-**Status:** BLOCKED BY PHASE 5 GATE.
+**Status:** LOCAL-FIRST FOUNDATION IMPLEMENTED; performance/device acceptance remains behind the Phase 5 gate.
 
-Local index first for prepared/offline content. Federate songs, Bible, media, scenes, text and deterministic commands. Search may understand aliases/typos; results never execute directly.
+A persistent browser-local index now seeds from the prepared ServicePlan, ProviderLinks, cached Scenes, approved Live Drop assets, deterministic commands and recent/frequent selections. Matching is accent-insensitive, typo-tolerant, alias-aware and boosts prepared/recent content. Local hits appear before provider/network search. Enter prepares a strong local hit; selection never executes directly. A separate TAKE executes the prepared hit, including cached scenes and deterministic commands.
 
-Gate: local-index response < 150 ms and search works with Internet unavailable.
+Gate remains open for measured p95: local-index response < 150 ms and search works with Internet unavailable.
 
 ---
 
 # Phase 7 — Collaboration during service
 
-**Status:** BLOCKED BY PHASE 6 GATE.
+**Status:** CODE FOUNDATION IMPLEMENTED; realtime multi-device acceptance remains behind the Phase 6 gate.
 
-Temporary role QR sessions, structured requests, presence, contextual comments and a state machine:
+The collaboration contract now uses the explicit request lifecycle:
 
 `sent → seen → accepted → prepared → executed | rejected`.
 
-Gate: requests never reach air without policy + preparation + TAKE; all participants observe the same request status.
+Node, cloud sync and Firestore rules validate allowed transitions instead of trusting UI state. Song/Bible/media/message/section requests remain requests only: the operator must accept, prepare and use TAKE before output changes. Urgent priority is controlled, comments can stay attached to the related request/service item, and temporary pastor/conductor role sessions use expiring least-privilege grants with local QR join support.
+
+Gate remains open for physical multi-device proof: temporary sessions expire at service end/TTL, participants converge on the same request state in realtime, and no request reaches air without policy + preparation + TAKE.
 
 ---
 
 # Phase 8 — Controlled AI
 
-**Status:** BLOCKED BY PHASE 7 GATE.
+**Status:** SERVER GATEWAY + EXPLAINABLE UI FOUNDATION IMPLEMENTED; provider-secret rollout and feature acceptance remain behind the Phase 7 gate.
 
-Create a server-side AI Gateway with structured schema validation, timeout, cache, redaction, audit, per-organization budget, circuit breaker and deterministic fallback. Model choice is benchmark-driven and may change without affecting domain contracts.
+The AI path is server-only and provider-neutral from the Live PWA perspective. The backend validates Firebase identity and MusicScale organization access, redacts obvious PII/secrets, validates structured JSON output, applies an 8-second default timeout, short-lived cache, per-organization monthly request budget, circuit breaker, deterministic fallback and an audit record with model/token/latency/estimated-cost metadata. The browser never receives the model API key.
 
-Allowed first uses: diagnostic explanation, song matching assistance, request classification/deduplication, natural-language search preparation, metadata normalization and post-service summary.
+The current default is Gemini 3.5 Flash-Lite, with Gemini 3.8 Flash reserved for larger/complex inputs. Both model names remain environment-configurable so the domain contract does not depend on a model generation.
 
-Forbidden: AI executing TAKE, authorizing users, or asserting what is on air.
+The first visible assist surfaces explain deterministic diagnostics, pre-service rehearsal risks and post-service facts. The gateway contract also supports song-match assistance, request classification/deduplication, natural-language search interpretation and metadata normalization without giving AI authority to mutate Live state.
+
+Forbidden by code/prompt contract: AI executing TAKE, authorizing users, manufacturing provider state, or asserting what is on air without supplied observed evidence.
+
+Gate remains open until the production model credential is provisioned server-side, organization budgets are exercised, fallback is verified with the provider unavailable, and outputs are acceptance-tested in PT/EN/ES.
 
 ---
 
 # Phase 9 — Smart rehearsal
 
-**Status:** DETERMINISTIC ZERO-WRITE FOUNDATION IMPLEMENTED BEHIND FEATURE FLAG; activation remains BLOCKED BY PHASE 8 GATE.
+**Status:** DETERMINISTIC ZERO-WRITE REHEARSAL + VOLUNTEER TRAINING FOUNDATION IMPLEMENTED BEHIND FEATURE FLAG; safe-output/physical acceptance remains gated.
 
-The full prepared ServicePlan can now be simulated in pure domain code without calling any provider. The simulator validates item identity, offline provider links, provider health/capabilities, route ambiguity/invalid targets, cached scenes, scene action targets and output declarations. Studio can surface the report behind `VITE_LIVE_SMART_REHEARSAL`, and the report contract explicitly records `simulatedCommands: 0`.
+The full prepared ServicePlan can be simulated in pure domain code without calling any provider. The simulator validates item identity, offline provider links, provider health/capabilities, route ambiguity/invalid targets, cached scenes, scene action targets, output declarations and known offline-media cache identity/readiness. Explicit media references that are absent from the local cache are blockers; remote-only references without a verified local identity remain warnings rather than invented facts.
 
-A later, separately armed safe-output rehearsal may be added only after the preceding gates are certified. It must remain distinct from this zero-write simulation.
+Studio surfaces the report behind `VITE_LIVE_SMART_REHEARSAL`, records `simulatedCommands: 0`, and now includes a volunteer training mode that walks the prepared service item-by-item while preserving zero writes to providers.
 
-Gate remains open: every detectable blocker appears before Live and simulation emits zero real commands.
+A separately armed safe-output rehearsal may execute only after the preceding physical gates are certified and must remain distinct from zero-write simulation/training.
+
+Gate remains open for real-device proof: every detectable blocker is surfaced before Live, simulation/training emit zero provider commands, and any later safe-output rehearsal is verified on the certified output matrix.
 
 ---
 
 # Phase 10 — Post-service review
 
-**Status:** FACTUAL REVIEW FOUNDATION IMPLEMENTED BEHIND FEATURE FLAG; activation remains BLOCKED BY PHASE 9 GATE.
+**Status:** FACTUAL REVIEW, CORRECTION ACTIONS AND NEXT-SERVICE DRAFT FOUNDATION IMPLEMENTED BEHIND FEATURE FLAG; physical/retention acceptance remains gated.
 
-A pure domain review now compares the prepared ServicePlan with immutable Live Node events. It distinguishes executed items, items explicitly marked skipped, and items that were simply **not observed** — avoiding the false assumption that absence of an event means the operator intentionally skipped something. It also reports ad-hoc run-of-show actions, request terminal states, provider failures, event origins and provider latency facts. The Studio surface is available behind `VITE_LIVE_SERVICE_REVIEW`.
+The pure domain review compares the prepared ServicePlan with immutable Live Node events. It distinguishes executed items, items explicitly marked skipped, and items that were simply **not observed**. It reports ad-hoc run-of-show actions, the Phase 7 request lifecycle, provider failures, event origins and provider latency facts.
 
-This foundation deliberately does not infer motive, cause or responsibility. Later setup-task generation must remain evidence-backed.
+Planned duration is compared only with factual event windows when enough timestamps exist; missing timing evidence remains unknown. Provider failures become deterministic correction actions, and elevated provider-response p95 is explicitly labeled as a provider-response signal rather than the full command-to-observed latency gate.
 
-Gate remains open: review is immediately available after session close, factual, and respects retention/organization permissions.
+Studio can create an explicit next-service local draft from the reviewed plan only after the operator supplies the next date/time. The clone receives a fresh plan/item identity, revision 1, planned item states and provenance metadata, while preserving known provider links for later review. It is blocked while a Live session is active. The Studio surface remains behind `VITE_LIVE_SERVICE_REVIEW`.
+
+The review deliberately does not infer motive, cause or responsibility. AI may summarize these facts behind its separate guardrail but cannot change the report or execute remediation.
+
+Gate remains open: review availability after session close, retention/organization permission validation and physical confirmation of correction usefulness.
 
 ---
 
 # Phase 11 — Production ecosystem
 
-**Status:** BLOCKED BY PHASE 10 GATE.
+**Status:** SOFTWARE FOUNDATION IMPLEMENTED; physical/provider acceptance remains behind the Phase 10 gate.
 
-Add OBS, Companion, OSC, MIDI, ATEM, vMix and Art-Net/DMX through adapters/capabilities only; Audio Profiles and human aliases; adapter SDK; controlled templates/marketplace; backup/restore; Live Node redundancy; fleet/multi-venue operations.
+A vendor-neutral adapter SDK now defines transport, capabilities, setup schema, observed-state fields and local-secret policy without adding vendor conditionals to the core capability domain. The production adapter workspace provides OBS WebSocket and vMix HTTP clients, direct OSC and Art-Net/DMX UDP transports, and explicit local bridge contracts for Companion, MIDI and ATEM. Every adapter still executes through the same ProviderAdapter/CapabilityEngine path used by the core providers.
 
-Gate: new adapters require no vendor conditionals in core domain; failover keeps plan and does not duplicate commands; fleet remains tenant isolated.
+Production provider configuration is stored only on the Live Node, restricts network targets to loopback/private LAN, and protects secret fields with the existing OS-vault abstraction. Studio now has a production workspace for Audio Profiles/human aliases, reusable production templates, secret-free checksummed backup/restore, standby preparation, manual failover and tenant-scoped local/cloud fleet visibility. Direct client writes can submit templates for review but cannot self-approve marketplace publication.
+
+Redundancy deliberately remains operator-confirmed. Standby preparation copies the exact ServicePlan revision, provider links and scenes but does not start a Live session or send provider commands. Failover activation requires an exact plan/revision match and explicit confirmation and sends zero automatic provider commands.
+
+Gate remains open for hardware evidence: each production adapter must be exercised against supported real vendor versions; failover must be proven on two physical Nodes without a duplicate output action; multi-venue fleet isolation must be verified with real tenant accounts; audio aliases/templates/backup restore must pass operator acceptance.
 
 ---
 
