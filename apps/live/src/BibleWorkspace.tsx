@@ -1481,53 +1481,102 @@ export function BibleWorkspace({
 
           {pickerOpen && (
             <div className="bible-reference-picker-body">
-              <div className="bible-reference-picker-fields">
-                <label>
-                  <span>{t('bibleWorkspace.picker.book')}</span>
-                  <select
-                    value={pickerBookId}
-                    onChange={event => {
-                      setPickerBookId(event.target.value);
-                      setPickerChapter('1');
-                    }}
-                    disabled={booksLoading || busy !== null}
-                  >
-                    {books.map(book => (
-                      <option key={book.id} value={book.id}>
-                        {book.name}{book.abbrev && book.abbrev !== book.name ? ` · ${book.abbrev}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>{t('bibleWorkspace.picker.chapter')}</span>
-                  <input
-                    type="number"
-                    min="1"
-                    inputMode="numeric"
-                    value={pickerChapter}
-                    onChange={event => setPickerChapter(event.target.value)}
-                    onKeyDown={event => {
-                      if (event.key === 'Enter') void loadPickerChapter();
-                    }}
-                    disabled={busy !== null}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="primary bible-reference-picker-load"
-                  disabled={
-                    busy !== null ||
-                    !pickerBook ||
-                    !Number.isFinite(pickerChapterNumber) ||
-                    pickerChapterNumber <= 0
-                  }
-                  onClick={() => void loadPickerChapter()}
-                >
-                  {busy === 'chapter'
-                    ? t('bibleWorkspace.loadingChapter')
-                    : t('bibleWorkspace.picker.loadChapter')}
-                </button>
+              <div className="bible-holyrics-picker">
+                <section className="bible-picker-panel bible-picker-books">
+                  <header>
+                    <span>{t('bibleWorkspace.picker.book')}</span>
+                    <small>{t('bibleWorkspace.picker.bookHint')}</small>
+                  </header>
+                  <div className="bible-book-grid" aria-label={t('bibleWorkspace.picker.book')}>
+                    {books.map(book => {
+                      const active = book.id === pickerBookId;
+                      return (
+                        <button
+                          key={book.id}
+                          type="button"
+                          className={[
+                            'bible-book-tile',
+                            bibleBookGroup(book),
+                            active ? 'active' : ''
+                          ].filter(Boolean).join(' ')}
+                          disabled={booksLoading || busy !== null}
+                          onClick={() => {
+                            setPickerBookId(book.id);
+                            setPickerChapter('1');
+                            setMessage(null);
+                          }}
+                        >
+                          <strong>{book.abbrev || book.name}</strong>
+                          <small>{book.name}</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section className="bible-picker-panel bible-picker-chapters">
+                  <header>
+                    <span>{t('bibleWorkspace.picker.chapter')}</span>
+                    <small>
+                      {pickerBook
+                        ? t('bibleWorkspace.picker.chapterHint', {
+                            book: pickerBook.name,
+                            count: pickerChapterCount
+                          })
+                        : t('bibleWorkspace.picker.chooseBook')}
+                    </small>
+                  </header>
+
+                  {pickerBook && pickerChapters.length > 0 && (
+                    <div className="bible-chapter-grid" aria-label={t('bibleWorkspace.picker.chapter')}>
+                      {pickerChapters.map(chapter => (
+                        <button
+                          key={chapter}
+                          type="button"
+                          className={chapter === pickerChapterNumber ? 'active' : ''}
+                          disabled={busy !== null}
+                          onClick={() => void selectPickerChapter(pickerBook, chapter)}
+                        >
+                          {chapter}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="bible-chapter-direct">
+                    <label>
+                      <span>{t('bibleWorkspace.picker.chapterDirect')}</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max={pickerChapterCount || undefined}
+                        inputMode="numeric"
+                        value={pickerChapter}
+                        onChange={event => setPickerChapter(event.target.value)}
+                        onKeyDown={event => {
+                          if (event.key === 'Enter') void loadPickerChapter();
+                        }}
+                        disabled={busy !== null || !pickerBook}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="primary bible-reference-picker-load"
+                      disabled={
+                        busy !== null ||
+                        !pickerBook ||
+                        !Number.isFinite(pickerChapterNumber) ||
+                        pickerChapterNumber <= 0 ||
+                        (pickerChapterCount > 0 && pickerChapterNumber > pickerChapterCount)
+                      }
+                      onClick={() => void loadPickerChapter()}
+                    >
+                      {busy === 'chapter'
+                        ? t('bibleWorkspace.loadingChapter')
+                        : t('bibleWorkspace.picker.loadChapter')}
+                    </button>
+                  </div>
+                </section>
               </div>
 
               {booksLoading && !books.length && (
