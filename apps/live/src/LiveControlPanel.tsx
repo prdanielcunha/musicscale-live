@@ -1593,17 +1593,17 @@ export function LiveControlPanel({
               : 'song';
 
     if (inferredScope === 'bible') {
-      setToolMode('bible');
+      openTool('bible');
       setBibleCommand({ text: query, nonce: Date.now() });
       return;
     }
     if (inferredScope === 'media') {
-      setToolMode('media');
+      openTool('media');
       await searchMedia(query);
       return;
     }
     if (inferredScope === 'text') {
-      setToolMode('text');
+      openTool('text');
       setTextQuery(query);
       if (requested === 'aviso' || requested === 'announcement') {
         await loadAnnouncements(true);
@@ -1614,7 +1614,7 @@ export function LiveControlPanel({
       }
       return;
     }
-    setToolMode('song');
+    openTool('song');
     await searchSongs(query);
   }
 
@@ -1646,6 +1646,40 @@ export function LiveControlPanel({
     }
     setClearArmed(false);
     void run('clear', 'presentation.clear', {}, 'guarded', undefined, undefined, true);
+  }
+
+  async function syncServicePlaylist() {
+    if (!playlistSyncPlan.ready || busy !== null) return;
+
+    if (!playlistSyncArmed) {
+      setPlaylistSyncArmed(true);
+      setMessage(t('liveControls.playlistSyncReplaceWarning', {
+        provider: playlistSyncPlan.providerName || t('liveControls.connectedApp')
+      }));
+      if (playlistSyncTimer.current) window.clearTimeout(playlistSyncTimer.current);
+      playlistSyncTimer.current = window.setTimeout(() => {
+        setPlaylistSyncArmed(false);
+        setMessage(null);
+      }, 6000);
+      return;
+    }
+
+    setPlaylistSyncArmed(false);
+    if (playlistSyncTimer.current) window.clearTimeout(playlistSyncTimer.current);
+    const results = await run(
+      'playlist-sync',
+      'playlist.sync',
+      { ids: playlistSyncPlan.ids },
+      'guarded',
+      undefined,
+      [playlistSyncPlan.providerId],
+      true
+    );
+    if (results.length > 0 && results.every(result => result.accepted)) {
+      setMessage(t('liveControls.playlistSyncSuccess', {
+        provider: playlistSyncPlan.providerName || t('liveControls.connectedApp')
+      }));
+    }
   }
 
   const currentPresentationProviderId = providers.find(provider => {
@@ -1984,7 +2018,7 @@ export function LiveControlPanel({
               aria-selected={toolMode === mode}
               className={toolMode === mode ? 'active' : ''}
               disabled={!toolAvailability[mode]}
-              onClick={() => setToolMode(mode)}
+              onClick={() => openTool(mode)}
             >
               <span>{t(`liveControls.toolTabs.${mode}`)}</span>
               <small>{toolAvailability[mode] ? t('liveControls.available') : t('liveControls.unavailable')}</small>
@@ -2417,7 +2451,28 @@ export function LiveControlPanel({
                 <small>{t('liveControls.fullRunOfShow')}</small>
                 <strong>{servicePlan.title}</strong>
               </div>
-              <span>{t('liveControls.runOfShowHint')}</span>
+              <div className="service-plan-head-actions">
+                <span>{t('liveControls.runOfShowHint')}</span>
+                {playlistSyncPlan.hasSongs && (
+                  <button
+                    type="button"
+                    className={playlistSyncArmed ? 'playlist-sync armed' : 'playlist-sync'}
+                    disabled={!playlistSyncPlan.ready || busy !== null}
+                    title={!playlistSyncPlan.ready
+                      ? t(`liveControls.playlistSyncReasons.${playlistSyncPlan.reason}`)
+                      : t('liveControls.playlistSyncHint', {
+                          provider: playlistSyncPlan.providerName || t('liveControls.connectedApp')
+                        })}
+                    onClick={() => void syncServicePlaylist()}
+                  >
+                    {playlistSyncArmed
+                      ? t('liveControls.playlistSyncConfirm')
+                      : t('liveControls.playlistSync', {
+                          provider: playlistSyncPlan.providerName || t('liveControls.connectedApp')
+                        })}
+                  </button>
+                )}
+              </div>
             </header>
             <div className="service-plan-timeline-rail">
               {servicePlan.items.map((item, index) => {
@@ -2473,6 +2528,7 @@ export function LiveControlPanel({
           </section>
         ) : null}
 
+        <span ref={toolSurfaceRef} className="live-tool-anchor" aria-hidden="true" />
         {toolMode === 'song' && toolAvailability.song && (
         <article className="operator-card live-tool-card song-library-card">
           <div className="operator-card-head">
