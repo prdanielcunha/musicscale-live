@@ -1087,6 +1087,19 @@ const resources = {
       prepareItem: 'Preparar próximo',
       fullRunOfShow: 'ROTEIRO COMPLETO',
       runOfShowHint: '1 toque prepara · toque novamente para colocar no ar',
+      connectedApp: 'aplicativo conectado',
+      playlistSync: 'Sincronizar com {{provider}}',
+      playlistSyncConfirm: 'Confirmar substituição',
+      playlistSyncHint: 'Substitui a playlist atual de {{provider}} pela ordem das músicas deste culto.',
+      playlistSyncReplaceWarning: 'A playlist atual de {{provider}} será substituída pela ordem deste culto. Toque novamente para confirmar.',
+      playlistSyncSuccess: 'Playlist sincronizada com {{provider}}.',
+      playlistSyncReasons: {
+        no_songs: 'Este roteiro não possui músicas para sincronizar.',
+        unresolved: 'Vincule todas as músicas deste culto antes de sincronizar a playlist.',
+        multiple_providers: 'As músicas deste culto estão vinculadas a aplicativos diferentes. Escolha um único destino para a playlist.',
+        provider_offline: 'O aplicativo que recebe a playlist está desconectado.',
+        capability_missing: 'A conexão atual não autorizou edição da playlist. Revise as permissões do aplicativo conectado.'
+      },
       serviceMediaLiveDrop: 'Live Drop · arquivo local preparado',
       serviceItemUnavailable: 'Este item do roteiro ainda precisa de uma integração compatível para ser executado: {{type}}.',
       serviceItemNeedsSetup: 'Precisa configurar',
@@ -1181,8 +1194,11 @@ const resources = {
       errors: {
         ambiguous_provider_route: 'Há mais de um provider capaz de executar esta ação. Escolha o principal no painel local do Live Node.',
         configured_provider_route_unavailable: 'O provider escolhido para esta função está indisponível. Verifique-o no computador do Live Node.',
-        no_provider_for_capability: 'Nenhum provider conectado consegue executar esta ação agora.',
-        provider_timeout: 'O provider demorou demais para responder. O estado não foi assumido como concluído.'
+        no_provider_for_capability: 'Nenhum aplicativo conectado consegue executar esta ação agora.',
+        provider_timeout: 'O aplicativo conectado demorou demais para responder. O Live não assumiu que a ação foi concluída.',
+        capability_not_supported: 'O aplicativo conectado não oferece esta ação com a versão ou permissões atuais. Nada foi alterado no telão.',
+        provider_error: 'O aplicativo conectado recusou a ação. Confira a conexão antes de tentar novamente.',
+        permission_denied: 'Esta conexão não tem permissão para executar a ação solicitada.'
       }
     },
     liveContext: {
@@ -2528,6 +2544,19 @@ const resources = {
       prepareItem: 'Prepare next',
       fullRunOfShow: 'FULL RUN OF SHOW',
       runOfShowHint: 'One tap prepares · tap again to put it on air',
+      connectedApp: 'connected app',
+      playlistSync: 'Sync with {{provider}}',
+      playlistSyncConfirm: 'Confirm replacement',
+      playlistSyncHint: 'Replaces the current {{provider}} playlist with this service song order.',
+      playlistSyncReplaceWarning: 'The current {{provider}} playlist will be replaced with this service order. Tap again to confirm.',
+      playlistSyncSuccess: 'Playlist synced with {{provider}}.',
+      playlistSyncReasons: {
+        no_songs: 'This run of show has no songs to sync.',
+        unresolved: 'Link every song in this service before syncing the playlist.',
+        multiple_providers: 'Songs in this service are linked to different apps. Choose one playlist destination.',
+        provider_offline: 'The app that receives the playlist is disconnected.',
+        capability_missing: 'The current connection did not authorize playlist editing. Review the connected app permissions.'
+      },
       serviceMediaLiveDrop: 'Live Drop · local file prepared',
       serviceItemUnavailable: 'This run-of-show item still needs a compatible integration before it can execute: {{type}}.',
       serviceItemNeedsSetup: 'Needs setup',
@@ -2622,8 +2651,11 @@ const resources = {
       errors: {
         ambiguous_provider_route: 'More than one provider can execute this action. Choose the primary provider in the Live Node local console.',
         configured_provider_route_unavailable: 'The provider selected for this function is unavailable. Check it on the Live Node computer.',
-        no_provider_for_capability: 'No connected provider can execute this action right now.',
-        provider_timeout: 'The provider took too long to respond. Live did not assume the action completed.'
+        no_provider_for_capability: 'No connected app can execute this action right now.',
+        provider_timeout: 'The connected app took too long to respond. Live did not assume the action completed.',
+        capability_not_supported: 'The connected app does not offer this action with the current version or permissions. Nothing was changed on air.',
+        provider_error: 'The connected app refused the action. Check the connection before trying again.',
+        permission_denied: 'This connection is not allowed to perform the requested action.'
       }
     },
     liveContext: {
@@ -3969,6 +4001,19 @@ const resources = {
       prepareItem: 'Preparar siguiente',
       fullRunOfShow: 'GUIÓN COMPLETO',
       runOfShowHint: '1 toque prepara · toque otra vez para poner al aire',
+      connectedApp: 'aplicación conectada',
+      playlistSync: 'Sincronizar con {{provider}}',
+      playlistSyncConfirm: 'Confirmar reemplazo',
+      playlistSyncHint: 'Reemplaza la playlist actual de {{provider}} por el orden de canciones de este culto.',
+      playlistSyncReplaceWarning: 'La playlist actual de {{provider}} será reemplazada por el orden de este culto. Toque otra vez para confirmar.',
+      playlistSyncSuccess: 'Playlist sincronizada con {{provider}}.',
+      playlistSyncReasons: {
+        no_songs: 'Este guion no tiene canciones para sincronizar.',
+        unresolved: 'Vincule todas las canciones de este culto antes de sincronizar la playlist.',
+        multiple_providers: 'Las canciones de este culto están vinculadas a aplicaciones diferentes. Elija un único destino para la playlist.',
+        provider_offline: 'La aplicación que recibe la playlist está desconectada.',
+        capability_missing: 'La conexión actual no autorizó editar la playlist. Revise los permisos de la aplicación conectada.'
+      },
       serviceMediaLiveDrop: 'Live Drop · archivo local preparado',
       serviceItemUnavailable: 'Este ítem del guion todavía necesita una integración compatible para ejecutarse: {{type}}.',
       serviceItemNeedsSetup: 'Requiere configuración',
@@ -4063,8 +4108,11 @@ const resources = {
       errors: {
         ambiguous_provider_route: 'Más de un provider puede ejecutar esta acción. Elija el principal en la consola local del Live Node.',
         configured_provider_route_unavailable: 'El provider elegido para esta función no está disponible. Revíselo en el computador del Live Node.',
-        no_provider_for_capability: 'Ningún provider conectado puede ejecutar esta acción ahora.',
-        provider_timeout: 'El provider tardó demasiado en responder. Live no asumió que la acción se completó.'
+        no_provider_for_capability: 'Ninguna aplicación conectada puede ejecutar esta acción ahora.',
+        provider_timeout: 'La aplicación conectada tardó demasiado en responder. Live no asumió que la acción se completó.',
+        capability_not_supported: 'La aplicación conectada no ofrece esta acción con la versión o los permisos actuales. No se cambió nada en pantalla.',
+        provider_error: 'La aplicación conectada rechazó la acción. Revise la conexión antes de intentarlo de nuevo.',
+        permission_denied: 'Esta conexión no tiene permiso para ejecutar la acción solicitada.'
       }
     },
     liveContext: {
