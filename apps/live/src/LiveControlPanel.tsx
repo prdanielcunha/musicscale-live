@@ -364,7 +364,10 @@ export function LiveControlPanel({
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [clearArmed, setClearArmed] = useState(false);
+  const [playlistSyncArmed, setPlaylistSyncArmed] = useState(false);
   const clearTimer = useRef<number | null>(null);
+  const playlistSyncTimer = useRef<number | null>(null);
+  const toolSurfaceRef = useRef<HTMLSpanElement | null>(null);
   const previewRequestSignature = useRef<string>('');
   const slideRailRef = useRef<HTMLDivElement | null>(null);
   const sectionRailRef = useRef<HTMLDivElement | null>(null);
@@ -432,6 +435,11 @@ export function LiveControlPanel({
   }, [providers]);
 
   const can = (capability: Capability) => capabilitySet.has(capability);
+  const providerSupports = (providerId: string, capability: Capability) => providers.some(provider =>
+    provider.providerId === providerId &&
+    (provider.health === 'online' || provider.health === 'degraded') &&
+    provider.capabilities.includes(capability)
+  );
   const canPreviewSnapshot = capabilitySet.has('preview.snapshot');
   const canBackgroundRead = capabilitySet.has('presentation.background.read');
   const canBackgroundSet = capabilitySet.has('presentation.background.set');
@@ -444,6 +452,60 @@ export function LiveControlPanel({
   const presentationRouteMissing =
     presentationProviders.length > 1 &&
     !controller.nodeState?.routing?.presentation;
+
+  const playlistSyncPlan = useMemo(() => {
+    const songItems = servicePlan?.items.filter(item => item.type === 'song') || [];
+    if (!songItems.length) {
+      return {
+        hasSongs: false,
+        ready: false,
+        providerId: '',
+        providerName: '',
+        ids: [] as string[],
+        reason: 'no_songs'
+      };
+    }
+
+    const links = songItems.map(item =>
+      item.providerLinkId
+        ? providerLinks.find(link => link.id === item.providerLinkId) || null
+        : null
+    );
+    const complete = links.every((link): link is ProviderLink => Boolean(link?.externalId));
+    const providerIds = new Set(
+      links
+        .filter((link): link is ProviderLink => Boolean(link))
+        .map(link => link.providerInstanceId)
+    );
+    const providerId = providerIds.size === 1 ? [...providerIds][0]! : '';
+    const provider = providerId
+      ? providers.find(candidate => candidate.providerId === providerId)
+      : undefined;
+    const providerReady = Boolean(
+      provider &&
+      (provider.health === 'online' || provider.health === 'degraded') &&
+      provider.capabilities.includes('playlist.sync')
+    );
+
+    return {
+      hasSongs: true,
+      ready: complete && providerIds.size === 1 && providerReady,
+      providerId,
+      providerName: provider?.displayName || provider?.providerKey || '',
+      ids: complete ? links.map(link => link.externalId) : [],
+      reason: !complete
+        ? 'unresolved'
+        : providerIds.size !== 1
+          ? 'multiple_providers'
+          : !provider
+            ? 'provider_offline'
+            : !provider.capabilities.includes('playlist.sync')
+              ? 'capability_missing'
+              : provider.health !== 'online' && provider.health !== 'degraded'
+                ? 'provider_offline'
+                : ''
+    };
+  }, [providerLinks, providers, servicePlan]);
 
   const commandFailure = (code: string) => t(
     `liveControls.errors.${code}`,
@@ -471,7 +533,23 @@ export function LiveControlPanel({
     setSelectedBackground(null);
     setMessage(null);
     setClearArmed(false);
+    setPlaylistSyncArmed(false);
   }, [liveSessionId]);
+
+  useEffect(() => () => {
+    if (clearTimer.current) window.clearTimeout(clearTimer.current);
+    if (playlistSyncTimer.current) window.clearTimeout(playlistSyncTimer.current);
+  }, []);
+
+  function openTool(mode: ToolMode) {
+    setToolMode(mode);
+    window.requestAnimationFrame(() => {
+      toolSurfaceRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    });
+  }
 
   useEffect(() => {
     if (toolAvailability[toolMode]) return;
