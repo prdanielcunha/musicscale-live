@@ -798,9 +798,9 @@ export function LiveControlPanel({
 
   function buildServiceItemCue(item: ServiceItem): PreparedProgramCue | null {
     if (item.type === 'song') {
-      if (!item.providerLinkId || !can('songs.present')) return null;
+      if (!item.providerLinkId) return null;
       const link = providerLinks.find(candidate => candidate.id === item.providerLinkId);
-      if (!link) return null;
+      if (!link || !providerSupports(link.providerInstanceId, 'songs.present')) return null;
       return {
         id: `service-item:${item.id}`,
         kind: 'song',
@@ -814,8 +814,11 @@ export function LiveControlPanel({
     }
 
     if (item.type === 'bible') {
-      if (!can('bible.present')) return null;
       const payload = item.payload || {};
+      const providerId = String(payload.providerId || '').trim();
+      if (providerId
+        ? !providerSupports(providerId, 'bible.present')
+        : !can('bible.present')) return null;
       const ids = Array.isArray(payload.ids)
         ? payload.ids.map(String).filter(Boolean)
         : [];
@@ -835,18 +838,18 @@ export function LiveControlPanel({
           ...(ids.length ? { ids } : { references: reference }),
           ...(payload.version ? { version: String(payload.version) } : {})
         },
-        targetProviderIds: payload.providerId
-          ? [String(payload.providerId)]
-          : undefined,
+        targetProviderIds: providerId ? [providerId] : undefined,
         serviceItemId: item.id
       };
     }
 
     if (item.type === 'video' || item.type === 'image' || item.type === 'audio') {
-      if (!can('media.open')) return null;
       const payload = item.payload || {};
       const source = String(payload.source || 'provider');
       const providerId = String(payload.providerId || '').trim();
+      if (providerId
+        ? !providerSupports(providerId, 'media.open')
+        : !can('media.open')) return null;
 
       if (source === 'live-drop') {
         const assetId = String(payload.assetId || '').trim();
@@ -891,7 +894,10 @@ export function LiveControlPanel({
 
       if (source === 'quick-text') {
         const text = String(payload.text || '').trim();
-        if (!text || !can('text.quick.present')) return null;
+        const canPresentQuick = providerId
+          ? providerSupports(providerId, 'text.quick.present')
+          : can('text.quick.present');
+        if (!text || !canPresentQuick) return null;
         return {
           id: `service-item:${item.id}`,
           kind: 'text',
@@ -905,7 +911,10 @@ export function LiveControlPanel({
       }
 
       const id = String(payload.id || '').trim();
-      if (!id || !can('text.present')) return null;
+      const canPresentText = providerId
+        ? providerSupports(providerId, 'text.present')
+        : can('text.present');
+      if (!id || !canPresentText) return null;
       return {
         id: `service-item:${item.id}`,
         kind: 'text',
@@ -919,12 +928,14 @@ export function LiveControlPanel({
     }
 
     if (item.type === 'announcement') {
-      if (!can('announcement.present')) return null;
       const payload = item.payload || {};
       const id = String(payload.id || '').trim();
       const name = String(payload.name || item.title || '').trim();
       const providerId = String(payload.providerId || '').trim();
-      if (!id && !name) return null;
+      const canPresentAnnouncement = providerId
+        ? providerSupports(providerId, 'announcement.present')
+        : can('announcement.present');
+      if (!canPresentAnnouncement || (!id && !name)) return null;
       return {
         id: `service-item:${item.id}`,
         kind: 'announcement',
@@ -960,7 +971,10 @@ export function LiveControlPanel({
   async function playServiceSong(item: ServiceItem) {
     if (item.type !== 'song' || !item.providerLinkId || busy !== null) return;
     const link = providerLinks.find(candidate => candidate.id === item.providerLinkId);
-    if (!link) return;
+    if (!link || !providerSupports(link.providerInstanceId, 'songs.present')) {
+      setMessage(t('liveControls.serviceItemUnavailable', { type: item.type }));
+      return;
+    }
     const results = await run(
       `service-song-now:${item.id}`,
       'songs.present',
