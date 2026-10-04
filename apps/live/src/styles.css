@@ -2896,7 +2896,7 @@ img,video,canvas,svg{max-width:100%}
     display:grid;place-items:center;width:24px;height:22px;color:#b3a8f4;font-size:16px;font-weight:820;
   }
   .live-smart-dock-shortcut>small{
-    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:750;
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:750;
   }
   .live-smart-dock-shortcut.active{
     border-color:rgba(124,92,255,.28);background:rgba(124,92,255,.10);color:#ddd8ff;
@@ -2910,7 +2910,7 @@ img,video,canvas,svg{max-width:100%}
   }
   .live-smart-dock-primary>span{min-width:0}
   .live-smart-dock-primary small{
-    display:block;color:rgba(255,255,255,.72);font-size:9px;font-weight:850;letter-spacing:.08em;
+    display:block;color:rgba(255,255,255,.72);font-size:12px;font-weight:850;letter-spacing:.06em;
   }
   .live-smart-dock-primary strong{
     display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -2936,7 +2936,7 @@ img,video,canvas,svg{max-width:100%}
     padding:5px;border-radius:16px;
   }
   .live-smart-dock-shortcut{min-height:54px;border-radius:11px}
-  .live-smart-dock-shortcut>small{font-size:9px}
+  .live-smart-dock-shortcut>small{font-size:12px}
   .live-smart-dock-primary{min-height:54px;padding:7px 8px 7px 10px;border-radius:11px}
-  .live-smart-dock-primary strong{font-size:11px}
+  .live-smart-dock-primary strong{font-size:12px}
 }
