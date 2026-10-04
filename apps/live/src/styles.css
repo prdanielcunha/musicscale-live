@@ -2870,3 +2870,73 @@ img,video,canvas,svg{max-width:100%}
   .bible-chapter-direct{grid-template-columns:1fr}
   .bible-chapter-direct .bible-reference-picker-load{width:100%}
 }
+
+
+/* Touch-first operator dock: the most important action is always one thumb away. */
+.live-service-anchor{display:block;height:1px;scroll-margin-top:86px}
+.live-smart-dock{display:none}
+@media (pointer:coarse), (max-width:820px){
+  .live-control-panel.touch-primary{padding-bottom:118px}
+  .live-smart-dock{
+    position:fixed;left:50%;bottom:max(8px,env(safe-area-inset-bottom));z-index:70;
+    transform:translateX(-50%);
+    display:grid;grid-template-columns:58px 58px 58px minmax(154px,1fr);gap:6px;
+    width:min(760px,calc(100vw - 16px));padding:7px;
+    border:1px solid rgba(255,255,255,.08);border-radius:18px;
+    background:linear-gradient(180deg,rgba(22,22,31,.94),rgba(10,11,16,.97));
+    backdrop-filter:blur(20px) saturate(1.25);-webkit-backdrop-filter:blur(20px) saturate(1.25);
+    box-shadow:0 22px 70px rgba(0,0,0,.48),inset 0 1px rgba(255,255,255,.035);
+  }
+  .live-smart-dock-shortcut{
+    min-width:0;min-height:58px;padding:5px;border:1px solid rgba(255,255,255,.055);
+    border-radius:13px;background:#101117;color:#8d92a1;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  }
+  .live-smart-dock-shortcut>span{
+    display:grid;place-items:center;width:24px;height:22px;color:#b3a8f4;font-size:16px;font-weight:820;
+  }
+  .live-smart-dock-shortcut>small{
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:750;
+  }
+  .live-smart-dock-shortcut.active{
+    border-color:rgba(124,92,255,.28);background:rgba(124,92,255,.10);color:#ddd8ff;
+  }
+  .live-smart-dock-shortcut:disabled{opacity:.34}
+  .live-smart-dock-primary{
+    min-width:0;min-height:58px;padding:8px 10px 8px 12px;border:1px solid rgba(124,92,255,.31);
+    border-radius:13px;background:linear-gradient(135deg,#7658ef,#5e45c8);color:#fff;
+    display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;text-align:left;
+    box-shadow:0 10px 28px rgba(75,50,180,.22);
+  }
+  .live-smart-dock-primary>span{min-width:0}
+  .live-smart-dock-primary small{
+    display:block;color:rgba(255,255,255,.72);font-size:12px;font-weight:850;letter-spacing:.06em;
+  }
+  .live-smart-dock-primary strong{
+    display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    color:#fff;font-size:12px;line-height:1.2;
+  }
+  .live-smart-dock-primary>b{
+    display:grid;place-items:center;width:30px;height:30px;border-radius:10px;
+    background:rgba(255,255,255,.12);font-size:17px;
+  }
+  .live-smart-dock-primary.mode-prepare{
+    border-color:rgba(76,190,150,.30);
+    background:linear-gradient(135deg,rgba(41,151,117,.96),rgba(31,111,91,.98));
+    box-shadow:0 10px 28px rgba(24,111,84,.22);
+  }
+  .live-smart-dock-primary.mode-idle{
+    border-color:rgba(255,255,255,.05);background:#12131a;color:#686e7c;box-shadow:none;
+  }
+  .live-smart-dock-primary:disabled{opacity:.48}
+}
+@media(max-width:460px){
+  .live-smart-dock{
+    grid-template-columns:48px 48px 48px minmax(0,1fr);gap:5px;width:calc(100vw - 10px);
+    padding:5px;border-radius:16px;
+  }
+  .live-smart-dock-shortcut{min-height:54px;border-radius:11px}
+  .live-smart-dock-shortcut>small{font-size:12px}
+  .live-smart-dock-primary{min-height:54px;padding:7px 8px 7px 10px;border-radius:11px}
+  .live-smart-dock-primary strong{font-size:12px}
+}

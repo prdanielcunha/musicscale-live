@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "candidateVersion": "0.1.0-beta.2",
-  "status": "blocked",
-  "approvedAt": null,
-  "approvedBy": null,
+  "candidateVersion": "0.1.0-beta.3",
+  "status": "owner-beta-authorized",
+  "approvedAt": "2026-10-04T08:31:00-03:00",
+  "approvedBy": "project-owner-chat-authorization",
   "evidence": {
     "windowsIpad": null,
     "windowsAndroid": null,
@@ -20,5 +20,12 @@
     "windowsSignedInstallerTrust": null,
     "macosSignedNotarizedTrust": null,
     "branchProtection": null
+  },
+  "releaseMode": "owner-beta",
+  "ownerOverride": {
+    "authorized": true,
+    "riskAccepted": true,
+    "reason": "Project owner explicitly requested production deployment while physical/signing certification remains incomplete.",
+    "stableCommercialApproved": false
   }
 }

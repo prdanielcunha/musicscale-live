@@ -368,6 +368,7 @@ export function LiveControlPanel({
   const clearTimer = useRef<number | null>(null);
   const playlistSyncTimer = useRef<number | null>(null);
   const toolSurfaceRef = useRef<HTMLSpanElement | null>(null);
+  const serviceSurfaceRef = useRef<HTMLSpanElement | null>(null);
   const previewRequestSignature = useRef<string>('');
   const slideRailRef = useRef<HTMLDivElement | null>(null);
   const sectionRailRef = useRef<HTMLDivElement | null>(null);
@@ -549,6 +550,22 @@ export function LiveControlPanel({
         behavior: 'smooth',
         block: 'start'
       });
+    });
+  }
+
+  function focusUniversalSearch() {
+    universalInputRef.current?.focus();
+    universalInputRef.current?.select();
+    universalInputRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center'
+    });
+  }
+
+  function openServiceHorizon() {
+    serviceSurfaceRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
     });
   }
 
@@ -1721,6 +1738,49 @@ export function LiveControlPanel({
   const currentScreenMode = String(
     providers.find(provider => provider.observed?.screenMode)?.observed?.screenMode || 'normal'
   );
+  const preparedPrimaryTitle =
+    preparedSearchHit?.title ||
+    preparedCue?.title ||
+    (selectedSlideIndex !== null
+      ? t('liveControls.slide', { number: selectedSlideIndex + 1 })
+      : '');
+  const smartPrimaryMode =
+    preparedSearchHit || preparedCue || selectedSlideIndex !== null
+      ? 'take'
+      : nextSlide && can('presentation.navigation')
+        ? 'slide'
+        : serviceHorizon.next && buildServiceItemCue(serviceHorizon.next)
+          ? 'prepare'
+          : 'idle';
+  const smartPrimaryTitle =
+    smartPrimaryMode === 'take'
+      ? preparedPrimaryTitle
+      : smartPrimaryMode === 'slide'
+        ? (nextSlide?.text ? String(nextSlide.text) : t('liveControls.nextSlide'))
+        : smartPrimaryMode === 'prepare'
+          ? serviceHorizon.next?.title || ''
+          : '';
+  const smartPrimaryLabel =
+    smartPrimaryMode === 'take'
+      ? t('liveControls.smartDock.showNow')
+      : smartPrimaryMode === 'slide'
+        ? t('liveControls.smartDock.nextSlide')
+        : smartPrimaryMode === 'prepare'
+          ? t('liveControls.smartDock.prepareNext')
+          : t('liveControls.smartDock.waiting');
+  const smartPrimaryDisabled =
+    busy !== null ||
+    smartPrimaryMode === 'idle';
+
+  async function runSmartPrimary() {
+    if (smartPrimaryDisabled) return;
+    if (smartPrimaryMode === 'prepare') {
+      prepareNextServiceItem();
+      haptic(7);
+      return;
+    }
+    await takePrimaryNext();
+  }
   const presentationFrameSignature = `${String(effectivePresentation?.id || '')}:${currentSlideIndex}`;
   const isSongPresentation = Boolean(
     effectivePresentation?.song_id ||
@@ -1861,7 +1921,7 @@ export function LiveControlPanel({
   }, [universalQuery]);
 
   return (
-    <section className="live-control-panel">
+    <section className={touchPrimary ? 'live-control-panel touch-primary' : 'live-control-panel'}>
       <div className="live-control-header">
         <div>
           <span className="eyebrow">{t('liveControls.kicker')}</span>
@@ -2410,6 +2470,7 @@ export function LiveControlPanel({
         </article>
 
 
+        <span ref={serviceSurfaceRef} className="live-service-anchor" aria-hidden="true" />
         {servicePlan && (serviceHorizon.current || serviceHorizon.next) && (
           <div className="service-horizon">
             <div className="service-horizon-label">
@@ -3011,6 +3072,48 @@ export function LiveControlPanel({
       </div>
 
       {message && <div className="operator-message">{message}</div>}
+      {touchPrimary && (
+        <nav className="live-smart-dock" aria-label={t('liveControls.smartDock.ariaLabel')}>
+          <button
+            type="button"
+            className="live-smart-dock-shortcut"
+            onClick={focusUniversalSearch}
+          >
+            <span aria-hidden="true">⌕</span>
+            <small>{t('liveControls.smartDock.search')}</small>
+          </button>
+          <button
+            type="button"
+            className={toolMode === 'bible' ? 'live-smart-dock-shortcut active' : 'live-smart-dock-shortcut'}
+            disabled={!toolAvailability.bible}
+            onClick={() => openTool('bible')}
+          >
+            <span aria-hidden="true">B</span>
+            <small>{t('liveControls.smartDock.bible')}</small>
+          </button>
+          <button
+            type="button"
+            className="live-smart-dock-shortcut"
+            disabled={!servicePlan}
+            onClick={openServiceHorizon}
+          >
+            <span aria-hidden="true">≡</span>
+            <small>{t('liveControls.smartDock.runOfShow')}</small>
+          </button>
+          <button
+            type="button"
+            className={`live-smart-dock-primary mode-${smartPrimaryMode}`}
+            disabled={smartPrimaryDisabled}
+            onClick={() => void runSmartPrimary()}
+          >
+            <span>
+              <small>{smartPrimaryLabel}</small>
+              <strong>{smartPrimaryTitle || t('liveControls.smartDock.noAction')}</strong>
+            </span>
+            <b aria-hidden="true">{smartPrimaryMode === 'prepare' ? '+' : '→'}</b>
+          </button>
+        </nav>
+      )}
     </section>
   );
 }

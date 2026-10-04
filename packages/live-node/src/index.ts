@@ -95,7 +95,7 @@ function liveEnv(name: string): string | undefined {
 
 const PORT = Number(liveEnv('NODE_PORT') || 4317);
 const HOST = liveEnv('NODE_HOST') || '0.0.0.0';
-const VERSION = '0.1.0-beta.2';
+const VERSION = '0.1.0-beta.3';
 const DEV_TOKEN = liveEnv('DEV_TOKEN') || '';
 const PAIRING_ENABLED = liveEnv('PAIRING_ENABLED') !== 'false';
 const HOLYRICS_TOKEN = liveEnv('HOLYRICS_TOKEN')?.trim() || '';
