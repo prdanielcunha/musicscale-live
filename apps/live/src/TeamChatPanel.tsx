@@ -123,7 +123,8 @@ export function TeamChatPanel({
         actorId,
         senderContext,
         audience,
-        text: value
+        text: value,
+        relatedServiceItemId: controller.nodeState?.state.activeServiceItemId || undefined
       });
       setMessages(current => {
         if (current.some(item => item.id === message.id)) return current;
@@ -173,6 +174,11 @@ export function TeamChatPanel({
                 </time>
               </div>
               <p>{message.text}</p>
+              {message.relatedServiceItemId && (
+                <small className="team-chat-context">
+                  {t('teamChat.serviceItemContext')}
+                </small>
+              )}
             </article>
           );
         })}

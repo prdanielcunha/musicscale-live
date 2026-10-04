@@ -1,0 +1,114 @@
+import { readFile } from 'node:fs/promises';
+
+const path = new URL('../docs/certification/production-certification.json', import.meta.url);
+const manifest = JSON.parse(await readFile(path, 'utf8'));
+
+const requiredEvidence = [
+  'windowsIpad',
+  'windowsAndroid',
+  'holyricsResolumeTwoPc',
+  'propresenterOnly',
+  'internetCutLanContinuity',
+  'nodeRestartNoReplay',
+  'providerFailureIsolation',
+  'commandObservedP95',
+  'threeSimulatedServices',
+  'accompaniedRealService',
+  'volunteerUx',
+  'realDeviceAccessibility',
+  'windowsSignedInstallerTrust',
+  'macosSignedNotarizedTrust',
+  'branchProtection'
+];
+
+const expectedVersion = '0.1.0-beta.3';
+const errors = [];
+
+if (manifest?.schemaVersion !== 1) {
+  errors.push('schemaVersion must be 1');
+}
+if (manifest?.candidateVersion !== expectedVersion) {
+  errors.push(`candidateVersion must be ${expectedVersion}`);
+}
+const stableApproved = manifest?.status === 'approved';
+const ownerBetaAuthorized =
+  manifest?.status === 'owner-beta-authorized' &&
+  manifest?.releaseMode === 'owner-beta' &&
+  manifest?.ownerOverride?.authorized === true &&
+  manifest?.ownerOverride?.riskAccepted === true &&
+  manifest?.ownerOverride?.stableCommercialApproved === false;
+
+if (!stableApproved && !ownerBetaAuthorized) {
+  errors.push('status must be approved, or an explicit owner-beta authorization must be recorded');
+}
+if (typeof manifest?.approvedBy !== 'string' || !manifest.approvedBy.trim()) {
+  errors.push('approvedBy is required');
+}
+if (
+  typeof manifest?.approvedAt !== 'string' ||
+  Number.isNaN(Date.parse(manifest.approvedAt))
+) {
+  errors.push('approvedAt must be an ISO date/time');
+}
+
+if (stableApproved) {
+  for (const key of requiredEvidence) {
+    const item = manifest?.evidence?.[key];
+    if (
+      !item ||
+      typeof item !== 'object' ||
+      item.result !== 'PASS' ||
+      typeof item.ref !== 'string' ||
+      !item.ref.trim()
+    ) {
+      errors.push(`evidence.${key} must contain { "result": "PASS", "ref": "..." }`);
+    }
+  }
+} else if (ownerBetaAuthorized) {
+  if (!manifest?.evidence || typeof manifest.evidence !== 'object') {
+    errors.push('owner-beta authorization must preserve the evidence object');
+  }
+}
+
+const latency = manifest?.evidence?.commandObservedP95;
+if (
+  latency?.result === 'PASS' &&
+  (!Number.isFinite(latency.p95Ms) || latency.p95Ms < 0 || latency.p95Ms >= 300)
+) {
+  errors.push('evidence.commandObservedP95.p95Ms must be >= 0 and < 300');
+}
+
+const simulated = manifest?.evidence?.threeSimulatedServices;
+if (
+  simulated?.result === 'PASS' &&
+  (!Number.isInteger(simulated.count) || simulated.count < 3)
+) {
+  errors.push('evidence.threeSimulatedServices.count must be an integer >= 3');
+}
+
+const realService = manifest?.evidence?.accompaniedRealService;
+if (
+  realService?.result === 'PASS' &&
+  (!Number.isInteger(realService.count) || realService.count < 1)
+) {
+  errors.push('evidence.accompaniedRealService.count must be an integer >= 1');
+}
+
+if (errors.length) {
+  console.error('MusicScale Live production certification gate is CLOSED:');
+  for (const error of errors) console.error(`- ${error}`);
+  console.error(
+    'Attach real physical/signing/admin evidence before promoting this candidate.'
+  );
+  process.exit(1);
+}
+
+if (ownerBetaAuthorized) {
+  console.warn(
+    `MusicScale Live production gate: ${manifest.candidateVersion} OWNER-BETA AUTHORIZED. Physical/signing certification remains incomplete; this is not stable/commercial approval.`
+  );
+} else {
+  console.log(
+    `MusicScale Live production certification gate: ${manifest.candidateVersion} APPROVED`
+  );
+}

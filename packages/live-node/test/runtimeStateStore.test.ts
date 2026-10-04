@@ -1,4 +1,4 @@
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -120,7 +120,7 @@ describe('RuntimeStateStore', () => {
         actorId: 'pastor_1',
         kind: 'bible',
         payload: { reference: 'João 3:16' },
-        status: 'pending',
+        status: 'sent',
         createdAt: '2026-09-19T00:00:00.000Z'
       }]
     });
@@ -128,7 +128,51 @@ describe('RuntimeStateStore', () => {
     const restored = await new RuntimeStateStore(path, 'node_1').load();
     expect(restored.requests).toHaveLength(1);
     expect(restored.requests[0]?.kind).toBe('bible');
-    expect(restored.requests[0]?.status).toBe('pending');
+    expect(restored.requests[0]?.status).toBe('sent');
+  });
+
+  it('migrates legacy pending/completed request states on recovery', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ms-live-state-'));
+    const path = join(dir, 'runtime.json');
+    await writeFile(path, JSON.stringify({
+      revision: 4,
+      nodeId: 'node_1',
+      updatedAt: '2026-09-24T12:00:00.000Z',
+      activeLiveSessionId: null,
+      activeSession: null,
+      activeServiceItemId: null,
+      providerObservedState: {},
+      servicePlan: null,
+      providerLinks: [],
+      scenes: [],
+      requests: [
+        {
+          id: 'legacy-pending',
+          organizationId: 'org_1',
+          venueId: 'venue_1',
+          liveSessionId: 'session_1',
+          actorId: 'pastor_1',
+          kind: 'bible',
+          payload: { reference: 'João 3:16' },
+          status: 'pending',
+          createdAt: '2026-09-24T11:00:00.000Z'
+        },
+        {
+          id: 'legacy-complete',
+          organizationId: 'org_1',
+          venueId: 'venue_1',
+          liveSessionId: 'session_1',
+          actorId: 'pastor_1',
+          kind: 'message',
+          payload: { text: 'Pronto' },
+          status: 'completed',
+          createdAt: '2026-09-24T11:00:00.000Z'
+        }
+      ]
+    }));
+
+    const restored = await new RuntimeStateStore(path, 'node_1').load();
+    expect(restored.requests.map(item => item.status)).toEqual(['sent', 'executed']);
   });
 
   it('serializes independent provider state merges without losing another provider', async () => {

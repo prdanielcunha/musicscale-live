@@ -102,6 +102,11 @@ export class PeerDiscovery {
     return this.state;
   }
 
+  setDisplayName(displayName: string): void {
+    const normalized = displayName.trim().replace(/\s+/g, ' ').slice(0, 64);
+    if (normalized) this.options.displayName = normalized;
+  }
+
   async start(): Promise<boolean> {
     if (this.socket) return this.state === 'online';
     this.state = 'starting';

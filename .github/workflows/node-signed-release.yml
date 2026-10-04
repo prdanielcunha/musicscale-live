@@ -48,6 +48,7 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npm run check:brand
+          npm run check:ui
           npm run typecheck
           npm test
 
@@ -89,7 +90,7 @@ jobs:
         run: |
           choco install innosetup --no-progress -y
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          & $iscc "/DSourceDir=$env:PACKAGE_DIR" "/DOutputDir=$env:PACKAGE_DIR" "distribution/windows/MusicScaleLiveNode.iss"
+          & $iscc "/DSourceDir=$env:PACKAGE_DIR" "/DOutputDir=$env:PACKAGE_DIR" "/DAppVersion=$env:RELEASE_VERSION" "distribution/windows/MusicScaleLiveNode.iss"
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed." }
 
           $setup = Join-Path $env:PACKAGE_DIR "MusicScaleLiveSetup.exe"

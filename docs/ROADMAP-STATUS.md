@@ -2,6 +2,18 @@
 
 This document tracks engineering progress against the **MusicScale Live Blueprint Mestre v0.1**. It is a status map, not a replacement for the blueprint.
 
+## Checkpoint — 2026-09-27
+
+There are now **two different status axes** and they must not be confused:
+
+- **Implementation frontier:** the software foundations of the 2026-09-23 execution roadmap are implemented through **Phase 11 — Production ecosystem** on `main`.
+- **Active quality gate:** **Phase 0 — Proven reliability** remains open because the roadmap closes gates with real-device/real-provider evidence, not merely merged code.
+- **Latest completed implementation:** PR #120 merged the Phase 11 production-ecosystem foundation after green CI and green Windows/macOS/Linux beta packaging. This includes the vendor-neutral production adapter SDK, OBS/vMix/OSC/Art-Net integrations, local bridge contracts for Companion/MIDI/ATEM, local secret-protected provider configuration, Audio Profiles/human aliases, production templates, secret-free backup/restore, standby preparation, explicit manual failover and tenant-scoped fleet visibility.
+- **Release position:** `production` intentionally remains behind `main` while the physical reliability/release gate is open. Later-phase code stays feature-gated where applicable and must not be treated as certified merely because it exists.
+- **Next proof:** certify the real church topology (Holyrics PC → Resolume Arena PC → final output), Windows+iPad/Android control, Internet cut with LAN continuity, Node/provider restart without duplicate command, true command→observed-state p95, signed installer trust chain, three full simulated services and one accompanied real service.
+
+This checkpoint supersedes any older wording below that says later-phase software work is “not started”; the detailed sections remain useful as a Blueprint-v0.1 mapping and for their still-open physical acceptance items.
+
 Status labels:
 - **foundation-ready**: core implementation exists; production gates may still require hardware/external validation.
 - **partial**: meaningful implementation exists, but the blueprint phase is not complete.

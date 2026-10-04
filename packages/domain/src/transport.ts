@@ -17,6 +17,7 @@ export interface LiveNodeHealth {
   version: string;
   nodeId: string;
   hostname: string;
+  displayName?: string;
   health: 'online' | 'degraded';
   lanAddresses: string[];
   providers: number;
