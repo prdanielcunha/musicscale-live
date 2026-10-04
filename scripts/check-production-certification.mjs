@@ -30,8 +30,16 @@ if (manifest?.schemaVersion !== 1) {
 if (manifest?.candidateVersion !== expectedVersion) {
   errors.push(`candidateVersion must be ${expectedVersion}`);
 }
-if (manifest?.status !== 'approved') {
-  errors.push('status must be approved');
+const stableApproved = manifest?.status === 'approved';
+const ownerBetaAuthorized =
+  manifest?.status === 'owner-beta-authorized' &&
+  manifest?.releaseMode === 'owner-beta' &&
+  manifest?.ownerOverride?.authorized === true &&
+  manifest?.ownerOverride?.riskAccepted === true &&
+  manifest?.ownerOverride?.stableCommercialApproved === false;
+
+if (!stableApproved && !ownerBetaAuthorized) {
+  errors.push('status must be approved, or an explicit owner-beta authorization must be recorded');
 }
 if (typeof manifest?.approvedBy !== 'string' || !manifest.approvedBy.trim()) {
   errors.push('approvedBy is required');
@@ -43,16 +51,22 @@ if (
   errors.push('approvedAt must be an ISO date/time');
 }
 
-for (const key of requiredEvidence) {
-  const item = manifest?.evidence?.[key];
-  if (
-    !item ||
-    typeof item !== 'object' ||
-    item.result !== 'PASS' ||
-    typeof item.ref !== 'string' ||
-    !item.ref.trim()
-  ) {
-    errors.push(`evidence.${key} must contain { "result": "PASS", "ref": "..." }`);
+if (stableApproved) {
+  for (const key of requiredEvidence) {
+    const item = manifest?.evidence?.[key];
+    if (
+      !item ||
+      typeof item !== 'object' ||
+      item.result !== 'PASS' ||
+      typeof item.ref !== 'string' ||
+      !item.ref.trim()
+    ) {
+      errors.push(`evidence.${key} must contain { "result": "PASS", "ref": "..." }`);
+    }
+  }
+} else if (ownerBetaAuthorized) {
+  if (!manifest?.evidence || typeof manifest.evidence !== 'object') {
+    errors.push('owner-beta authorization must preserve the evidence object');
   }
 }
 
@@ -89,6 +103,12 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(
-  `MusicScale Live production certification gate: ${manifest.candidateVersion} APPROVED`
-);
+if (ownerBetaAuthorized) {
+  console.warn(
+    `MusicScale Live production gate: ${manifest.candidateVersion} OWNER-BETA AUTHORIZED. Physical/signing certification remains incomplete; this is not stable/commercial approval.`
+  );
+} else {
+  console.log(
+    `MusicScale Live production certification gate: ${manifest.candidateVersion} APPROVED`
+  );
+}
