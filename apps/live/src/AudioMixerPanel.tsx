@@ -241,11 +241,11 @@ export function AudioMixerPanel({ controller }: { controller: Controller }) {
                     <strong>Banda {band}</strong>
                     <RangeControl label="Frequência" value={eq['eq/' + band + '/f']} disabled={!online}
                       display={eq['eq/' + band + '/f'] === undefined ? '—' :
-                        Math.round(20 * Math.pow(1000, eq['eq/' + band + '/f'])) + ' Hz'}
+                        Math.round(20 * Math.pow(1000, eq['eq/' + band + '/f'] ?? 0)) + ' Hz'}
                       onCommit={value => write('eqFrequency', value, band)}/>
                     <RangeControl label="Ganho" value={eq['eq/' + band + '/g']} disabled={!online}
                       display={eq['eq/' + band + '/g'] === undefined ? '—' :
-                        ((eq['eq/' + band + '/g'] - 0.5) * 30).toFixed(1) + ' dB'}
+                        (((eq['eq/' + band + '/g'] ?? 0.5) - 0.5) * 30).toFixed(1) + ' dB'}
                       onCommit={value => write('eqGain', value, band)}/>
                     <RangeControl label="Q" value={eq['eq/' + band + '/q']} disabled={!online}
                       onCommit={value => write('eqQ', value, band)}/>
