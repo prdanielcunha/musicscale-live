@@ -44,9 +44,9 @@ function oscString(text: string): Buffer {
   const value = Buffer.from(text + '\0', 'utf8');
   return Buffer.concat([value, Buffer.alloc((4 - value.length % 4) % 4)]);
 }
-export function encodeX32(address: string, args: X32Value[] = []): Buffer {
+export function encodeX32(address: string, args: X32Value[] = [], forceFloat = false): Buffer {
   if (!/^\/[A-Za-z0-9/_-]+$/.test(address)) throw new Error('invalid_x32_address');
-  const tags = args.map(value => typeof value === 'string' ? 's' : Number.isInteger(value) ? 'i' : 'f');
+  const tags = args.map(value => typeof value === 'string' ? 's' : forceFloat || !Number.isInteger(value) ? 'f' : 'i');
   const parts = [oscString(address), oscString(',' + tags.join(''))];
   args.forEach((value, index) => {
     if (typeof value === 'string') parts.push(oscString(value));
@@ -185,11 +185,11 @@ export class X32Mixer {
     this.pending.clear();
     if (socket) await new Promise<void>(resolve => socket.close(() => resolve()));
   }
-  private async send(address: string, args: X32Value[] = []): Promise<void> {
+  private async send(address: string, args: X32Value[] = [], forceFloat = false): Promise<void> {
     const socket = this.socket;
     const host = this.host;
     if (!socket || !host) throw new Error('mixer_not_configured');
-    const packet = encodeX32(address, args);
+    const packet = encodeX32(address, args, forceFloat);
     await new Promise<void>((resolve, reject) => socket.send(packet, DEFAULT_PORT, host, error => error ? reject(error) : resolve()));
   }
   private async query(address: string, timeoutMs = 550): Promise<X32Value | undefined> {
@@ -286,7 +286,8 @@ export class X32Mixer {
     const { address, value } = validateMixerWrite(input);
     if (!this.snapshot().connected) throw new Error('mixer_offline');
     // X32 accepts normalized float for continuous parameters, integer for switches.
-    await this.send(address, [input.parameter === 'on' || input.parameter === 'eqOn' ? Math.round(value) : value]);
+    await this.send(address, [input.parameter === 'on' || input.parameter === 'eqOn' ? Math.round(value) : value],
+      input.parameter !== 'on' && input.parameter !== 'eqOn');
     // A UDP send acknowledgement alone is never proof that the desk applied a change.
     const observed = await this.query(address, 800);
     const confirmed = typeof observed === 'number' && Math.abs(observed - value) < 0.003;
