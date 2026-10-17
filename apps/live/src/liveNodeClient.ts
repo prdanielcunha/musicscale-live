@@ -1087,3 +1087,60 @@ export async function cacheNodeScenes(
     body: JSON.stringify({ scenes })
   }, 5000);
 }
+
+
+export interface X32MixerChannel {
+  id: string;
+  label: string;
+  name: string;
+  fader?: number;
+  on?: number;
+  pan?: number;
+}
+export interface X32MixerSnapshot {
+  model: 'Behringer X32';
+  host: string | null;
+  connected: boolean;
+  lastSeenAt: string | null;
+  channels: X32MixerChannel[];
+  selectedId: string | null;
+  eq: Record<string, number>;
+  note: string;
+}
+export type X32MixerParameter = 'fader' | 'on' | 'pan' | 'eqOn' | 'eqFrequency' | 'eqGain' | 'eqQ' | 'sendLevel';
+export interface X32MixerWrite {
+  channel: string;
+  parameter: X32MixerParameter;
+  band?: number;
+  bus?: number;
+  value: number;
+}
+export async function getX32MixerState(
+  baseUrl: string,
+  token: string,
+  selected?: string
+): Promise<X32MixerSnapshot> {
+  const suffix = selected ? '?selected=' + encodeURIComponent(selected) : '';
+  return requestJson<X32MixerSnapshot>(
+    baseUrl, '/audio/x32/state' + suffix,
+    { headers: { Authorization: 'Bearer ' + token } }, 5000
+  );
+}
+export async function setX32MixerParameter(
+  baseUrl: string,
+  token: string,
+  command: X32MixerWrite
+): Promise<{ sent: boolean; confirmed: boolean; observed?: number; address: string }> {
+  return requestJson(baseUrl, '/audio/x32/write', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token },
+    body: JSON.stringify(command)
+  }, 5000);
+}
+export async function configureX32Mixer(host: string): Promise<X32MixerSnapshot> {
+  return requestJson(
+    'http://127.0.0.1:4317',
+    '/local/audio/x32/configure',
+    { method: 'POST', body: JSON.stringify({ host }) }, 5000
+  );
+}
