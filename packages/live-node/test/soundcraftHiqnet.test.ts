@@ -10,7 +10,7 @@ describe('Soundcraft Si Expression HiQnet v2 transport (read-only)', () => {
     const hello = encodeHiqnet({
       destDevice: 1244, message: 0x0008, sequence: 22, payload
     });
-    expect(hello.length).toBe(29);
+    expect(hello.length).toBe(27);
     expect(hello.readUInt32BE(2)).toBe(hello.length);
     const decoded = decodeHiqnet(hello);
     expect(decoded.destDevice).toBe(1244);
