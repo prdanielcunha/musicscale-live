@@ -30,6 +30,9 @@ import { LiveContextSwitcher } from './LiveContextSwitcher';
 import { buildServicePlan, type PreparedSongLink } from './servicePlanBuilder';
 import { resolveStudioFlow } from './studioFlow';
 
+const AudioMixerPanel = lazy(() =>
+  import('./AudioMixerPanel').then(module => ({ default: module.AudioMixerPanel }))
+);
 const LiveControlPanel = lazy(() =>
   import('./LiveControlPanel').then(module => ({ default: module.LiveControlPanel }))
 );
@@ -84,7 +87,7 @@ const ServiceReviewPanel = lazy(() =>
   import('./ServiceReviewPanel').then(module => ({ default: module.ServiceReviewPanel }))
 );
 
-type Surface = 'live' | 'studio' | 'pastor' | 'conductor';
+type Surface = 'live' | 'studio' | 'pastor' | 'conductor' | 'mixer';
 type LiveSessionMode = 'service' | 'free';
 type StudioSection =
   | 'overview'
@@ -469,14 +472,14 @@ export function App() {
       </header>
 
       <nav className="sidebar" aria-label={t('accessibility.primaryNavigation')}>
-        {(['studio','live','pastor','conductor'] as Surface[]).map(item => (
+        {(['studio','live','mixer','pastor','conductor'] as Surface[]).map(item => (
           <button
             key={item}
             onClick={() => setSurface(item)}
             className={surface === item ? 'active' : ''}
             aria-current={surface === item ? 'page' : undefined}
           >
-            {t(item)}
+            {item === 'mixer' ? 'Mesa de Som' : t(item)}
           </button>
         ))}
       </nav>
@@ -818,6 +821,11 @@ export function App() {
 
         {surface === 'studio' && studioSection === 'scenes' && liveNode.state === 'connected' && (
           <SceneStudio controller={liveNode} actorId={user.uid} />
+        )}
+
+        {surface === 'mixer' && liveNode.state === 'connected' && <AudioMixerPanel controller={liveNode} />}
+        {surface === 'mixer' && liveNode.state !== 'connected' && (
+          <section className="panel" role="status">Pareie seu celular com o Live Node da igreja para controlar a mesa de som. Sem conexão, os controles permanecem bloqueados.</section>
         )}
 
         {surface === 'live' && liveNode.state === 'connected' && nodeScopeMatchesScale && (

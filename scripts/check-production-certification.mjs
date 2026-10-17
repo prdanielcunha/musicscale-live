@@ -21,7 +21,7 @@ const requiredEvidence = [
   'branchProtection'
 ];
 
-const expectedVersion = '0.1.0-beta.3';
+const expectedVersion = '0.1.0-beta.4';
 const errors = [];
 
 if (manifest?.schemaVersion !== 1) {

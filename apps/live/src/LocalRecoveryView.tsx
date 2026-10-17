@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AudioMixerPanel } from './AudioMixerPanel';
 import { useTranslation } from 'react-i18next';
 import { LiveControlPanel } from './LiveControlPanel';
 import { LiveNodeSetup } from './LiveNodeSetup';
@@ -81,6 +82,8 @@ export function LocalRecoveryView({
           controller={controller}
           localRecovery
         />
+
+        <AudioMixerPanel controller={controller} />
 
         {connected && (
           <>

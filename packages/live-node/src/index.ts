@@ -2,7 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { homedir, hostname, networkInterfaces } from 'node:os';
 import { existsSync } from 'node:fs';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, writeFile } from 'node:fs/promises';
+import { X32Mixer, type MixerParameter, validMixerHost } from './x32Mixer';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import {
   CAPABILITIES,
@@ -95,7 +96,7 @@ function liveEnv(name: string): string | undefined {
 
 const PORT = Number(liveEnv('NODE_PORT') || 4317);
 const HOST = liveEnv('NODE_HOST') || '0.0.0.0';
-const VERSION = '0.1.0-beta.3';
+const VERSION = '0.1.0-beta.4';
 const DEV_TOKEN = liveEnv('DEV_TOKEN') || '';
 const PAIRING_ENABLED = liveEnv('PAIRING_ENABLED') !== 'false';
 const HOLYRICS_TOKEN = liveEnv('HOLYRICS_TOKEN')?.trim() || '';
@@ -190,6 +191,8 @@ const signalTopologyStore = new SignalTopologyStore(join(STATE_DIR, 'signal-topo
 const eventLogStore = new LiveEventLogStore(join(STATE_DIR, 'events.json'));
 const liveChatStore = new LiveChatStore(join(STATE_DIR, 'chat.json'));
 const nodeProfileStore = new NodeProfileStore(join(STATE_DIR, 'profile.json'), hostname());
+const x32Mixer = new X32Mixer();
+const X32_CONFIG_PATH = join(STATE_DIR, 'x32-mixer.json');
 let nodeDisplayName = hostname();
 const liveDropStore = new LiveDropStore(
   join(STATE_DIR, 'live-drop'),
@@ -1462,6 +1465,12 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 <div class="row"><button class="btn" onclick="saveProPresenter()">Salvar e testar</button></div>
 </details>
 </div>
+<div class="box provider-card">
+<header><div><small>ÁUDIO · BEHRINGER</small><strong>Mesa de Som X32</strong></div><button class="btn" onclick="saveX32()">Conectar X32</button></header>
+<div class="field"><span>IP da X32 na rede isolada da mesa</span><input id="x32-host" value="" inputmode="decimal" placeholder="192.168.1.100" autocomplete="off"/></div>
+<div id="x32-status" class="statusline">A configuração é local a este computador. Não altera áudio ao conectar.</div>
+<div class="row"><a href="/" style="color:#b8aeff;font-size:13px">Abrir controle da mesa (após parear)</a></div>
+</div>
 <div class="box" id="routing-box" style="display:none">
 <small>QUEM CONTROLA O QUÊ</small>
 <p class="muted" style="font-size:11px;line-height:1.45">Quando mais de um provider consegue executar a mesma função, escolha aqui quem é o principal. Com apenas um provider compatível, o Live roteia automaticamente.</p>
@@ -1478,6 +1487,17 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 </div>
 <details class="box advanced"><summary>Detalhes técnicos da rede</summary><div class="tech-list"><p>Use estes endereços somente para diagnóstico ou fallback manual.</p><ul>${addresses || '<li>Nenhum IPv4 LAN detectado</li>'}</ul></div></details>
 <script>
+async function saveX32(){
+  const status=document.getElementById('x32-status');
+  const host=document.getElementById('x32-host').value.trim();
+  status.textContent='Conectando, sem mover nenhum controle de áudio…';
+  try{
+    const r=await fetch('/local/audio/x32/configure',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({host})});
+    const data=await r.json();
+    if(!r.ok){status.textContent='Falha: '+(data.error||'endereço inválido');return;}
+    status.textContent=data.connected?'Mesa respondeu. Abra o controle e teste em um canal sem uso.':'IP salvo. Aguardando resposta OSC da X32 pela rede Wi-Fi do computador.';
+  }catch(error){status.textContent='Falha ao conectar: '+(error?.message||'erro de rede');}
+}
 async function refreshNodeProfile(){
   try{
     const r=await fetch('/local/profile',{cache:'no-store'});
@@ -1739,6 +1759,13 @@ async function start(): Promise<void> {
   await registerResolumeProvider();
   await registerProPresenterProvider();
   await registerProductionProviders();
+  // Read-only startup: never alter audio parameters when restoring a connection.
+  try {
+    const stored = JSON.parse(await readFile(X32_CONFIG_PATH, 'utf8')) as { host?: string };
+    if (stored.host && validMixerHost(stored.host)) await x32Mixer.connect(stored.host);
+  } catch (error) {
+    console.log(JSON.stringify({ event: 'x32_configuration_pending', reason: error instanceof Error ? error.message : 'unknown' }));
+  }
   await peerFederation.load();
   await peerDiscovery.start();
 
@@ -1754,6 +1781,48 @@ async function start(): Promise<void> {
   try {
     if (req.method === 'GET' && url.pathname === '/node') {
       return sendHtml(res, 200, localConsoleHtml());
+    }
+
+    if (req.method === 'GET' && url.pathname === '/audio/x32/state') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      const selected = url.searchParams.get('selected') || undefined;
+      if (selected) void x32Mixer.refreshSelected(selected).catch(() => undefined);
+      return send(res, 200, x32Mixer.snapshot(selected));
+    }
+
+    if (req.method === 'POST' && url.pathname === '/audio/x32/write') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      // Temporary collaboration links never grant audio control.
+      if (session.collaboration) return send(res, 403, { error: 'mixer_admin_pairing_required' });
+      if (!session.dev && !session.binding) return send(res, 403, { error: 'mixer_admin_pairing_required' });
+      const body = await readJson(req) as Record<string, unknown>;
+      if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        return send(res, 400, { error: 'invalid_mixer_write' });
+      }
+      const parameter = String(body.parameter || '') as MixerParameter;
+      if (!['fader','on','pan','eqOn','eqFrequency','eqGain','eqQ','sendLevel'].includes(parameter)) {
+        return send(res, 400, { error: 'invalid_mixer_parameter' });
+      }
+      const channel = String(body.channel || '');
+      const value = Number(body.value);
+      const band = body.band === undefined ? undefined : Number(body.band);
+      const bus = body.bus === undefined ? undefined : Number(body.bus);
+      const result = await x32Mixer.write({ channel, parameter, value, band, bus });
+      return send(res, result.confirmed ? 200 : 202, result);
+    }
+
+    if (req.method === 'POST' && url.pathname === '/local/audio/x32/configure') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const body = await readJson(req) as Record<string, unknown>;
+      if (!body || typeof body.host !== 'string' || !validMixerHost(body.host)) {
+        return send(res, 400, { error: 'mixer_host_must_be_private_ipv4' });
+      }
+      const host = body.host.trim();
+      await x32Mixer.connect(host);
+      await writeFile(X32_CONFIG_PATH, JSON.stringify({ host }, null, 2), { mode: 0o600 });
+      return send(res, 200, x32Mixer.snapshot());
     }
 
     if (req.method === 'GET' && url.pathname === '/local/profile') {
@@ -3574,7 +3643,7 @@ async function start(): Promise<void> {
       message === 'collaboration_invite_admin_required' ? 403 :
       message === 'live_drop_asset_not_found' ? 404 :
       message === 'live_drop_file_type_not_allowed' || message === 'live_drop_content_type_mismatch' ? 415 :
-      message === 'provider_link_target_missing' ? 409 :
+      message === 'provider_link_target_missing' || message === 'mixer_offline' ? 409 :
       message === 'collaboration_session_not_active' ||
       message === 'collaboration_invite_exhausted' ? 409 :
       message === 'stale_service_plan' ? 409 :
