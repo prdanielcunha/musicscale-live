@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "candidateVersion": "0.1.0-beta.3",
+  "candidateVersion": "0.1.0-beta.4",
   "status": "owner-beta-authorized",
-  "approvedAt": "2026-10-04T08:31:00-03:00",
+  "approvedAt": "2026-10-17T13:33:00-03:00",
   "approvedBy": "project-owner-chat-authorization",
   "evidence": {
     "windowsIpad": null,
@@ -25,7 +25,7 @@
   "ownerOverride": {
     "authorized": true,
     "riskAccepted": true,
-    "reason": "Project owner explicitly requested production deployment while physical/signing certification remains incomplete.",
+    "reason": "Owner requested urgent manual control on 17 Oct 2026. Experimental audio X32 beta only; no physical/signing certification. Other audio systems remain unsupported.",
     "stableCommercialApproved": false
   }
 }
