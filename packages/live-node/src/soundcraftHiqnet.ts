@@ -173,7 +173,7 @@ export function decodeHiqnetReadings(payload: Buffer): HiqnetReading[] {
 export class SoundcraftHiqnetClient {
   private socket: Socket | null = null;
   private receiveBuffer = Buffer.alloc(0);
-  private pending: Array<{ resolve: (frame: HiqnetFrame) => void; reject: (reason: Error) => void }> = [];
+  private pending: Array<{ message: number; resolve: (frame: HiqnetFrame) => void; reject: (reason: Error) => void }> = [];
   private sequence = 0;
   private session = 0;
   private confirmed = false;
@@ -274,7 +274,12 @@ export class SoundcraftHiqnetClient {
         const frame = decodeHiqnet(packet);
         if (frame.sourceDevice !== this.deviceAddress || frame.destDevice !== CLIENT_DEVICE_ADDRESS) continue;
         this.lastSeenAt = new Date().toISOString();
-        const pending = this.pending.shift();
+        // HiQnet may emit ACK and asynchronous packets ahead of INFORMATION responses.
+        // Do not mistake an acknowledgement for a readback from the console.
+        const index = this.pending.findIndex(waiter => waiter.message === frame.message);
+        if (index < 0) continue;
+        if (!(frame.flags & FLAG_INFORMATION) && !(frame.flags & FLAG_ERROR)) continue;
+        const pending = this.pending.splice(index, 1)[0];
         pending?.resolve(frame);
       } catch { /* Ignore malformed frames without trusting unknown audio state. */ }
     }
@@ -289,7 +294,7 @@ export class SoundcraftHiqnetClient {
     });
     let cleanup: (() => void) | undefined;
     const awaited = new Promise<HiqnetFrame>((resolve, reject) => {
-      const waiter = { resolve, reject };
+      const waiter = { message, resolve, reject };
       this.pending.push(waiter);
       const timer = setTimeout(() => {
         this.pending = this.pending.filter(item => item !== waiter);
