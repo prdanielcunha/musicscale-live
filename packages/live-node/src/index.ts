@@ -1465,6 +1465,12 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 <div class="row"><button class="btn" onclick="saveProPresenter()">Salvar e testar</button></div>
 </details>
 </div>
+<div class="box provider-card">
+<header><div><small>ÁUDIO · BEHRINGER</small><strong>Mesa de Som X32</strong></div><button class="btn" onclick="saveX32()">Conectar X32</button></header>
+<div class="field"><span>IP da X32 na rede isolada da mesa</span><input id="x32-host" value="" inputmode="decimal" placeholder="192.168.1.100" autocomplete="off"/></div>
+<div id="x32-status" class="statusline">A configuração é local a este computador. Não altera áudio ao conectar.</div>
+<div class="row"><a href="/" style="color:#b8aeff;font-size:13px">Abrir controle da mesa (após parear)</a></div>
+</div>
 <div class="box" id="routing-box" style="display:none">
 <small>QUEM CONTROLA O QUÊ</small>
 <p class="muted" style="font-size:11px;line-height:1.45">Quando mais de um provider consegue executar a mesma função, escolha aqui quem é o principal. Com apenas um provider compatível, o Live roteia automaticamente.</p>
@@ -1481,6 +1487,17 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 </div>
 <details class="box advanced"><summary>Detalhes técnicos da rede</summary><div class="tech-list"><p>Use estes endereços somente para diagnóstico ou fallback manual.</p><ul>${addresses || '<li>Nenhum IPv4 LAN detectado</li>'}</ul></div></details>
 <script>
+async function saveX32(){
+  const status=document.getElementById('x32-status');
+  const host=document.getElementById('x32-host').value.trim();
+  status.textContent='Conectando, sem mover nenhum controle de áudio…';
+  try{
+    const r=await fetch('/local/audio/x32/configure',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({host})});
+    const data=await r.json();
+    if(!r.ok){status.textContent='Falha: '+(data.error||'endereço inválido');return;}
+    status.textContent=data.connected?'Mesa respondeu. Abra o controle e teste em um canal sem uso.':'IP salvo. Aguardando resposta OSC da X32 pela rede Wi-Fi do computador.';
+  }catch(error){status.textContent='Falha ao conectar: '+(error?.message||'erro de rede');}
+}
 async function refreshNodeProfile(){
   try{
     const r=await fetch('/local/profile',{cache:'no-store'});
