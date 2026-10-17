@@ -2,7 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { homedir, hostname, networkInterfaces } from 'node:os';
 import { existsSync } from 'node:fs';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, writeFile } from 'node:fs/promises';
+import { X32Mixer, type MixerParameter, validMixerHost } from './x32Mixer';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import {
   CAPABILITIES,
@@ -190,6 +191,8 @@ const signalTopologyStore = new SignalTopologyStore(join(STATE_DIR, 'signal-topo
 const eventLogStore = new LiveEventLogStore(join(STATE_DIR, 'events.json'));
 const liveChatStore = new LiveChatStore(join(STATE_DIR, 'chat.json'));
 const nodeProfileStore = new NodeProfileStore(join(STATE_DIR, 'profile.json'), hostname());
+const x32Mixer = new X32Mixer();
+const X32_CONFIG_PATH = join(STATE_DIR, 'x32-mixer.json');
 let nodeDisplayName = hostname();
 const liveDropStore = new LiveDropStore(
   join(STATE_DIR, 'live-drop'),
@@ -1739,6 +1742,13 @@ async function start(): Promise<void> {
   await registerResolumeProvider();
   await registerProPresenterProvider();
   await registerProductionProviders();
+  // Read-only startup: never alter audio parameters when restoring a connection.
+  try {
+    const stored = JSON.parse(await readFile(X32_CONFIG_PATH, 'utf8')) as { host?: string };
+    if (stored.host && validMixerHost(stored.host)) await x32Mixer.connect(stored.host);
+  } catch (error) {
+    console.log(JSON.stringify({ event: 'x32_configuration_pending', reason: error instanceof Error ? error.message : 'unknown' }));
+  }
   await peerFederation.load();
   await peerDiscovery.start();
 
@@ -1754,6 +1764,48 @@ async function start(): Promise<void> {
   try {
     if (req.method === 'GET' && url.pathname === '/node') {
       return sendHtml(res, 200, localConsoleHtml());
+    }
+
+    if (req.method === 'GET' && url.pathname === '/audio/x32/state') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      const selected = url.searchParams.get('selected') || undefined;
+      if (selected) void x32Mixer.refreshSelected(selected).catch(() => undefined);
+      return send(res, 200, x32Mixer.snapshot(selected));
+    }
+
+    if (req.method === 'POST' && url.pathname === '/audio/x32/write') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      // Temporary collaboration links never grant audio control.
+      if (session.collaboration) return send(res, 403, { error: 'mixer_admin_pairing_required' });
+      if (!session.dev && !session.binding) return send(res, 403, { error: 'mixer_admin_pairing_required' });
+      const body = await readJson(req) as Record<string, unknown>;
+      if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        return send(res, 400, { error: 'invalid_mixer_write' });
+      }
+      const parameter = String(body.parameter || '') as MixerParameter;
+      if (!['fader','on','pan','eqOn','eqFrequency','eqGain','eqQ','sendLevel'].includes(parameter)) {
+        return send(res, 400, { error: 'invalid_mixer_parameter' });
+      }
+      const channel = String(body.channel || '');
+      const value = Number(body.value);
+      const band = body.band === undefined ? undefined : Number(body.band);
+      const bus = body.bus === undefined ? undefined : Number(body.bus);
+      const result = await x32Mixer.write({ channel, parameter, value, band, bus });
+      return send(res, result.confirmed ? 200 : 202, result);
+    }
+
+    if (req.method === 'POST' && url.pathname === '/local/audio/x32/configure') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const body = await readJson(req) as Record<string, unknown>;
+      if (!body || typeof body.host !== 'string' || !validMixerHost(body.host)) {
+        return send(res, 400, { error: 'mixer_host_must_be_private_ipv4' });
+      }
+      const host = body.host.trim();
+      await x32Mixer.connect(host);
+      await writeFile(X32_CONFIG_PATH, JSON.stringify({ host }, null, 2), { mode: 0o600 });
+      return send(res, 200, x32Mixer.snapshot());
     }
 
     if (req.method === 'GET' && url.pathname === '/local/profile') {
@@ -3574,7 +3626,7 @@ async function start(): Promise<void> {
       message === 'collaboration_invite_admin_required' ? 403 :
       message === 'live_drop_asset_not_found' ? 404 :
       message === 'live_drop_file_type_not_allowed' || message === 'live_drop_content_type_mismatch' ? 415 :
-      message === 'provider_link_target_missing' ? 409 :
+      message === 'provider_link_target_missing' || message === 'mixer_offline' ? 409 :
       message === 'collaboration_session_not_active' ||
       message === 'collaboration_invite_exhausted' ? 409 :
       message === 'stale_service_plan' ? 409 :
