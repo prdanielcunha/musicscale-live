@@ -4,6 +4,7 @@ import { homedir, hostname, networkInterfaces } from 'node:os';
 import { existsSync } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { X32Mixer, type MixerParameter, validMixerHost } from './x32Mixer';
+import { SoundcraftHiqnetClient, isPrivateMixerIpv4 } from './soundcraftHiqnet';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import {
   CAPABILITIES,
@@ -192,7 +193,9 @@ const eventLogStore = new LiveEventLogStore(join(STATE_DIR, 'events.json'));
 const liveChatStore = new LiveChatStore(join(STATE_DIR, 'chat.json'));
 const nodeProfileStore = new NodeProfileStore(join(STATE_DIR, 'profile.json'), hostname());
 const x32Mixer = new X32Mixer();
+const soundcraftIndustrial = new SoundcraftHiqnetClient();
 const X32_CONFIG_PATH = join(STATE_DIR, 'x32-mixer.json');
+const SOUNDCRAFT_CONFIG_PATH = join(STATE_DIR, 'industrial-soundcraft.json');
 let nodeDisplayName = hostname();
 const liveDropStore = new LiveDropStore(
   join(STATE_DIR, 'live-drop'),
@@ -1471,6 +1474,12 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 <div id="x32-status" class="statusline">A configuração é local a este computador. Não altera áudio ao conectar.</div>
 <div class="row"><a href="/" style="color:#b8aeff;font-size:13px">Abrir controle da mesa (após parear)</a></div>
 </div>
+<div class="box provider-card">
+<header><div><small>ÁUDIO · INDUSTRIAL LONDRINA</small><strong>Soundcraft Si Expression (HiQnet)</strong></div><button class="btn" onclick="testSoundcraft()">Testar rede e leitura</button></header>
+<div class="field"><span>IP privado da mesa (SYSTEM)</span><input id="soundcraft-host" inputmode="decimal" placeholder="192.168.1.100" autocomplete="off"/></div>
+<div class="field"><span>Endereço HiQnet da mesa (não é o IP)</span><input id="soundcraft-device" inputmode="numeric" type="number" min="1" max="65534" placeholder="Ver em HIQNET da mesa"/></div>
+<div id="soundcraft-status" class="statusline">Diagnóstico inicial somente leitura: não controla faders, EQ ou mute ainda. Não reinicie a mesa durante culto.</div>
+</div>
 <div class="box" id="routing-box" style="display:none">
 <small>QUEM CONTROLA O QUÊ</small>
 <p class="muted" style="font-size:11px;line-height:1.45">Quando mais de um provider consegue executar a mesma função, escolha aqui quem é o principal. Com apenas um provider compatível, o Live roteia automaticamente.</p>
@@ -1487,6 +1496,19 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 </div>
 <details class="box advanced"><summary>Detalhes técnicos da rede</summary><div class="tech-list"><p>Use estes endereços somente para diagnóstico ou fallback manual.</p><ul>${addresses || '<li>Nenhum IPv4 LAN detectado</li>'}</ul></div></details>
 <script>
+async function testSoundcraft(){
+  const status=document.getElementById('soundcraft-status');
+  status.textContent='Consultando a Soundcraft sem alterar nenhum parâmetro…';
+  try{
+    const host=document.getElementById('soundcraft-host').value.trim();
+    const deviceAddress=Number(document.getElementById('soundcraft-device').value);
+    const r=await fetch('/local/audio/soundcraft/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({host,deviceAddress})});
+    const data=await r.json();
+    status.textContent=!r.ok?'Configuração inválida: '+(data.error||'erro'):
+      data.protocolConfirmed?'HiQnet identificado. '+(data.status||'Leitura somente.'):
+      'Mesa ainda não confirmou HiQnet: '+(data.status||'Verifique rede e dispositivo HiQnet');
+  }catch(error){status.textContent='Falha de rede: '+(error?.message||'erro');}
+}
 async function saveX32(){
   const status=document.getElementById('x32-status');
   const host=document.getElementById('x32-host').value.trim();
@@ -1766,6 +1788,8 @@ async function start(): Promise<void> {
   } catch (error) {
     console.log(JSON.stringify({ event: 'x32_configuration_pending', reason: error instanceof Error ? error.message : 'unknown' }));
   }
+  // Industrial Soundcraft connection is opt-in, read-only and scoped to this PC.
+  // Do not auto-connect or send packets on startup until console HiQnet addressing is validated.
   await peerFederation.load();
   await peerDiscovery.start();
 
@@ -1781,6 +1805,34 @@ async function start(): Promise<void> {
   try {
     if (req.method === 'GET' && url.pathname === '/node') {
       return sendHtml(res, 200, localConsoleHtml());
+    }
+
+    if (req.method === 'GET' && url.pathname === '/audio/soundcraft/state') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      return send(res, 200, soundcraftIndustrial.snapshot());
+    }
+    if (req.method === 'POST' && url.pathname === '/local/audio/soundcraft/connect') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const data = await readJson(req) as { host?: unknown; deviceAddress?: unknown };
+      if (!data || typeof data.host !== 'string' || !isPrivateMixerIpv4(data.host) ||
+        typeof data.deviceAddress !== 'number' || !Number.isInteger(data.deviceAddress) ||
+        data.deviceAddress < 1 || data.deviceAddress >= 65535) {
+        return send(res, 400, { error: 'soundcraft_invalid_hiqnet_configuration' });
+      }
+      const state = await soundcraftIndustrial.connect(data.host, data.deviceAddress);
+      if (state.protocolConfirmed) {
+        await writeFile(SOUNDCRAFT_CONFIG_PATH,
+          JSON.stringify({ host: data.host, deviceAddress: data.deviceAddress }, null, 2),
+          { mode: 0o600 });
+      }
+      return send(res, 200, state);
+    }
+    if (req.method === 'POST' && url.pathname === '/audio/soundcraft/refresh') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      if (session.collaboration) return send(res, 403, { error: 'mixer_admin_pairing_required' });
+      return send(res, 200, await soundcraftIndustrial.refresh());
     }
 
     if (req.method === 'GET' && url.pathname === '/audio/x32/state') {
