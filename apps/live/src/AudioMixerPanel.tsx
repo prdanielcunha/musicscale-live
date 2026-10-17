@@ -92,7 +92,7 @@ function Strip({
         disabled={!online || channel.on === undefined}
         aria-label={'Silenciar ou ativar ' + channel.label}
         aria-pressed={channel.on === 0}
-        onClick={() => change({ channel: channel.id, parameter: 'on', value: channel.on === 0 ? 1 : 0 })}>
+        onClick={() => { if (isMaster && !window.confirm('Alterar MUTE do Master LR? Isso afeta o som principal.')) return; change({ channel: channel.id, parameter: 'on', value: channel.on === 0 ? 1 : 0 }); }}>
         {channel.on === 0 ? 'MUTADO' : 'MUTE'}
       </button>
     </article>
