@@ -35,4 +35,16 @@ describe('AudioMixerProfileStore', () => {
     await expect(store.set(venue, 'soundcraft-ui' as never)).rejects.toThrow('invalid_mixer_family');
     expect(await store.get(venue)).toBe('none');
   });
+  it('restores a legacy X32 only until a Soundcraft-only venue is configured', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ms-mixer-'));
+    const path = join(dir, 'profile.json');
+    const store = new AudioMixerProfileStore(path);
+    const venue = { organizationId: 'obpc', venueId: 'industrial', liveSystemId: 'live1' };
+    expect(await store.shouldRestoreLegacyX32()).toBe(true);
+    await store.set(venue, 'soundcraft-si-expression');
+    expect(await store.shouldRestoreLegacyX32()).toBe(false);
+    await store.set(venue, 'behringer-x32');
+    expect(await store.shouldRestoreLegacyX32()).toBe(true);
+  });
+
 });
