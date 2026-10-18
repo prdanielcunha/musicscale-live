@@ -4,6 +4,8 @@ import { homedir, hostname, networkInterfaces } from 'node:os';
 import { existsSync } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { X32Mixer, type MixerParameter, validMixerHost } from './x32Mixer';
+import { isPrivateMixerIpv4 } from './soundcraftHiqnet';
+import { SoundcraftDiscovery } from './soundcraftDiscovery';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import {
   CAPABILITIES,
@@ -192,7 +194,9 @@ const eventLogStore = new LiveEventLogStore(join(STATE_DIR, 'events.json'));
 const liveChatStore = new LiveChatStore(join(STATE_DIR, 'chat.json'));
 const nodeProfileStore = new NodeProfileStore(join(STATE_DIR, 'profile.json'), hostname());
 const x32Mixer = new X32Mixer();
+const soundcraftIndustrial = new SoundcraftDiscovery();
 const X32_CONFIG_PATH = join(STATE_DIR, 'x32-mixer.json');
+
 let nodeDisplayName = hostname();
 const liveDropStore = new LiveDropStore(
   join(STATE_DIR, 'live-drop'),
@@ -571,14 +575,24 @@ async function recoverUnhealthyProviders(): Promise<void> {
   }
 }
 
-function lanAddresses(): string[] {
-  const addresses: string[] = [];
-  for (const group of Object.values(networkInterfaces())) {
+function lanInterfaces(): Array<{ name: string; address: string; netmask: string }> {
+  const result: Array<{ name: string; address: string; netmask: string }> = [];
+  for (const [name, group] of Object.entries(networkInterfaces())) {
     for (const entry of group || []) {
-      if (entry.family === 'IPv4' && !entry.internal) addresses.push(entry.address);
+      if (entry.family === 'IPv4' && !entry.internal) {
+        result.push({ name, address: entry.address, netmask: entry.netmask });
+      }
     }
   }
-  return [...new Set(addresses)];
+  return result;
+}
+function lanAddresses(): string[] {
+  return [...new Set(lanInterfaces().map(entry => entry.address))];
+}
+function escapeNetworkLabel(value: string): string {
+  return value.replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char] || char);
 }
 
 function setCors(req: IncomingMessage, res: ServerResponse): void {
@@ -1393,8 +1407,12 @@ async function serveWebApp(res: ServerResponse, pathname: string): Promise<boole
 }
 
 function localConsoleHtml(): string {
-  const addresses = lanAddresses()
-    .map(ip => `<li>http://${ip}:${PORT}</li>`)
+  const interfaces = lanInterfaces();
+  const addresses = interfaces
+    .map(entry => `<li>${escapeNetworkLabel(entry.name)} — http://${entry.address}:${PORT} / ${entry.netmask}</li>`)
+    .join('');
+  const phoneInterfaceOptions = interfaces
+    .map(entry => `<option value="${entry.address}">${escapeNetworkLabel(entry.name)} · ${entry.address} / ${entry.netmask}</option>`)
     .join('');
   return `<!doctype html>
 <html lang="pt-BR">
@@ -1430,8 +1448,16 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 <div id="profile-status" class="statusline">Carregando nome…</div>
 </div>
 <div class="box connect-card">
-<img src="/local/connect-qr.svg" alt="QR para abrir o MusicScale Live na rede local"/>
-<div><small>CONECTAR TABLET OU CELULAR</small><h2>Escaneie e continue</h2><p>Abra a câmera do aparelho do operador e escaneie este QR. O Live abre pelo caminho local correto — sem digitar IP ou porta.</p><span class="connect-badge">Internet não obrigatória</span></div>
+<img id="phone-qr" src="/local/connect-qr.svg" alt="QR para abrir o MusicScale Live na rede local"/>
+<div>
+<small>CONECTAR TABLET OU CELULAR</small>
+<h2>Celular no Wi-Fi com internet</h2>
+<p>O iPhone pode ficar no Wi-Fi OBPC_5G e o PC pode usar duas redes: internet e SOM. Escolha abaixo o IP do PC que o iPhone consegue acessar pela OBPC_5G. O Live Node conversa com a mesa pela rede SOM, sem compartilhar redes nem retirar a internet do celular.</p>
+<div class="field"><span>Endereço do computador acessível pelo celular</span><select id="phone-ip" onchange="changePhoneQr()">${phoneInterfaceOptions || '<option value="">Conecte o computador à rede</option>'}</select></div>
+<div class="row"><a id="phone-link" href="/" target="_blank" rel="noopener" style="color:#b8aeff;font-size:13px;overflow-wrap:anywhere">Abrir pelo celular</a></div>
+<div class="statusline">O computador deve alcançar 192.168.0.148 pela rede SOM. Se as duas placas tiverem a mesma sub-rede 192.168.0.x, o Windows pode usar o caminho errado; confira o roteamento antes de controlar áudio.</div>
+<span class="connect-badge">Internet do celular preservada</span>
+</div>
 </div>
 <div class="box">
 <small>CÓDIGO DE PAREAMENTO ATIVO</small>
@@ -1471,6 +1497,14 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 <div id="x32-status" class="statusline">A configuração é local a este computador. Não altera áudio ao conectar.</div>
 <div class="row"><a href="/" style="color:#b8aeff;font-size:13px">Abrir controle da mesa (após parear)</a></div>
 </div>
+<div class="box provider-card">
+<header><div><small>ÁUDIO · INDUSTRIAL LONDRINA</small><strong>Soundcraft Si Expression (HiQnet)</strong></div><button class="btn" onclick="testSoundcraft()">Testar rede e leitura</button></header>
+<div class="field"><span>IP privado da mesa (SYSTEM)</span><input id="soundcraft-host" inputmode="decimal" value="192.168.0.148" autocomplete="off"/></div>
+<div class="field"><span>Endereço HiQnet da mesa</span><input id="soundcraft-device" inputmode="numeric" type="number" min="1" max="65534" value="10596"/></div>
+<div class="field"><span>Endereço HiQnet exclusivo deste aplicativo</span><input id="soundcraft-client" inputmode="numeric" type="number" min="1" max="65534" value="24501"/></div>
+<p class="muted" style="font-size:11px;line-height:1.55">A Si Expression tem controle de acesso ligado. Device 1 = 1 e Device 2 = 148 (ALL) nas fotos. Use um endereço exclusivamente reservado a este computador; um novo endereço como 24501 precisa ser autorizado antes na mesa. NÃO reutilize um identificador já ativo. Não modifique a mesa durante o culto.</p>
+<div id="soundcraft-status" class="statusline">Diagnóstico inicial somente leitura: não controla faders, EQ ou mute ainda. Não reinicie a mesa durante culto.</div>
+</div>
 <div class="box" id="routing-box" style="display:none">
 <small>QUEM CONTROLA O QUÊ</small>
 <p class="muted" style="font-size:11px;line-height:1.45">Quando mais de um provider consegue executar a mesma função, escolha aqui quem é o principal. Com apenas um provider compatível, o Live roteia automaticamente.</p>
@@ -1487,6 +1521,31 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 </div>
 <details class="box advanced"><summary>Detalhes técnicos da rede</summary><div class="tech-list"><p>Use estes endereços somente para diagnóstico ou fallback manual.</p><ul>${addresses || '<li>Nenhum IPv4 LAN detectado</li>'}</ul></div></details>
 <script>
+function changePhoneQr(){
+  const input=document.getElementById('phone-ip');
+  const selected=input ? input.value : '';
+  const img=document.getElementById('phone-qr');
+  const link=document.getElementById('phone-link');
+  if(!selected){if(link)link.textContent='Nenhum endereço disponível';return;}
+  const url='http://'+selected+':${PORT}/';
+  if(link){link.href=url;link.textContent=url;}
+  if(img)img.src='/local/connect-qr.svg?ip='+encodeURIComponent(selected);
+}
+changePhoneQr();
+async function testSoundcraft(){
+  const status=document.getElementById('soundcraft-status');
+  status.textContent='Consultando a Soundcraft sem alterar nenhum parâmetro…';
+  try{
+    const host=document.getElementById('soundcraft-host').value.trim();
+    const deviceAddress=Number(document.getElementById('soundcraft-device').value);
+    const clientAddress=Number(document.getElementById('soundcraft-client').value);
+    const r=await fetch('/local/audio/soundcraft/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({host,deviceAddress,clientAddress})});
+    const data=await r.json();
+    status.textContent=!r.ok?'Configuração inválida: '+(data.error||'erro'):
+      data.hiqnetFrameConfirmed?'HiQnet identificado, somente diagnóstico: '+data.reason:
+      'Ainda não confirmou HiQnet: '+(data.reason||'Verifique a rede isolada');
+  }catch(error){status.textContent='Falha de rede: '+(error?.message||'erro');}
+}
 async function saveX32(){
   const status=document.getElementById('x32-status');
   const host=document.getElementById('x32-host').value.trim();
@@ -1766,6 +1825,8 @@ async function start(): Promise<void> {
   } catch (error) {
     console.log(JSON.stringify({ event: 'x32_configuration_pending', reason: error instanceof Error ? error.message : 'unknown' }));
   }
+  // Industrial Soundcraft connection is opt-in, read-only and scoped to this PC.
+  // Do not auto-connect or send packets on startup until console HiQnet addressing is validated.
   await peerFederation.load();
   await peerDiscovery.start();
 
@@ -1781,6 +1842,31 @@ async function start(): Promise<void> {
   try {
     if (req.method === 'GET' && url.pathname === '/node') {
       return sendHtml(res, 200, localConsoleHtml());
+    }
+
+    if (req.method === 'GET' && url.pathname === '/audio/soundcraft/state') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      return send(res, 200, soundcraftIndustrial.snapshot());
+    }
+    if (req.method === 'POST' && url.pathname === '/local/audio/soundcraft/connect') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const data = await readJson(req) as { host?: unknown; deviceAddress?: unknown; clientAddress?: unknown };
+      if (!data || typeof data.host !== 'string' || !isPrivateMixerIpv4(data.host) ||
+        typeof data.deviceAddress !== 'number' || !Number.isInteger(data.deviceAddress) ||
+        data.deviceAddress < 1 || data.deviceAddress >= 65535 ||
+        typeof data.clientAddress !== 'number' || !Number.isInteger(data.clientAddress) ||
+        data.clientAddress < 1 || data.clientAddress >= 65535 || data.clientAddress === data.deviceAddress) {
+        return send(res, 400, { error: 'soundcraft_invalid_hiqnet_configuration' });
+      }
+      const state = await soundcraftIndustrial.inspect(data.host, data.deviceAddress, data.clientAddress);
+      return send(res, 200, state);
+    }
+    if (req.method === 'POST' && url.pathname === '/audio/soundcraft/refresh') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      if (session.collaboration) return send(res, 403, { error: 'mixer_admin_pairing_required' });
+      return send(res, 200, soundcraftIndustrial.snapshot() || { error: 'no_soundcraft_diagnostic_yet' });
     }
 
     if (req.method === 'GET' && url.pathname === '/audio/x32/state') {
@@ -1999,7 +2085,11 @@ async function start(): Promise<void> {
       // computer's LAN address, the browser request is not seen as 127.0.0.1.
       const socketAddress = (req.socket.localAddress || '').replace(/^::ffff:/, '');
       const lan = lanAddresses();
-      const ip = lan.includes(socketAddress) ? socketAddress : (lan[0] || '127.0.0.1');
+      const preferred = url.searchParams.get('ip');
+      if (preferred && !lan.includes(preferred)) {
+        return send(res, 400, { error: 'invalid_local_qr_address' });
+      }
+      const ip = preferred || (lan.includes(socketAddress) ? socketAddress : (lan[0] || '127.0.0.1'));
       const target = `http://${ip}:${PORT}/`;
       const svg = await qrToString(target, {
         type: 'svg',

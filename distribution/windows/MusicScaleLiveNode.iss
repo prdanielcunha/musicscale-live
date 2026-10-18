@@ -52,6 +52,8 @@ Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MusicScale Live Node Discovery"""; Flags: runhidden waituntilterminated
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""MusicScale Live Node"" dir=in action=allow protocol=TCP localport=4317 profile=private"; Flags: runhidden waituntilterminated
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""MusicScale Live Node Discovery"" dir=in action=allow protocol=UDP localport=4318 profile=private"; Flags: runhidden waituntilterminated
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""MusicScale Live Soundcraft HiQnet TCP"" dir=in action=allow protocol=TCP localport=3804 remoteip=localsubnet profile=private"; Flags: runhidden waituntilterminated
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""MusicScale Live Soundcraft HiQnet UDP"" dir=in action=allow protocol=UDP localport=3804 remoteip=localsubnet profile=private"; Flags: runhidden waituntilterminated
 Filename: "{app}\{#NodeExe}"; Description: "Iniciar o MusicScale Live"; Flags: nowait postinstall skipifsilent
 Filename: "http://127.0.0.1:4317/node"; Description: "Abrir configuração do MusicScale Live"; Flags: shellexec postinstall skipifsilent nowait
 
@@ -61,6 +63,8 @@ Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MillionsNest Live Node Discovery"""; Flags: runhidden waituntilterminated; RunOnceId: "DeleteLegacyFirewallUdp"
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MusicScale Live Node"""; Flags: runhidden waituntilterminated; RunOnceId: "DeleteFirewallTcp"
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MusicScale Live Node Discovery"""; Flags: runhidden waituntilterminated; RunOnceId: "DeleteFirewallUdp"
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MusicScale Live Soundcraft HiQnet TCP"""; Flags: runhidden waituntilterminated; RunOnceId: "DeleteHiqnetFirewallTcp"
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MusicScale Live Soundcraft HiQnet UDP"""; Flags: runhidden waituntilterminated; RunOnceId: "DeleteHiqnetFirewallUdp"
 
 [Code]
 procedure InitializeWizard;
