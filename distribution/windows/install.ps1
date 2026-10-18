@@ -36,8 +36,6 @@ try {
   Get-ChildItem -Path $SourceDir -Recurse -File -ErrorAction SilentlyContinue |
     ForEach-Object { Unblock-File -LiteralPath $_.FullName -ErrorAction SilentlyContinue }
 
-  Get-Process NestLiveNode -ErrorAction SilentlyContinue |
-    Stop-Process -Force -ErrorAction SilentlyContinue
   Get-Process MillionsNestLiveNode -ErrorAction SilentlyContinue |
     Stop-Process -Force -ErrorAction SilentlyContinue
   Get-Process MusicScaleLiveNode -ErrorAction SilentlyContinue |
@@ -59,7 +57,6 @@ try {
 
   $RunKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
   New-Item -Path $RunKey -Force | Out-Null
-  Remove-ItemProperty -Path $RunKey -Name "NestLiveNode" -ErrorAction SilentlyContinue
   Remove-ItemProperty -Path $RunKey -Name "MillionsNestLiveNode" -ErrorAction SilentlyContinue
   $RunValue = '"' + $ExePath + '"'
   Set-ItemProperty -Path $RunKey -Name "MusicScaleLiveNode" -Value $RunValue
