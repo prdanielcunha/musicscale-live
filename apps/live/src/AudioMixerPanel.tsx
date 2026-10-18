@@ -226,6 +226,7 @@ function X32MixerControls({ controller }: { controller: Controller }) {
 
   useEffect(() => {
     if (!credential) return;
+    setSnapshot(previous => previous && previous.selectedId !== selected ? { ...previous, eq: {} } : previous);
     let disposed = false;
     let abort: AbortController | undefined;
     let retry: ReturnType<typeof setTimeout> | undefined;
@@ -241,8 +242,13 @@ function X32MixerControls({ controller }: { controller: Controller }) {
         if (disposed || connection.signal.aborted) return;
         setSnapshot(previous => previous ? { ...previous, connected: false } : previous);
         // Older Nodes retain a non-overlapping polling fallback.
-        await refresh();
-        if (!disposed && !document.hidden) retry = setTimeout(() => { void run(); }, 2500);
+        try {
+          const updated = await getX32MixerState(credential.baseUrl, credential.token, selected);
+          if (!disposed && !connection.signal.aborted) { setSnapshot(updated); setError(''); }
+        } catch (cause) {
+          if (!disposed && !connection.signal.aborted) setError(cause instanceof Error ? cause.message : 'Sem conexão com o computador.');
+        }
+        if (!disposed && !connection.signal.aborted && !document.hidden) retry = setTimeout(() => { void run(); }, 2500);
       }
     };
     const visibility = () => {
@@ -260,7 +266,7 @@ function X32MixerControls({ controller }: { controller: Controller }) {
       clearTimeout(retry);
       document.removeEventListener('visibilitychange', visibility);
     };
-  }, [credential?.baseUrl, credential?.token, selected, refresh]);
+  }, [credential?.baseUrl, credential?.token, selected]);
 
   const change = useCallback(async (command: X32MixerWrite) => {
     if (!credential || !snapshot?.connected) return;
