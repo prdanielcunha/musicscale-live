@@ -4,7 +4,8 @@ import { homedir, hostname, networkInterfaces } from 'node:os';
 import { existsSync } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { X32Mixer, type MixerParameter, validMixerHost } from './x32Mixer';
-import { SoundcraftHiqnetClient, isPrivateMixerIpv4 } from './soundcraftHiqnet';
+import { isPrivateMixerIpv4 } from './soundcraftHiqnet';
+import { SoundcraftDiscovery } from './soundcraftDiscovery';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import {
   CAPABILITIES,
@@ -193,9 +194,9 @@ const eventLogStore = new LiveEventLogStore(join(STATE_DIR, 'events.json'));
 const liveChatStore = new LiveChatStore(join(STATE_DIR, 'chat.json'));
 const nodeProfileStore = new NodeProfileStore(join(STATE_DIR, 'profile.json'), hostname());
 const x32Mixer = new X32Mixer();
-const soundcraftIndustrial = new SoundcraftHiqnetClient();
+const soundcraftIndustrial = new SoundcraftDiscovery();
 const X32_CONFIG_PATH = join(STATE_DIR, 'x32-mixer.json');
-const SOUNDCRAFT_CONFIG_PATH = join(STATE_DIR, 'industrial-soundcraft.json');
+
 let nodeDisplayName = hostname();
 const liveDropStore = new LiveDropStore(
   join(STATE_DIR, 'live-drop'),
@@ -1505,8 +1506,8 @@ async function testSoundcraft(){
     const r=await fetch('/local/audio/soundcraft/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({host,deviceAddress})});
     const data=await r.json();
     status.textContent=!r.ok?'Configuração inválida: '+(data.error||'erro'):
-      data.protocolConfirmed?'HiQnet identificado. '+(data.status||'Leitura somente.'):
-      'Mesa ainda não confirmou HiQnet: '+(data.status||'Verifique rede e dispositivo HiQnet');
+      data.hiqnetFrameConfirmed?'HiQnet identificado, somente diagnóstico: '+data.reason:
+      'Ainda não confirmou HiQnet: '+(data.reason||'Verifique a rede isolada');
   }catch(error){status.textContent='Falha de rede: '+(error?.message||'erro');}
 }
 async function saveX32(){
@@ -1820,19 +1821,14 @@ async function start(): Promise<void> {
         data.deviceAddress < 1 || data.deviceAddress >= 65535) {
         return send(res, 400, { error: 'soundcraft_invalid_hiqnet_configuration' });
       }
-      const state = await soundcraftIndustrial.connect(data.host, data.deviceAddress);
-      if (state.protocolConfirmed) {
-        await writeFile(SOUNDCRAFT_CONFIG_PATH,
-          JSON.stringify({ host: data.host, deviceAddress: data.deviceAddress }, null, 2),
-          { mode: 0o600 });
-      }
+      const state = await soundcraftIndustrial.inspect(data.host, data.deviceAddress, 24501);
       return send(res, 200, state);
     }
     if (req.method === 'POST' && url.pathname === '/audio/soundcraft/refresh') {
       const session = await authorize(req);
       if (!session) return send(res, 401, { error: 'unauthorized' });
       if (session.collaboration) return send(res, 403, { error: 'mixer_admin_pairing_required' });
-      return send(res, 200, await soundcraftIndustrial.refresh());
+      return send(res, 200, soundcraftIndustrial.snapshot() || { error: 'no_soundcraft_diagnostic_yet' });
     }
 
     if (req.method === 'GET' && url.pathname === '/audio/x32/state') {
