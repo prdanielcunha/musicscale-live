@@ -50,3 +50,7 @@
 .mx-foot strong{font-size:13px}
 @media(max-width:650px){.mx-console{border-radius:15px;padding:14px}.mx-head{margin-bottom:14px}.mx-head h1{font-size:27px}.mx-strip{flex-basis:138px;min-height:224px}.mx-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mx-eq-band{padding:10px}.mx-bus-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mx-toolbar button{padding:9px 11px}.mx-setup input{width:100%}}
 @media(max-width:400px){.mx-detail-grid{grid-template-columns:1fr}}
+
+.mx-mixer-selector{min-height:0;margin-bottom:16px}
+.mx-mixer-selector .mx-setup select{color:#f4f2ff;background:#0c0d15;border:1px solid #49475d;border-radius:10px;padding:11px;min-height:44px;max-width:100%;min-width:min(100%,240px);font:inherit}
+.mx-mixer-selector .mx-detail{line-height:1.55}
