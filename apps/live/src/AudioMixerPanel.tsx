@@ -1,11 +1,113 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  configureX32Mixer, getX32MixerState, setX32MixerParameter,
+  configureX32Mixer, getX32MixerState, setX32MixerParameter, streamX32MixerState,
+  getAudioMixerProfile, setAudioMixerProfile, type AudioMixerFamily,
   type X32MixerChannel, type X32MixerParameter,
   type X32MixerSnapshot, type X32MixerWrite
 } from './liveNodeClient';
 import type { useLiveNode } from './useLiveNode';
 import './AudioMixerPanel.css';
+
+/** The paired device is not proof of a particular audio console.
+ * Do not mount X32 polling or write controls until the venue explicitly
+ * selects Behringer X32. Soundcraft Si audio control remains disabled.
+ */
+export function AudioMixerPanel({ controller }: { controller: Controller }) {
+  const credential = controller.credential;
+  const [family, setFamily] = useState<AudioMixerFamily>('none');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    if (!credential) {
+      setLoading(false);
+      return;
+    }
+    void getAudioMixerProfile(credential.baseUrl, credential.token)
+      .then(profile => {
+        if (active) { setFamily(profile.family); setError(''); }
+      })
+      .catch(cause => {
+        if (active) setError(cause instanceof Error ? cause.message : 'Não foi possível identificar a mesa configurada.');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [credential?.baseUrl, credential?.token]);
+
+  const chooseFamily = async (next: AudioMixerFamily) => {
+    if (!credential || saving) return;
+    setSaving(true);
+    try {
+      const saved = await setAudioMixerProfile(credential.baseUrl, credential.token, next);
+      setFamily(saved.family);
+      setError('');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível salvar a mesa deste local.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <section className="mx-console mx-mixer-selector" aria-label="Configurar mesa de som deste local">
+        <header className="mx-head">
+          <div>
+            <span className="mx-kicker">MUSICSCALE LIVE / ÁUDIO</span>
+            <h1>Mesa de Som</h1>
+            <p>Identidade da mesa separada por igreja e local. A conexão com o Live Node não detecta automaticamente uma X32.</p>
+          </div>
+          <span className="mx-health" role="status">
+            <i />{loading ? 'Consultando o computador…' : family === 'none' ? 'Modelo não selecionado' : 'Modelo selecionado'}
+          </span>
+        </header>
+        <div className="mx-setup">
+          <label>Modelo utilizado neste local
+            <select
+              aria-label="Modelo da mesa de som"
+              value={family}
+              disabled={!credential || loading || saving}
+              onChange={event => void chooseFamily(event.currentTarget.value as AudioMixerFamily)}
+            >
+              <option value="none">Selecione uma mesa</option>
+              <option value="soundcraft-si-expression">Soundcraft Si Expression (Industrial)</option>
+              <option value="behringer-x32">Behringer X32</option>
+            </select>
+          </label>
+          <small>Esta escolha fica salva no computador de produção para o local pareado. Selecionar o modelo não movimenta faders, mute ou ganho.</small>
+        </div>
+        {error && <p className="mx-error" role="alert">{error}</p>}
+        {family === 'none' && !loading && (
+          <p className="mx-notice">Escolha o modelo acima. Nenhum controle de áudio é disponibilizado até que uma mesa seja selecionada.</p>
+        )}
+        {family === 'soundcraft-si-expression' && (
+          <div className="mx-detail">
+            <div className="mx-detail-head">
+              <div>
+                <span className="mx-kicker">SOUNDCRAFT / HIQNET</span>
+                <h2>Si Expression 3</h2>
+              </div>
+              <span>Somente identificação</span>
+            </div>
+            <p className="mx-notice">
+              Mesa selecionada para este local. O controle remoto HiQnet ainda exige
+              validação física na Soundcraft. Os faders, MUTE, EQ e demais comandos
+              permanecem indisponíveis para proteger o áudio do culto.
+            </p>
+            <p>O Holyrics, o Resolume e a operação normal do computador continuam independentes desta configuração.</p>
+          </div>
+        )}
+      </section>
+      {family === 'behringer-x32' && !loading && (
+        <X32MixerControls controller={controller} />
+      )}
+    </>
+  );
+}
+
 
 type Controller = ReturnType<typeof useLiveNode>;
 
@@ -99,7 +201,7 @@ function Strip({
   );
 }
 
-export function AudioMixerPanel({ controller }: { controller: Controller }) {
+function X32MixerControls({ controller }: { controller: Controller }) {
   const [snapshot, setSnapshot] = useState<X32MixerSnapshot | null>(null);
   const [selected, setSelected] = useState('ch/01');
   const [group, setGroup] = useState('Entradas');
@@ -120,13 +222,51 @@ export function AudioMixerPanel({ controller }: { controller: Controller }) {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Não foi possível ler o estado da mesa.');
     }
-  }, [credential, selected]);
+  }, [credential?.baseUrl, credential?.token, selected]);
 
   useEffect(() => {
-    void refresh();
-    const id = window.setInterval(() => { void refresh(); }, 2500);
-    return () => window.clearInterval(id);
-  }, [refresh]);
+    if (!credential) return;
+    setSnapshot(previous => previous && previous.selectedId !== selected ? { ...previous, eq: {} } : previous);
+    let disposed = false;
+    let abort: AbortController | undefined;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const run = async () => {
+      if (disposed || document.hidden) return;
+      const connection = new AbortController();
+      abort = connection;
+      try {
+        await streamX32MixerState(credential.baseUrl, credential.token, selected, connection.signal, updated => {
+          if (!disposed && !connection.signal.aborted) { setSnapshot(updated); setError(''); }
+        });
+      } catch {
+        if (disposed || connection.signal.aborted) return;
+        setSnapshot(previous => previous ? { ...previous, connected: false } : previous);
+        // Older Nodes retain a non-overlapping polling fallback.
+        try {
+          const updated = await getX32MixerState(credential.baseUrl, credential.token, selected);
+          if (!disposed && !connection.signal.aborted) { setSnapshot(updated); setError(''); }
+        } catch (cause) {
+          if (!disposed && !connection.signal.aborted) setError(cause instanceof Error ? cause.message : 'Sem conexão com o computador.');
+        }
+        if (!disposed && !connection.signal.aborted && !document.hidden) retry = setTimeout(() => { void run(); }, 2500);
+      }
+    };
+    const visibility = () => {
+      abort?.abort();
+      clearTimeout(retry);
+      if (document.hidden) {
+        setSnapshot(previous => previous ? { ...previous, connected: false } : previous);
+      } else void run();
+    };
+    document.addEventListener('visibilitychange', visibility);
+    void run();
+    return () => {
+      disposed = true;
+      abort?.abort();
+      clearTimeout(retry);
+      document.removeEventListener('visibilitychange', visibility);
+    };
+  }, [credential?.baseUrl, credential?.token, selected]);
 
   const change = useCallback(async (command: X32MixerWrite) => {
     if (!credential || !snapshot?.connected) return;
@@ -271,7 +411,6 @@ export function AudioMixerPanel({ controller }: { controller: Controller }) {
       <footer className="mx-foot">
         <strong>Segurança de operação</strong>
         <span>Nenhuma ação automática por IA. Ganho de pré-amplificador, phantom 48V e recall de cenas não são liberados nesta versão beta.</span>
-        <span>Soundcraft Si Expression: integração HiQnet separada, ainda indisponível no MusicScale Live.</span>
       </footer>
     </section>
   );

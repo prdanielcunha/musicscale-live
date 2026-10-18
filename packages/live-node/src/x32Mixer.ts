@@ -137,6 +137,13 @@ export class X32Mixer {
   private scanning = false;
   private selectedId: string | null = 'ch/01';
   private disposed = false;
+  private revision = 0;
+  private selectedReads = new Map<string, number>();
+  private selectedInFlight = new Set<string>();
+
+  revisionKey(): string {
+    return `${this.revision}:${this.host}:${Boolean(this.host && this.lastSeenAt && Date.now() - this.lastSeenAt < MAX_AGE_MS)}`;
+  }
 
   async connect(host: string): Promise<void> {
     const value = host.trim();
@@ -152,6 +159,7 @@ export class X32Mixer {
         const packet = decodeX32(data);
         this.lastSeenAt = Date.now();
         if (packet.args.length) {
+          if (this.state.get(packet.address) !== packet.args[0]) this.revision++;
           this.state.set(packet.address, packet.args[0]!);
           const handlers = this.pending.get(packet.address) || [];
           this.pending.delete(packet.address);
@@ -182,6 +190,8 @@ export class X32Mixer {
     this.host = null;
     this.lastSeenAt = 0;
     this.state.clear();
+    this.selectedReads.clear();
+    this.revision++;
     this.pending.clear();
     if (socket) await new Promise<void>(resolve => socket.close(() => resolve()));
   }
@@ -233,26 +243,28 @@ export class X32Mixer {
   }
   async refreshSelected(id = this.selectedId): Promise<void> {
     if (!id || !channelIds.includes(id) || !this.host) return;
+    if (this.selectedInFlight.has(id) || (this.selectedReads.has(id) && Date.now() - this.selectedReads.get(id)! < 5000)) return;
+    this.selectedInFlight.add(id);
+    this.selectedReads.set(id, Date.now());
     this.selectedId = id;
-    const fields = ['mix/fader', 'mix/on', 'mix/pan'];
-    if (id.startsWith('ch/') || id.startsWith('auxin/')) {
-      fields.push('eq/on');
-      for (let band = 1; band <= 4; band++) fields.push('eq/' + band + '/f', 'eq/' + band + '/g', 'eq/' + band + '/q');
-    }
-    if (id.startsWith('ch/') || id.startsWith('auxin/')) {
-      for (let bus = 1; bus <= 16; bus++) fields.push('mix/' + String(bus).padStart(2, '0') + '/level');
-    }
-    for (const field of fields) {
-      await this.send('/' + id + '/' + field).catch(() => undefined);
-      await this.wait(15);
-    }
+    try {
+      const fields = ['mix/fader', 'mix/on', 'mix/pan'];
+      if (id.startsWith('ch/') || id.startsWith('auxin/')) {
+        fields.push('eq/on');
+        for (let band = 1; band <= 4; band++) fields.push('eq/' + band + '/f', 'eq/' + band + '/g', 'eq/' + band + '/q');
+      }
+      if (id.startsWith('ch/') || id.startsWith('auxin/')) {
+        for (let bus = 1; bus <= 16; bus++) fields.push('mix/' + String(bus).padStart(2, '0') + '/level');
+      }
+      for (const field of fields) {
+        await this.send('/' + id + '/' + field).catch(() => undefined);
+        await this.wait(15);
+      }
+    } finally { this.selectedInFlight.delete(id); }
   }
   snapshot(selected?: string): X32State {
-    if (selected && channelIds.includes(selected)) {
-      if (selected !== this.selectedId) void this.refreshSelected(selected);
-      this.selectedId = selected;
-    }
-    const current = this.selectedId;
+    // Snapshot reads must not generate console traffic or change another phone's selection.
+    const current = selected && channelIds.includes(selected) ? selected : this.selectedId;
     const eq: Record<string, number> = {};
     if (current) {
       const prefix = '/' + current + '/';

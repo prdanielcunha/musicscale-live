@@ -197,4 +197,28 @@ describe('RuntimeStateStore', () => {
     expect(state.providerObservedState['resolume-primary']).toBeTruthy();
     expect(state.providerObservedState['propresenter-primary']).toBeTruthy();
   });
+  it('does not rewrite unchanged provider observations, but persists slide changes', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ms-live-state-'));
+    const path = join(dir, 'runtime.json');
+    const store = new RuntimeStateStore(path, 'node_1');
+
+    const initial = await store.mergeProviderObservedState('holyrics-primary', {
+      currentPresentation: { id: 'song-1', slide_number: 2 }
+    });
+    const duplicate = await store.mergeProviderObservedState('holyrics-primary', {
+      currentPresentation: { id: 'song-1', slide_number: 2 }
+    });
+    expect(duplicate.revision).toBe(initial.revision);
+    expect(duplicate.updatedAt).toBe(initial.updatedAt);
+
+    const changed = await store.mergeProviderObservedState('holyrics-primary', {
+      currentPresentation: { id: 'song-1', slide_number: 3 }
+    });
+    expect(changed.revision).toBe(initial.revision + 1);
+    const restored = await new RuntimeStateStore(path, 'node_1').load();
+    expect(restored.providerObservedState['holyrics-primary']).toEqual({
+      currentPresentation: { id: 'song-1', slide_number: 3 }
+    });
+  });
+
 });

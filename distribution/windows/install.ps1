@@ -90,7 +90,7 @@ netsh advfirewall firewall add rule name="MusicScale Live Node Discovery" dir=in
   }
 
   if ((Test-Path $LegacyInstallDir) -and ($LegacyInstallDir -ne $InstallDir)) {
-    Remove-Item $LegacyInstallDir -Recurse -Force -ErrorAction SilentlyContinue
+    Write-InstallLog "Pasta legada preservada; inicializacao automatica antiga desativada."
   }
 
   Remove-Item $NodeStdout, $NodeStderr -Force -ErrorAction SilentlyContinue
