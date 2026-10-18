@@ -1769,7 +1769,7 @@ async function start(): Promise<void> {
   // Read-only startup: never alter audio parameters when restoring a connection.
   try {
     const stored = JSON.parse(await readFile(X32_CONFIG_PATH, 'utf8')) as { host?: string };
-    if (stored.host && validMixerHost(stored.host)) await x32Mixer.connect(stored.host);
+    if (stored.host && validMixerHost(stored.host) && await audioMixerProfiles.shouldRestoreLegacyX32()) await x32Mixer.connect(stored.host);
   } catch (error) {
     console.log(JSON.stringify({ event: 'x32_configuration_pending', reason: error instanceof Error ? error.message : 'unknown' }));
   }
