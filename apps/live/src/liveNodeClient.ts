@@ -1,3 +1,4 @@
+import { createSseParser } from './x32StreamParser';
 import type {
   AudioProfile,
   CommandResult,
@@ -1167,4 +1168,35 @@ export async function configureX32Mixer(host: string): Promise<X32MixerSnapshot>
     '/local/audio/x32/configure',
     { method: 'POST', body: JSON.stringify({ host }) }, 5000
   );
+}
+
+/** Bearer stays in the header, never in URL/history/logs. Caller controls lifetime. */
+export async function streamX32MixerState(
+  baseUrl: string, token: string, selected: string,
+  signal: AbortSignal, onState: (state: X32MixerSnapshot) => void
+): Promise<void> {
+  const response = await fetch(baseUrl.replace(/\/$/, '') + '/audio/x32/events?selected=' + encodeURIComponent(selected), {
+    headers: { Authorization: 'Bearer ' + token }, signal, cache: 'no-store'
+  });
+  if (!response.ok || !response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
+    throw new Error('mixer_stream_unavailable');
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const parse = createSseParser(data => onState(JSON.parse(data) as X32MixerSnapshot));
+  try {
+    while (!signal.aborted) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const result = await Promise.race([
+          reader.read(),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error('mixer_stream_timeout')), 12000);
+          })
+        ]);
+        if (result.done) throw new Error('mixer_stream_closed');
+        parse(decoder.decode(result.value, { stream: true }));
+      } finally { clearTimeout(timer); }
+    }
+  } finally { await reader.cancel().catch(() => undefined); }
 }
