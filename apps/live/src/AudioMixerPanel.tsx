@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  configureX32Mixer, getX32MixerState, setX32MixerParameter,
+  configureX32Mixer, getX32MixerState, setX32MixerParameter, streamX32MixerState,
   getAudioMixerProfile, setAudioMixerProfile, type AudioMixerFamily,
   type X32MixerChannel, type X32MixerParameter,
   type X32MixerSnapshot, type X32MixerWrite
@@ -222,13 +222,45 @@ function X32MixerControls({ controller }: { controller: Controller }) {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Não foi possível ler o estado da mesa.');
     }
-  }, [credential, selected]);
+  }, [credential?.baseUrl, credential?.token, selected]);
 
   useEffect(() => {
-    void refresh();
-    const id = window.setInterval(() => { void refresh(); }, 2500);
-    return () => window.clearInterval(id);
-  }, [refresh]);
+    if (!credential) return;
+    let disposed = false;
+    let abort: AbortController | undefined;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const run = async () => {
+      if (disposed || document.hidden) return;
+      const connection = new AbortController();
+      abort = connection;
+      try {
+        await streamX32MixerState(credential.baseUrl, credential.token, selected, connection.signal, updated => {
+          if (!disposed && !connection.signal.aborted) { setSnapshot(updated); setError(''); }
+        });
+      } catch {
+        if (disposed || connection.signal.aborted) return;
+        setSnapshot(previous => previous ? { ...previous, connected: false } : previous);
+        // Older Nodes retain a non-overlapping polling fallback.
+        await refresh();
+        if (!disposed && !document.hidden) retry = setTimeout(() => { void run(); }, 2500);
+      }
+    };
+    const visibility = () => {
+      abort?.abort();
+      clearTimeout(retry);
+      if (document.hidden) {
+        setSnapshot(previous => previous ? { ...previous, connected: false } : previous);
+      } else void run();
+    };
+    document.addEventListener('visibilitychange', visibility);
+    void run();
+    return () => {
+      disposed = true;
+      abort?.abort();
+      clearTimeout(retry);
+      document.removeEventListener('visibilitychange', visibility);
+    };
+  }, [credential?.baseUrl, credential?.token, selected, refresh]);
 
   const change = useCallback(async (command: X32MixerWrite) => {
     if (!credential || !snapshot?.connected) return;
