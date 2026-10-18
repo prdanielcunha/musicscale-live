@@ -8,7 +8,7 @@
 
 #define AppName "MusicScale Live"
 #ifndef AppVersion
-  #define AppVersion "0.1.0-beta.6"
+  #define AppVersion "0.1.0-beta.7"
 #endif
 #define Publisher "MillionsNest"
 #define NodeExe "MusicScaleLiveNode.exe"
@@ -40,10 +40,12 @@ Source: "{#SourceDir}\web\*"; DestDir: "{app}\web"; Flags: ignoreversion recurse
 Source: "{#SourceDir}\README-INSTALL.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "NestLiveNode"; Flags: deletevalue
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MusicScaleLiveNode"; ValueData: """{app}\{#NodeExe}"""; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "MillionsNestLiveNode"; Flags: deletevalue
 
 [Run]
+Filename: "{sys}\taskkill.exe"; Parameters: "/IM NestLiveNode.exe /F"; Flags: runhidden waituntilterminated
 Filename: "{sys}\taskkill.exe"; Parameters: "/IM MillionsNestLiveNode.exe /F"; Flags: runhidden waituntilterminated
 Filename: "{sys}\taskkill.exe"; Parameters: "/IM MusicScaleLiveNode.exe /F"; Flags: runhidden waituntilterminated
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""MillionsNest Live Node"""; Flags: runhidden waituntilterminated
