@@ -4,7 +4,7 @@
 
 O PC executa um MusicScale Live Node. Ele alcança a X32 pela rede de som e atende o celular pela rede OBPC. Holyrics e Arena continuam nas suas instalações e com a ligação HDMI/captura atual. Não é necessário mover os programas para uma pasta comum.
 
-A captura de 18 de outubro mostrou duas janelas: MusicScale Live e o antigo NestLive. A imagem não permite medir CPU ou memória, identificar as portas de ambos, nem confirmar qual PC hospeda o Arena. Não apagar pastas ou configurações antigas para resolver duplicação.
+A captura de 18 de outubro mostrou duas janelas: MusicScale Live e o NestLive. O NestLive é outro módulo e já contém seu próprio engine de produção; os dois não devem ser tratados como processos intercambiáveis. Este guia é somente para a alternativa MusicScale Live independente, não para o NestLive. A imagem não permite medir CPU ou memória, identificar as portas de ambos, nem confirmar qual PC hospeda o Arena. Não apagar pastas ou configurações antigas para resolver duplicação.
 
 ## Instalação e rede
 
