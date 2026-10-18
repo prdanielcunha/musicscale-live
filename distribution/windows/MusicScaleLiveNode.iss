@@ -8,7 +8,7 @@
 
 #define AppName "MusicScale Live"
 #ifndef AppVersion
-  #define AppVersion "0.1.0-beta.5"
+  #define AppVersion "0.1.0-beta.6"
 #endif
 #define Publisher "MillionsNest"
 #define NodeExe "MusicScaleLiveNode.exe"
