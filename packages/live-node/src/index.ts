@@ -4,6 +4,7 @@ import { homedir, hostname, networkInterfaces } from 'node:os';
 import { existsSync } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { X32Mixer, type MixerParameter, validMixerHost } from './x32Mixer';
+import { AudioMixerProfileStore, validAudioMixerFamily } from './audioMixerProfileStore';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import {
   CAPABILITIES,
@@ -96,7 +97,7 @@ function liveEnv(name: string): string | undefined {
 
 const PORT = Number(liveEnv('NODE_PORT') || 4317);
 const HOST = liveEnv('NODE_HOST') || '0.0.0.0';
-const VERSION = '0.1.0-beta.5';
+const VERSION = '0.1.0-beta.6';
 const DEV_TOKEN = liveEnv('DEV_TOKEN') || '';
 const PAIRING_ENABLED = liveEnv('PAIRING_ENABLED') !== 'false';
 const HOLYRICS_TOKEN = liveEnv('HOLYRICS_TOKEN')?.trim() || '';
@@ -193,6 +194,7 @@ const liveChatStore = new LiveChatStore(join(STATE_DIR, 'chat.json'));
 const nodeProfileStore = new NodeProfileStore(join(STATE_DIR, 'profile.json'), hostname());
 const x32Mixer = new X32Mixer();
 const X32_CONFIG_PATH = join(STATE_DIR, 'x32-mixer.json');
+const audioMixerProfiles = new AudioMixerProfileStore(join(STATE_DIR, 'audio-mixer-profiles.json'));
 let nodeDisplayName = hostname();
 const liveDropStore = new LiveDropStore(
   join(STATE_DIR, 'live-drop'),
@@ -1466,10 +1468,14 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 </details>
 </div>
 <div class="box provider-card">
-<header><div><small>ÁUDIO · BEHRINGER</small><strong>Mesa de Som X32</strong></div><button class="btn" onclick="saveX32()">Conectar X32</button></header>
-<div class="field"><span>IP da X32 na rede isolada da mesa</span><input id="x32-host" value="" inputmode="decimal" placeholder="192.168.1.100" autocomplete="off"/></div>
-<div id="x32-status" class="statusline">A configuração é local a este computador. Não altera áudio ao conectar.</div>
-<div class="row"><a href="/" style="color:#b8aeff;font-size:13px">Abrir controle da mesa (após parear)</a></div>
+<header><div><small>ÁUDIO · POR LOCAL</small><strong>Mesa de Som</strong></div></header>
+<p class="muted" style="font-size:13px;line-height:1.5">Selecione no aplicativo pareado o modelo correto para este local. Industrial: Soundcraft Si Expression 3 (HiQnet em homologação, sem controle de áudio). O controle X32 não é aplicável à Soundcraft.</p>
+<details class="advanced"><summary>Somente para locais com Behringer X32 · configuração avançada</summary>
+<div class="row"><button class="btn" onclick="saveX32()">Conectar X32</button></div>
+<div class="field"><span>IP da X32 na rede da mesa</span><input id="x32-host" value="" inputmode="decimal" placeholder="192.168.1.100" autocomplete="off"/></div>
+<div id="x32-status" class="statusline">Use somente se este computador controla uma X32.</div>
+</details>
+<div class="row"><a href="/" style="color:#b8aeff;font-size:13px">Abrir o aplicativo para selecionar a mesa</a></div>
 </div>
 <div class="box" id="routing-box" style="display:none">
 <small>QUEM CONTROLA O QUÊ</small>
@@ -1749,6 +1755,7 @@ async function start(): Promise<void> {
   await productionProviderConfigStore.load();
   await productionWorkspaceStore.load();
   await providerRoutingStore.load();
+  await audioMixerProfiles.load();
   await peerNodeStore.load();
   await signalTopologyStore.load();
   const profile = await nodeProfileStore.load();
@@ -1783,9 +1790,49 @@ async function start(): Promise<void> {
       return sendHtml(res, 200, localConsoleHtml());
     }
 
+    // The selected mixer belongs to the paired venue. Pairing a phone to a
+    // Live Node never implies the installed mixer is a Behringer X32.
+    if (req.method === 'GET' && url.pathname === '/audio/mixer/profile') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'mixer_admin_pairing_required' });
+      }
+      const family = await audioMixerProfiles.get(session.binding);
+      return send(res, 200, {
+        family,
+        soundcraftAudioControlAvailable: false,
+        soundcraftDiagnosis: 'read_only_driver_not_released',
+        scope: { venueId: session.binding.venueId, liveSystemId: session.binding.liveSystemId }
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/audio/mixer/profile') {
+      const session = await authorize(req);
+      if (!session?.binding || session.collaboration) {
+        return send(res, 403, { error: 'mixer_admin_pairing_required' });
+      }
+      const body = await readJson(req) as Record<string, unknown>;
+      if (!body || !validAudioMixerFamily(body.family)) {
+        return send(res, 400, { error: 'invalid_mixer_family' });
+      }
+      const family = await audioMixerProfiles.set(session.binding, body.family);
+      // Switching to Soundcraft must stop any legacy X32 keepalive.
+      if (family !== 'behringer-x32') await x32Mixer.close();
+      else if (!x32Mixer.snapshot().host) {
+        try {
+          const old = JSON.parse(await readFile(X32_CONFIG_PATH, 'utf8')) as { host?: string };
+          if (old.host && validMixerHost(old.host)) await x32Mixer.connect(old.host);
+        } catch { /* X32 has not been configured on this computer. */ }
+      }
+      return send(res, 200, { family, soundcraftAudioControlAvailable: false });
+    }
+
     if (req.method === 'GET' && url.pathname === '/audio/x32/state') {
       const session = await authorize(req);
       if (!session) return send(res, 401, { error: 'unauthorized' });
+      if (!session.binding || await audioMixerProfiles.get(session.binding) !== 'behringer-x32') {
+        return send(res, 409, { error: 'x32_not_selected_for_venue' });
+      }
       const selected = url.searchParams.get('selected') || undefined;
       if (selected) void x32Mixer.refreshSelected(selected).catch(() => undefined);
       return send(res, 200, x32Mixer.snapshot(selected));
@@ -1796,6 +1843,9 @@ async function start(): Promise<void> {
       if (!session) return send(res, 401, { error: 'unauthorized' });
       // Temporary collaboration links never grant audio control.
       if (session.collaboration) return send(res, 403, { error: 'mixer_admin_pairing_required' });
+      if (!session.binding || await audioMixerProfiles.get(session.binding) !== 'behringer-x32') {
+        return send(res, 409, { error: 'x32_not_selected_for_venue' });
+      }
       if (!session.dev && !session.binding) return send(res, 403, { error: 'mixer_admin_pairing_required' });
       const body = await readJson(req) as Record<string, unknown>;
       if (!body || typeof body !== 'object' || Array.isArray(body)) {
