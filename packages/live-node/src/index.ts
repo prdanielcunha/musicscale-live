@@ -1477,8 +1477,10 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 </div>
 <div class="box provider-card">
 <header><div><small>ÁUDIO · INDUSTRIAL LONDRINA</small><strong>Soundcraft Si Expression (HiQnet)</strong></div><button class="btn" onclick="testSoundcraft()">Testar rede e leitura</button></header>
-<div class="field"><span>IP privado da mesa (SYSTEM)</span><input id="soundcraft-host" inputmode="decimal" placeholder="192.168.1.100" autocomplete="off"/></div>
-<div class="field"><span>Endereço HiQnet da mesa (não é o IP)</span><input id="soundcraft-device" inputmode="numeric" type="number" min="1" max="65534" placeholder="Ver em HIQNET da mesa"/></div>
+<div class="field"><span>IP privado da mesa (SYSTEM)</span><input id="soundcraft-host" inputmode="decimal" value="192.168.0.148" autocomplete="off"/></div>
+<div class="field"><span>Endereço HiQnet da mesa</span><input id="soundcraft-device" inputmode="numeric" type="number" min="1" max="65534" value="10596"/></div>
+<div class="field"><span>Endereço HiQnet exclusivo deste aplicativo</span><input id="soundcraft-client" inputmode="numeric" type="number" min="1" max="65534" value="24501"/></div>
+<p class="muted" style="font-size:11px;line-height:1.55">A Si Expression tem controle de acesso ligado. Device 1 = 1 e Device 2 = 148 (ALL) nas fotos. Use um endereço exclusivamente reservado a este computador; um novo endereço como 24501 precisa ser autorizado antes na mesa. NÃO reutilize um identificador já ativo. Não modifique a mesa durante o culto.</p>
 <div id="soundcraft-status" class="statusline">Diagnóstico inicial somente leitura: não controla faders, EQ ou mute ainda. Não reinicie a mesa durante culto.</div>
 </div>
 <div class="box" id="routing-box" style="display:none">
@@ -1503,7 +1505,8 @@ async function testSoundcraft(){
   try{
     const host=document.getElementById('soundcraft-host').value.trim();
     const deviceAddress=Number(document.getElementById('soundcraft-device').value);
-    const r=await fetch('/local/audio/soundcraft/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({host,deviceAddress})});
+    const clientAddress=Number(document.getElementById('soundcraft-client').value);
+    const r=await fetch('/local/audio/soundcraft/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({host,deviceAddress,clientAddress})});
     const data=await r.json();
     status.textContent=!r.ok?'Configuração inválida: '+(data.error||'erro'):
       data.hiqnetFrameConfirmed?'HiQnet identificado, somente diagnóstico: '+data.reason:
@@ -1815,13 +1818,15 @@ async function start(): Promise<void> {
     }
     if (req.method === 'POST' && url.pathname === '/local/audio/soundcraft/connect') {
       if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
-      const data = await readJson(req) as { host?: unknown; deviceAddress?: unknown };
+      const data = await readJson(req) as { host?: unknown; deviceAddress?: unknown; clientAddress?: unknown };
       if (!data || typeof data.host !== 'string' || !isPrivateMixerIpv4(data.host) ||
         typeof data.deviceAddress !== 'number' || !Number.isInteger(data.deviceAddress) ||
-        data.deviceAddress < 1 || data.deviceAddress >= 65535) {
+        data.deviceAddress < 1 || data.deviceAddress >= 65535 ||
+        typeof data.clientAddress !== 'number' || !Number.isInteger(data.clientAddress) ||
+        data.clientAddress < 1 || data.clientAddress >= 65535 || data.clientAddress === data.deviceAddress) {
         return send(res, 400, { error: 'soundcraft_invalid_hiqnet_configuration' });
       }
-      const state = await soundcraftIndustrial.inspect(data.host, data.deviceAddress, 24501);
+      const state = await soundcraftIndustrial.inspect(data.host, data.deviceAddress, data.clientAddress);
       return send(res, 200, state);
     }
     if (req.method === 'POST' && url.pathname === '/audio/soundcraft/refresh') {
