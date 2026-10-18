@@ -29,3 +29,28 @@ Local alvo: OBPC Industrial, Londrina. Mesa digital Soundcraft **Si Expression**
 - https://dev-core.org/ms-docs/mixers/soundcraft/hiqnet/
 - https://dev-core.org/ms-docs/mixers/soundcraft/si-performer/
 - https://hiqontrol.readthedocs.io/en/latest/hiqnetproto.html (referência técnica de endereçamento Si Compact; requer validação na Si Expression)
+
+## Configuração confirmada nas fotos de 18/10/2026 — Industrial
+- Mesa Soundcraft Si Expression 3, software 1.8 Build 0012.
+- Rede SYSTEM: DHCP, IP 192.168.0.148, máscara 255.255.255.0.
+- HIQNET: Enabled; Console HiQnet Address 10596; Access Control Enabled.
+- Device 1: All, endereço 1. Device 2: All, endereço 148. Outros dispositivos exibidos: None, 0.
+- IDs HiQnet NÃO são endereços IP. Cada controle autorizado precisa ter um ID exclusivo.
+- Não reiniciar a mesa nem tocar nos botões RESET CHANNELS/BUSES/PATCHING/ALL ou ADDRESS ASSIGN durante culto.
+
+## Descoberta técnica e limitações
+O Mixing Station documenta que esta família utiliza descoberta UDP/3804 e recebe uma conexão TCP iniciada pela própria mesa. A tentativa de cliente TCP direto no IP da Soundcraft, anteriormente usada na prova de conceito, foi retirada da execução. O diagnóstico agora usa o módulo soundcraftDiscovery.ts, com testes de rede e sem comandos de áudio. As mensagens são interpretadas como diagnóstico, nunca como permissão para controles automáticos. O módulo ainda exige validação de handshake na mesa física e NÃO CONTROLA áudio.
+
+## Passos para o operador
+1. iPhone em Ajustes -> Wi-Fi: conectar ao roteador ligado à porta HiQnet da Soundcraft. Confirmar IP da faixa 192.168.0.x, diferente de .148.
+2. Instalar Mixing Station para iOS. Selecionar Add Mixer -> Soundcraft Si -> Si Expression; iOS exige licença para conectar à mesa (modo offline é gratuito).
+3. Permitir rede local nas configurações de privacidade do iPhone.
+4. Ajustar o endereço HiQnet do app para um ID disponível com permissão ALL. Os IDs existentes 1 e 148 só podem ser reutilizados caso não estejam ativos em outro dispositivo; não alterar ACL durante o culto.
+5. Selecionar mesa encontrada; confirmar se nomes e faders correspondem à Soundcraft física. Fazer pequeno teste com canal desocupado.
+6. Se não conectar: confirmar mesma subnet, broadcast permitido, roteador dedicado ligado à porta HiQnet, e aplicativo antigo fechado. Não reiniciar a mesa durante culto.
+7. Para o futuro Live Node: PC com Ethernet internet e Wi-Fi USB 192.168.0.x (rede da mesa). O diagnóstico só será exibido depois de distribuída a versão do PR. Não confundí-lo com o controle manual pronto.
+
+Fontes:
+- https://help.harmanpro.com/en_US/sc-si-series/si-series-digital-mixers-faq
+- https://mixingstation.app/ms-docs/mixers/soundcraft/hiqnet/
+- https://mixingstation.app/ms-docs/mixers/soundcraft/si/
