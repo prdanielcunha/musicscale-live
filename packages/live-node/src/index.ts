@@ -96,7 +96,7 @@ function liveEnv(name: string): string | undefined {
 
 const PORT = Number(liveEnv('NODE_PORT') || 4317);
 const HOST = liveEnv('NODE_HOST') || '0.0.0.0';
-const VERSION = '0.1.0-beta.4';
+const VERSION = '0.1.0-beta.5';
 const DEV_TOKEN = liveEnv('DEV_TOKEN') || '';
 const PAIRING_ENABLED = liveEnv('PAIRING_ENABLED') !== 'false';
 const HOLYRICS_TOKEN = liveEnv('HOLYRICS_TOKEN')?.trim() || '';
@@ -3676,7 +3676,7 @@ async function start(): Promise<void> {
 
   const providerObservationTimer = setInterval(() => {
     observeOnlineProviders();
-  }, 100);
+  }, 250);
   providerObservationTimer.unref();
 
   const providerRecoveryTimer = setInterval(() => {

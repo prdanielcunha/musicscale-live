@@ -81,14 +81,19 @@ export class RuntimeStateStore {
     this.writeQueue = this.writeQueue
       .then(async () => {
         await this.load();
+        const previous = this.state.providerObservedState[providerId] || {};
+        const next = { ...previous, ...observed };
+        // Provider observation is polled frequently. Only checkpoint a real
+        // state change; repeated disk writes compete with projection software.
+        if (JSON.stringify(previous) === JSON.stringify(next)) {
+          resolveResult(structuredClone(this.state));
+          return;
+        }
         this.state = {
           ...this.state,
           providerObservedState: {
             ...this.state.providerObservedState,
-            [providerId]: {
-              ...(this.state.providerObservedState[providerId] || {}),
-              ...observed
-            }
+            [providerId]: next
           },
           nodeId: this.nodeId,
           revision: this.state.revision + 1,
