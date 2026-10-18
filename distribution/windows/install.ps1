@@ -36,6 +36,8 @@ try {
   Get-ChildItem -Path $SourceDir -Recurse -File -ErrorAction SilentlyContinue |
     ForEach-Object { Unblock-File -LiteralPath $_.FullName -ErrorAction SilentlyContinue }
 
+  Get-Process NestLiveNode -ErrorAction SilentlyContinue |
+    Stop-Process -Force -ErrorAction SilentlyContinue
   Get-Process MillionsNestLiveNode -ErrorAction SilentlyContinue |
     Stop-Process -Force -ErrorAction SilentlyContinue
   Get-Process MusicScaleLiveNode -ErrorAction SilentlyContinue |
@@ -57,6 +59,7 @@ try {
 
   $RunKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
   New-Item -Path $RunKey -Force | Out-Null
+  Remove-ItemProperty -Path $RunKey -Name "NestLiveNode" -ErrorAction SilentlyContinue
   Remove-ItemProperty -Path $RunKey -Name "MillionsNestLiveNode" -ErrorAction SilentlyContinue
   $RunValue = '"' + $ExePath + '"'
   Set-ItemProperty -Path $RunKey -Name "MusicScaleLiveNode" -Value $RunValue
@@ -90,7 +93,7 @@ netsh advfirewall firewall add rule name="MusicScale Live Node Discovery" dir=in
   }
 
   if ((Test-Path $LegacyInstallDir) -and ($LegacyInstallDir -ne $InstallDir)) {
-    Remove-Item $LegacyInstallDir -Recurse -Force -ErrorAction SilentlyContinue
+    Write-InstallLog "Pasta legada preservada; inicializacao automatica antiga desativada."
   }
 
   Remove-Item $NodeStdout, $NodeStderr -Force -ErrorAction SilentlyContinue
