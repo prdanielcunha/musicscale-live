@@ -575,14 +575,24 @@ async function recoverUnhealthyProviders(): Promise<void> {
   }
 }
 
-function lanAddresses(): string[] {
-  const addresses: string[] = [];
-  for (const group of Object.values(networkInterfaces())) {
+function lanInterfaces(): Array<{ name: string; address: string; netmask: string }> {
+  const result: Array<{ name: string; address: string; netmask: string }> = [];
+  for (const [name, group] of Object.entries(networkInterfaces())) {
     for (const entry of group || []) {
-      if (entry.family === 'IPv4' && !entry.internal) addresses.push(entry.address);
+      if (entry.family === 'IPv4' && !entry.internal) {
+        result.push({ name, address: entry.address, netmask: entry.netmask });
+      }
     }
   }
-  return [...new Set(addresses)];
+  return result;
+}
+function lanAddresses(): string[] {
+  return [...new Set(lanInterfaces().map(entry => entry.address))];
+}
+function escapeNetworkLabel(value: string): string {
+  return value.replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char] || char);
 }
 
 function setCors(req: IncomingMessage, res: ServerResponse): void {
@@ -1397,8 +1407,12 @@ async function serveWebApp(res: ServerResponse, pathname: string): Promise<boole
 }
 
 function localConsoleHtml(): string {
-  const addresses = lanAddresses()
-    .map(ip => `<li>http://${ip}:${PORT}</li>`)
+  const interfaces = lanInterfaces();
+  const addresses = interfaces
+    .map(entry => `<li>${escapeNetworkLabel(entry.name)} — http://${entry.address}:${PORT} / ${entry.netmask}</li>`)
+    .join('');
+  const phoneInterfaceOptions = interfaces
+    .map(entry => `<option value="${entry.address}">${escapeNetworkLabel(entry.name)} · ${entry.address} / ${entry.netmask}</option>`)
     .join('');
   return `<!doctype html>
 <html lang="pt-BR">
@@ -1434,8 +1448,16 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 <div id="profile-status" class="statusline">Carregando nome…</div>
 </div>
 <div class="box connect-card">
-<img src="/local/connect-qr.svg" alt="QR para abrir o MusicScale Live na rede local"/>
-<div><small>CONECTAR TABLET OU CELULAR</small><h2>Escaneie e continue</h2><p>Abra a câmera do aparelho do operador e escaneie este QR. O Live abre pelo caminho local correto — sem digitar IP ou porta.</p><span class="connect-badge">Internet não obrigatória</span></div>
+<img id="phone-qr" src="/local/connect-qr.svg" alt="QR para abrir o MusicScale Live na rede local"/>
+<div>
+<small>CONECTAR TABLET OU CELULAR</small>
+<h2>Celular no Wi-Fi com internet</h2>
+<p>O iPhone pode ficar no Wi-Fi OBPC_5G e o PC pode usar duas redes: internet e SOM. Escolha abaixo o IP do PC que o iPhone consegue acessar pela OBPC_5G. O Live Node conversa com a mesa pela rede SOM, sem compartilhar redes nem retirar a internet do celular.</p>
+<div class="field"><span>Endereço do computador acessível pelo celular</span><select id="phone-ip" onchange="changePhoneQr()">${phoneInterfaceOptions || '<option value="">Conecte o computador à rede</option>'}</select></div>
+<div class="row"><a id="phone-link" href="/" target="_blank" rel="noopener" style="color:#b8aeff;font-size:13px;overflow-wrap:anywhere">Abrir pelo celular</a></div>
+<div class="statusline">O computador deve alcançar 192.168.0.148 pela rede SOM. Se as duas placas tiverem a mesma sub-rede 192.168.0.x, o Windows pode usar o caminho errado; confira o roteamento antes de controlar áudio.</div>
+<span class="connect-badge">Internet do celular preservada</span>
+</div>
 </div>
 <div class="box">
 <small>CÓDIGO DE PAREAMENTO ATIVO</small>
@@ -1499,6 +1521,17 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 </div>
 <details class="box advanced"><summary>Detalhes técnicos da rede</summary><div class="tech-list"><p>Use estes endereços somente para diagnóstico ou fallback manual.</p><ul>${addresses || '<li>Nenhum IPv4 LAN detectado</li>'}</ul></div></details>
 <script>
+function changePhoneQr(){
+  const input=document.getElementById('phone-ip');
+  const selected=input ? input.value : '';
+  const img=document.getElementById('phone-qr');
+  const link=document.getElementById('phone-link');
+  if(!selected){if(link)link.textContent='Nenhum endereço disponível';return;}
+  const url='http://'+selected+':${PORT}/';
+  if(link){link.href=url;link.textContent=url;}
+  if(img)img.src='/local/connect-qr.svg?ip='+encodeURIComponent(selected);
+}
+changePhoneQr();
 async function testSoundcraft(){
   const status=document.getElementById('soundcraft-status');
   status.textContent='Consultando a Soundcraft sem alterar nenhum parâmetro…';
@@ -2052,7 +2085,11 @@ async function start(): Promise<void> {
       // computer's LAN address, the browser request is not seen as 127.0.0.1.
       const socketAddress = (req.socket.localAddress || '').replace(/^::ffff:/, '');
       const lan = lanAddresses();
-      const ip = lan.includes(socketAddress) ? socketAddress : (lan[0] || '127.0.0.1');
+      const preferred = url.searchParams.get('ip');
+      if (preferred && !lan.includes(preferred)) {
+        return send(res, 400, { error: 'invalid_local_qr_address' });
+      }
+      const ip = preferred || (lan.includes(socketAddress) ? socketAddress : (lan[0] || '127.0.0.1'));
       const target = `http://${ip}:${PORT}/`;
       const svg = await qrToString(target, {
         type: 'svg',
