@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { type IncomingMessage, type ServerResponse } from 'node:http';
+import { claimNodePort } from './exclusiveServer';
+import { streamX32 } from './x32Stream';
 import { homedir, hostname, networkInterfaces } from 'node:os';
 import { existsSync } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
@@ -97,7 +99,7 @@ function liveEnv(name: string): string | undefined {
 
 const PORT = Number(liveEnv('NODE_PORT') || 4317);
 const HOST = liveEnv('NODE_HOST') || '0.0.0.0';
-const VERSION = '0.1.0-beta.6';
+const VERSION = '0.1.0-beta.7';
 const DEV_TOKEN = liveEnv('DEV_TOKEN') || '';
 const PAIRING_ENABLED = liveEnv('PAIRING_ENABLED') !== 'false';
 const HOLYRICS_TOKEN = liveEnv('HOLYRICS_TOKEN')?.trim() || '';
@@ -283,6 +285,9 @@ async function registerHolyricsProvider(): Promise<{
 }
 
 
+let resolumeAbsentAttempts = 0;
+let nextResolumeDetectionAt = 0;
+
 async function registerResolumeProvider(): Promise<{
   configured: boolean;
   source: 'environment' | 'local' | 'detected' | 'none';
@@ -314,11 +319,12 @@ async function registerResolumeProvider(): Promise<{
 
   if (autoDetect && !probe.reachable) {
     capabilityEngine.unregister('resolume-primary');
-    console.log(JSON.stringify({
+    if (resolumeAbsentAttempts === 0) console.log(JSON.stringify({
       event: 'provider_not_detected',
       providerKey: 'resolume',
       candidate: baseUrl
     }));
+    nextResolumeDetectionAt = Date.now() + Math.min(60000, 10000 * 2 ** Math.min(resolumeAbsentAttempts++, 3));
     return {
       configured: false,
       source: 'none',
@@ -327,6 +333,8 @@ async function registerResolumeProvider(): Promise<{
     };
   }
 
+  resolumeAbsentAttempts = 0;
+  nextResolumeDetectionAt = 0;
   console.log(JSON.stringify({
     event: autoDetect ? 'provider_auto_detected' : 'provider_probe',
     providerKey: 'resolume',
@@ -539,10 +547,14 @@ function observeOnlineProviders(): void {
   }
 }
 
+let providerRecoveryInFlight = false;
 async function recoverUnhealthyProviders(): Promise<void> {
+  if (providerRecoveryInFlight) return;
+  providerRecoveryInFlight = true;
+  try {
   if (!capabilityEngine.get('resolume-primary')) {
     const configuredResolume = RESOLUME_URL || (await providerConfigStore.getResolume())?.baseUrl;
-    if (!configuredResolume) {
+    if (!configuredResolume && Date.now() >= nextResolumeDetectionAt) {
       await registerResolumeProvider();
     }
   }
@@ -571,16 +583,27 @@ async function recoverUnhealthyProviders(): Promise<void> {
       }));
     }
   }
+  } finally { providerRecoveryInFlight = false; }
 }
 
-function lanAddresses(): string[] {
-  const addresses: string[] = [];
-  for (const group of Object.values(networkInterfaces())) {
+function lanInterfaces(): Array<{ name: string; address: string; netmask: string }> {
+  const result: Array<{ name: string; address: string; netmask: string }> = [];
+  for (const [name, group] of Object.entries(networkInterfaces())) {
     for (const entry of group || []) {
-      if (entry.family === 'IPv4' && !entry.internal) addresses.push(entry.address);
+      if (entry.family === 'IPv4' && !entry.internal) {
+        result.push({ name, address: entry.address, netmask: entry.netmask });
+      }
     }
   }
-  return [...new Set(addresses)];
+  return result;
+}
+function lanAddresses(): string[] {
+  return [...new Set(lanInterfaces().map(entry => entry.address))];
+}
+function escapeNetworkLabel(value: string): string {
+  return value.replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char] || char);
 }
 
 function setCors(req: IncomingMessage, res: ServerResponse): void {
@@ -1395,9 +1418,9 @@ async function serveWebApp(res: ServerResponse, pathname: string): Promise<boole
 }
 
 function localConsoleHtml(): string {
-  const addresses = lanAddresses()
-    .map(ip => `<li>http://${ip}:${PORT}</li>`)
-    .join('');
+  const interfaces = lanInterfaces();
+  const addresses = interfaces.map(entry => `<li>${escapeNetworkLabel(entry.name)} — http://${entry.address}:${PORT} / ${entry.netmask}</li>`).join('');
+  const phoneInterfaceOptions = interfaces.map(entry => `<option value="${entry.address}">${escapeNetworkLabel(entry.name)} · ${entry.address}</option>`).join('');
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -1432,8 +1455,13 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 <div id="profile-status" class="statusline">Carregando nome…</div>
 </div>
 <div class="box connect-card">
-<img src="/local/connect-qr.svg" alt="QR para abrir o MusicScale Live na rede local"/>
-<div><small>CONECTAR TABLET OU CELULAR</small><h2>Escaneie e continue</h2><p>Abra a câmera do aparelho do operador e escaneie este QR. O Live abre pelo caminho local correto — sem digitar IP ou porta.</p><span class="connect-badge">Internet não obrigatória</span></div>
+<img id="phone-qr" src="/local/connect-qr.svg" alt="QR para abrir o MusicScale Live na rede local"/>
+<div><small>CONECTAR TABLET OU CELULAR</small><h2>Celular na rede OBPC</h2>
+<p>O PC recebe o celular pela rede OBPC e alcança a mesa pelo adaptador da rede de som. Escolha o endereço do PC na rede do celular para gerar o QR correto.</p>
+<div class="field"><span>Placa de rede usada pelo celular</span><select id="phone-ip" onchange="changePhoneQr()">${phoneInterfaceOptions || '<option value="">Sem rede local</option>'}</select></div>
+<div class="row"><a id="phone-link" href="/" style="color:#b8aeff;font-size:13px">Abrir pelo celular</a></div>
+<span class="connect-badge">Internet do celular preservada</span>
+<p>Se as duas placas estiverem na mesma sub-rede, confira o caminho até a mesa antes de operar. Não é necessário criar ponte de rede.</p></div>
 </div>
 <div class="box">
 <small>CÓDIGO DE PAREAMENTO ATIVO</small>
@@ -1493,6 +1521,15 @@ details.advanced{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,
 </div>
 <details class="box advanced"><summary>Detalhes técnicos da rede</summary><div class="tech-list"><p>Use estes endereços somente para diagnóstico ou fallback manual.</p><ul>${addresses || '<li>Nenhum IPv4 LAN detectado</li>'}</ul></div></details>
 <script>
+function changePhoneQr(){
+  const selected=document.getElementById('phone-ip').value;
+  if(!selected)return;
+  const url='http://'+selected+':${PORT}/';
+  document.getElementById('phone-link').href=url;
+  document.getElementById('phone-link').textContent=url;
+  document.getElementById('phone-qr').src='/local/connect-qr.svg?ip='+encodeURIComponent(selected);
+}
+changePhoneQr();
 async function saveX32(){
   const status=document.getElementById('x32-status');
   const host=document.getElementById('x32-host').value.trim();
@@ -1746,6 +1783,16 @@ refreshNodeProfile();refresh();refreshProvider();setInterval(refresh,1000);
 }
 
 async function start(): Promise<void> {
+  let server;
+  try { server = await claimNodePort(PORT, HOST); }
+  catch (error: any) {
+    if (error?.code === 'EADDRINUSE') {
+      console.log(JSON.stringify({ event: 'live_node_already_running', port: PORT,
+        message: 'A porta já está ocupada. Nenhuma segunda instância será iniciada; confira o Node existente em /node.' }));
+      return;
+    }
+    throw error;
+  }
   await idempotency.load();
   await sceneIdempotency.load();
   await pairingStore.load();
@@ -1776,7 +1823,8 @@ async function start(): Promise<void> {
   await peerFederation.load();
   await peerDiscovery.start();
 
-  const server = createServer(async (req, res) => {
+  server.removeAllListeners('request');
+  server.on('request', async (req, res) => {
   setCors(req, res);
   if (req.method === 'OPTIONS') {
     res.statusCode = 204;
@@ -1825,6 +1873,17 @@ async function start(): Promise<void> {
         } catch { /* X32 has not been configured on this computer. */ }
       }
       return send(res, 200, { family, soundcraftAudioControlAvailable: false });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/audio/x32/events') {
+      const permitted = async () => {
+        const session = await authorize(req);
+        return Boolean(session?.binding && !session.collaboration &&
+          await audioMixerProfiles.get(session.binding) === 'behringer-x32');
+      };
+      if (!await permitted()) return send(res, 403, { error: 'mixer_admin_pairing_required' });
+      streamX32(res, x32Mixer, url.searchParams.get('selected') || undefined, permitted);
+      return;
     }
 
     if (req.method === 'GET' && url.pathname === '/audio/x32/state') {
@@ -2049,7 +2108,9 @@ async function start(): Promise<void> {
       // computer's LAN address, the browser request is not seen as 127.0.0.1.
       const socketAddress = (req.socket.localAddress || '').replace(/^::ffff:/, '');
       const lan = lanAddresses();
-      const ip = lan.includes(socketAddress) ? socketAddress : (lan[0] || '127.0.0.1');
+      const preferred = url.searchParams.get('ip');
+      if (preferred && !lan.includes(preferred)) return send(res, 400, { error: 'invalid_local_qr_address' });
+      const ip = preferred || (lan.includes(socketAddress) ? socketAddress : (lan[0] || '127.0.0.1'));
       const target = `http://${ip}:${PORT}/`;
       const svg = await qrToString(target, {
         type: 'svg',
@@ -2680,7 +2741,9 @@ async function start(): Promise<void> {
 
       const lan = lanAddresses();
       const socketAddress = (req.socket.localAddress || '').replace(/^::ffff:/, '');
-      const ip = lan.includes(socketAddress) ? socketAddress : (lan[0] || '127.0.0.1');
+      const preferred = url.searchParams.get('ip');
+      if (preferred && !lan.includes(preferred)) return send(res, 400, { error: 'invalid_local_qr_address' });
+      const ip = preferred || (lan.includes(socketAddress) ? socketAddress : (lan[0] || '127.0.0.1'));
       const joinUrl =
         `http://${ip}:${PORT}/?collabInvite=${encodeURIComponent(created.invite.id)}&collabRole=${encodeURIComponent(created.invite.role)}#collabSecret=${encodeURIComponent(created.secret)}`;
       const qrSvg = await qrToString(joinUrl, {
@@ -3710,7 +3773,7 @@ async function start(): Promise<void> {
   }
 });
 
-  server.listen(PORT, HOST, () => {
+  {
     const urls = lanAddresses().map(ip => `http://${ip}:${PORT}`);
     console.log(JSON.stringify({
       event: 'live_node_started',
@@ -3722,7 +3785,7 @@ async function start(): Promise<void> {
       webRoot: WEB_ROOT,
       pairingEnabled: PAIRING_ENABLED
     }));
-  });
+  }
 
   const providerObservationTimer = setInterval(() => {
     observeOnlineProviders();
@@ -3745,5 +3808,5 @@ void start().catch(error => {
     event: 'live_node_fatal',
     error: error instanceof Error ? error.message : 'unknown'
   }));
-  process.exitCode = 1;
+  process.exit(1);
 });
