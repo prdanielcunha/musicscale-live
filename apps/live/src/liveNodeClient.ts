@@ -1089,6 +1089,30 @@ export async function cacheNodeScenes(
 }
 
 
+export type AudioMixerFamily = 'none' | 'behringer-x32' | 'soundcraft-si-expression';
+
+export interface AudioMixerProfile {
+  family: AudioMixerFamily;
+  soundcraftAudioControlAvailable: false;
+  scope?: { venueId: string; liveSystemId: string };
+}
+
+export async function getAudioMixerProfile(baseUrl: string, token: string): Promise<AudioMixerProfile> {
+  return requestJson<AudioMixerProfile>(baseUrl, '/audio/mixer/profile', {
+    headers: { Authorization: `Bearer ${token}` }
+  }, 4000);
+}
+
+export async function setAudioMixerProfile(
+  baseUrl: string, token: string, family: AudioMixerFamily
+): Promise<AudioMixerProfile> {
+  return requestJson<AudioMixerProfile>(baseUrl, '/audio/mixer/profile', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ family })
+  }, 4000);
+}
+
 export interface X32MixerChannel {
   id: string;
   label: string;
