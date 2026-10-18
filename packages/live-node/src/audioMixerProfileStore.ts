@@ -47,6 +47,12 @@ export class AudioMixerProfileStore {
     this.loaded = true;
   }
 
+  async shouldRestoreLegacyX32(): Promise<boolean> {
+    await this.load();
+    const families = Object.values(this.profiles);
+    return families.length === 0 || families.includes('behringer-x32');
+  }
+
   async get(scope: AudioMixerScope): Promise<AudioMixerFamily> {
     await this.load();
     return this.profiles[audioMixerScopeKey(scope)] ?? 'none';
