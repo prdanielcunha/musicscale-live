@@ -8,7 +8,7 @@ A captura de 18 de outubro mostrou duas janelas: MusicScale Live e o antigo Nest
 
 ## Instalação e rede
 
-1. Antes do culto, instale MusicScaleLiveSetup.exe do pacote beta.7. O instalador encerra executáveis reconhecidos MusicScaleLiveNode, MillionsNestLiveNode e NestLiveNode e remove os valores de inicialização automática reconhecidos. Nenhuma pasta de dados legada é apagada. Serviços, tarefas ou atalhos instalados manualmente precisam ser verificados separadamente.
+1. Antes do culto, instale MusicScaleLiveSetup.exe do pacote beta.7. O instalador encerra o executável atual e os executáveis legados reconhecidos e remove os valores de inicialização automática reconhecidos. Nenhuma pasta de dados legada é apagada. Serviços, tarefas ou atalhos instalados manualmente precisam ser verificados separadamente.
 2. Abra http://127.0.0.1:4317/node. Confira a versão. Mantenha somente o Node escolhido em execução neste computador. Cada computador de produção necessário pode ter seu próprio Node, nomeado e pareado.
 3. Mantenha o PC na rede OBPC com internet e use o adaptador Wi-Fi USB já disponível para a rede da X32. Não crie ponte de rede ou compartilhamento de internet.
 4. Na X32 física, abra Setup > Network e anote IP e máscara. Não use o IP da Soundcraft do Industrial. Os endereços de Cambé precisam ser lidos no equipamento.
