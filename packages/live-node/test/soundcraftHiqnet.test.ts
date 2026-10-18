@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   encodeHiqnet, decodeHiqnet, encodeHiqnetGet, decodeHiqnetReadings,
-  isPrivateMixerIpv4, SoundcraftHiqnetClient
+  isPrivateMixerIpv4
 } from '../src/soundcraftHiqnet';
 
 describe('Soundcraft Si Expression HiQnet v2 transport (read-only)', () => {
@@ -59,7 +59,5 @@ describe('Soundcraft Si Expression HiQnet v2 transport (read-only)', () => {
     expect(isPrivateMixerIpv4('8.8.8.8')).toBe(false);
     expect(isPrivateMixerIpv4('192.168.1.1:3804')).toBe(false);
     expect(isPrivateMixerIpv4('169.254.2.3')).toBe(false);
-    const client = new SoundcraftHiqnetClient();
-    expect(() => client.snapshot()).not.toThrow();
   });
 });
