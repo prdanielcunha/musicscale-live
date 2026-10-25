@@ -1144,3 +1144,29 @@ export async function configureX32Mixer(host: string): Promise<X32MixerSnapshot>
     { method: 'POST', body: JSON.stringify({ host }) }, 5000
   );
 }
+
+/** Soundcraft Si Expression: the authenticated Node proxies a localhost Mixing Station bridge. */
+export interface SoundcraftSiSnapshot {
+  model: 'Soundcraft Si Expression 3';
+  bridge: 'Mixing Station Desktop OSC';
+  host: string | null;
+  consoleIp: string;
+  connected: boolean;
+  lastSeenAt: string | null;
+  channels: Array<{ id: string; label: string; name: string; fader?: number }>;
+  capabilities: string[];
+  note: string;
+}
+export function getSoundcraftSiState(baseUrl: string, token: string): Promise<SoundcraftSiSnapshot> {
+  return requestJson(baseUrl, '/audio/soundcraft/state', {
+    headers: { Authorization: 'Bearer ' + token }
+  }, 4500);
+}
+export function writeSoundcraftSiFader(baseUrl: string, token: string, channel: string, value: number):
+  Promise<{ sent: boolean; confirmed: boolean; observed?: number; address: string }> {
+  return requestJson(baseUrl, '/audio/soundcraft/write', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token },
+    body: JSON.stringify({ channel, parameter: 'fader', value })
+  }, 4500);
+}
