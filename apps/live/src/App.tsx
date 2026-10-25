@@ -33,6 +33,9 @@ import { resolveStudioFlow } from './studioFlow';
 const AudioMixerPanel = lazy(() =>
   import('./AudioMixerPanel').then(module => ({ default: module.AudioMixerPanel }))
 );
+const SoundcraftMixerPanel = lazy(() =>
+  import('./SoundcraftMixerPanel').then(module => ({ default: module.SoundcraftMixerPanel }))
+);
 const LiveControlPanel = lazy(() =>
   import('./LiveControlPanel').then(module => ({ default: module.LiveControlPanel }))
 );
@@ -138,6 +141,7 @@ export function App() {
   const [localNodeOrigin, setLocalNodeOrigin] = useState(false);
   const [localNodeDetectionDone, setLocalNodeDetectionDone] = useState(false);
   const [surface, setSurface] = useState<Surface>('studio');
+  const [audioMixer, setAudioMixer] = useState<'soundcraft' | 'x32'>('soundcraft');
   const [studioSection, setStudioSection] = useState<StudioSection>('overview');
   const [showAdvancedStudio, setShowAdvancedStudio] = useState(false);
   const [liveMode, setLiveMode] = useState<LiveSessionMode>('service');
@@ -823,7 +827,19 @@ export function App() {
           <SceneStudio controller={liveNode} actorId={user.uid} />
         )}
 
-        {surface === 'mixer' && liveNode.state === 'connected' && <AudioMixerPanel controller={liveNode} />}
+        {surface === 'mixer' && liveNode.state === 'connected' && (
+          <>
+            <div className="mx-toolbar" role="group" aria-label="Selecionar modelo de mesa">
+              <button type="button" className={audioMixer === 'soundcraft' ? 'selected' : ''}
+                onClick={() => setAudioMixer('soundcraft')}>Londrina · Soundcraft Si</button>
+              <button type="button" className={audioMixer === 'x32' ? 'selected' : ''}
+                onClick={() => setAudioMixer('x32')}>Cambé · X32</button>
+            </div>
+            {audioMixer === 'soundcraft'
+              ? <SoundcraftMixerPanel controller={liveNode} />
+              : <AudioMixerPanel controller={liveNode} />}
+          </>
+        )}
         {surface === 'mixer' && liveNode.state !== 'connected' && (
           <section className="panel" role="status">Pareie seu celular com o Live Node da igreja para controlar a mesa de som. Sem conexão, os controles permanecem bloqueados.</section>
         )}
