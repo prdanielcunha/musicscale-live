@@ -4,6 +4,7 @@ import { homedir, hostname, networkInterfaces } from 'node:os';
 import { existsSync } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { X32Mixer, type MixerParameter, validMixerHost } from './x32Mixer';
+import { SoundcraftSiBridge } from './soundcraftSiBridge';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import {
   CAPABILITIES,
@@ -192,6 +193,8 @@ const eventLogStore = new LiveEventLogStore(join(STATE_DIR, 'events.json'));
 const liveChatStore = new LiveChatStore(join(STATE_DIR, 'chat.json'));
 const nodeProfileStore = new NodeProfileStore(join(STATE_DIR, 'profile.json'), hostname());
 const x32Mixer = new X32Mixer();
+const soundcraftBridge = new SoundcraftSiBridge();
+const SOUNDCRAFT_CONFIG_PATH = join(STATE_DIR, 'soundcraft-si-bridge.json');
 const X32_CONFIG_PATH = join(STATE_DIR, 'x32-mixer.json');
 let nodeDisplayName = hostname();
 const liveDropStore = new LiveDropStore(
@@ -1766,6 +1769,13 @@ async function start(): Promise<void> {
   } catch (error) {
     console.log(JSON.stringify({ event: 'x32_configuration_pending', reason: error instanceof Error ? error.message : 'unknown' }));
   }
+  // An optional localhost OSC bridge; never transmit Soundcraft commands on startup.
+  try {
+    const saved = JSON.parse(await readFile(SOUNDCRAFT_CONFIG_PATH, 'utf8')) as { port?: number; consoleIp?: string };
+    if (saved.port) await soundcraftBridge.connect(saved.port, saved.consoleIp);
+  } catch (error) {
+    console.log(JSON.stringify({ event: 'soundcraft_bridge_not_started', reason: error instanceof Error ? error.message : 'unknown' }));
+  }
   await peerFederation.load();
   await peerDiscovery.start();
 
@@ -1781,6 +1791,39 @@ async function start(): Promise<void> {
   try {
     if (req.method === 'GET' && url.pathname === '/node') {
       return sendHtml(res, 200, localConsoleHtml());
+    }
+
+    if (req.method === 'GET' && url.pathname === '/audio/soundcraft/state') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      return send(res, 200, soundcraftBridge.snapshot());
+    }
+    if (req.method === 'POST' && url.pathname === '/audio/soundcraft/write') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      if (session.collaboration || (!session.dev && !session.binding)) {
+        return send(res, 403, { error: 'mixer_admin_pairing_required' });
+      }
+      const body = await readJson(req) as Record<string, unknown>;
+      if (!body || typeof body !== 'object' || Array.isArray(body) ||
+          Object.keys(body).some(key => !['channel', 'value', 'parameter'].includes(key)) ||
+          body.parameter !== 'fader' || typeof body.value !== 'number') {
+        return send(res, 400, { error: 'soundcraft_fader_only' });
+      }
+      const result = await soundcraftBridge.write({ channel: String(body.channel || ''), value: body.value });
+      return send(res, result.confirmed ? 200 : 202, result);
+    }
+    if (req.method === 'POST' && url.pathname === '/local/audio/soundcraft/configure') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const body = await readJson(req) as Record<string, unknown>;
+      if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        return send(res, 400, { error: 'soundcraft_invalid_config' });
+      }
+      const port = Number(body.port);
+      const consoleIp = typeof body.consoleIp === 'string' ? body.consoleIp : '192.168.0.148';
+      await soundcraftBridge.connect(port, consoleIp);
+      await writeFile(SOUNDCRAFT_CONFIG_PATH, JSON.stringify({ port, consoleIp }, null, 2), { mode: 0o600 });
+      return send(res, 200, soundcraftBridge.snapshot());
     }
 
     if (req.method === 'GET' && url.pathname === '/audio/x32/state') {
