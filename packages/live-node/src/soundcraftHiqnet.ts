@@ -46,6 +46,7 @@ export function encodeHiqnetHeader(input: {
   payload?: Buffer;
   flags?: number;
   sequence?: number;
+  destinationObject?: number;
 }): Buffer {
   for (const key of [input.sourceDevice, input.destinationDevice, input.messageId]) {
     if (!validDeviceId(key)) throw new Error('invalid_hiqnet_id');
@@ -59,7 +60,7 @@ export function encodeHiqnetHeader(input: {
   packet.writeUInt16BE(input.sourceDevice, 6);
   packet.writeUInt32BE(0, 8);         // Device manager
   packet.writeUInt16BE(input.destinationDevice, 12);
-  packet.writeUInt32BE(0, 14);
+  packet.writeUInt32BE(input.destinationObject ?? 0, 14);
   packet.writeUInt16BE(input.messageId, 18);
   packet.writeUInt16BE(input.flags || 0, 20);
   packet.writeUInt8(5, 22);
@@ -242,4 +243,50 @@ export async function probeSoundcraftSi(timeoutMs = 2600): Promise<SoundcraftPro
     udp.close();
     if (server?.listening) await new Promise<void>(resolve => server!.close(() => resolve()));
   }
+}
+
+/**
+ * Research-only candidate mapping recorded for Si Compact/Si-series.
+ * Do not assume Si Expression firmware 1.8 uses these same addresses
+ * until a real MultiParamGet response proves the mapping.
+ *
+ * Object: VD 1, Object 0.0.22 ("Master sends")
+ * PID 37..68: 32 input channel faders in 1/64 dB signed LONG.
+ */
+export const SI_MASTER_SENDS_CANDIDATE_OBJECT = 0x01000016;
+export function buildSiFaderReadQuery(channelNumber: number): Buffer {
+  if (!Number.isInteger(channelNumber) || channelNumber < 1 || channelNumber > 32) {
+    throw new Error('soundcraft_invalid_channel');
+  }
+  const payload = Buffer.alloc(4);
+  payload.writeUInt16BE(1, 0); // one parameter
+  payload.writeUInt16BE(36 + channelNumber, 2);
+  return encodeHiqnetHeader({
+    sourceDevice: SOUNDCRAFT_INDUSTRIAL.localHiqnetAddress,
+    destinationDevice: SOUNDCRAFT_INDUSTRIAL.consoleHiqnetAddress,
+    destinationObject: SI_MASTER_SENDS_CANDIDATE_OBJECT,
+    messageId: 0x0103, flags: 0x0020, payload
+  });
+}
+
+/** Parse only the signed 32-bit parameter type; do not interpret data as live state unless validated. */
+export function parseSiFaderReadReply(message: Buffer): null | {
+  channel: number; pid: number; db: number; rawValue: number;
+} {
+  const header = decodeHiqnetHeader(message);
+  if (header.sourceDevice !== SOUNDCRAFT_INDUSTRIAL.consoleHiqnetAddress ||
+      header.messageId !== 0x0103 || (header.flags & 0x0004) === 0 ||
+      header.sourceObject !== SI_MASTER_SENDS_CANDIDATE_OBJECT) return null;
+  const o = header.headerLength;
+  if (o + 2 > message.length) return null;
+  const count = message.readUInt16BE(o);
+  if (count !== 1 || o + 9 > message.length) return null;
+  const pid = message.readUInt16BE(o + 2);
+  const type = message.readUInt8(o + 4);
+  if (pid < 37 || pid > 68 || type !== 4) return null; // LONG (signed)
+  const rawValue = message.readInt32BE(o + 5);
+  const db = rawValue / 64;
+  // Sanity bounds only, not safety permission to write.
+  if (db < -150 || db > 20) return null;
+  return { channel: pid - 36, pid, db, rawValue };
 }
