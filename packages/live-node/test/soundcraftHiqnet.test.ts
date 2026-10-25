@@ -39,7 +39,7 @@ describe('Soundcraft Si native HiQnet discovery (read-only)', () => {
     expect(decodeHiqnetHeader(request).destinationDevice).toBe(10596);
     expect(request.includes(Buffer.from([192, 168, 0, 158]))).toBe(true);
     expect(request.includes(Buffer.from([255, 255, 255, 0]))).toBe(true);
-    expect(request.includes(Buffer.from([10, 20, 30, 40, 50, 60]))).toBe(true);
+    expect(request.includes(Buffer.from([0x10, 0x20, 0x30, 0x40, 0x50, 0x60]))).toBe(true);
   });
 
   it('rejects malformed lengths and illegal network identifiers without sending anything', () => {
