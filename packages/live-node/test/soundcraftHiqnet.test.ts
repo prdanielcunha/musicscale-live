@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildHiqnetDiscoQuery,
+  buildSiFaderReadQuery,
+  parseSiFaderReadReply,
+  SI_MASTER_SENDS_CANDIDATE_OBJECT,
   decodeHiqnetHeader,
   encodeHiqnetHeader,
   SOUNDCRAFT_INDUSTRIAL
@@ -56,4 +59,32 @@ describe('Soundcraft Si native HiQnet discovery (read-only)', () => {
       name: 'bad', address: '1.1.1', netmask: '255.255.255.0', mac: 'bad'
     })).toThrow();
   });
+  it('prepares but does not send a single research-only channel fader read query', () => {
+    const request = buildSiFaderReadQuery(1);
+    const header = decodeHiqnetHeader(request);
+    expect(header.messageId).toBe(0x0103); // GET, not SET
+    expect(header.destinationObject).toBe(SI_MASTER_SENDS_CANDIDATE_OBJECT);
+    expect(request.readUInt16BE(25)).toBe(1);
+    expect(request.readUInt16BE(27)).toBe(37);
+    expect(() => buildSiFaderReadQuery(33)).toThrow();
+  });
+
+  it('decodes only valid replies from the configured Soundcraft device', () => {
+    const payload = Buffer.alloc(9);
+    payload.writeUInt16BE(1, 0);
+    payload.writeUInt16BE(37, 2);
+    payload.writeUInt8(4, 4); // signed LONG
+    payload.writeInt32BE(5 * 64, 5); // +5dB
+    const reply = encodeHiqnetHeader({
+      sourceDevice: 10596, destinationDevice: 1337,
+      messageId: 0x0103, flags: 0x0004, payload
+    });
+    reply.writeUInt32BE(SI_MASTER_SENDS_CANDIDATE_OBJECT, 8);
+    expect(parseSiFaderReadReply(reply)).toEqual({
+      channel: 1, pid: 37, db: 5, rawValue: 320
+    });
+    reply.writeUInt16BE(1336, 6);
+    expect(parseSiFaderReadReply(reply)).toBeNull();
+  });
+
 });
