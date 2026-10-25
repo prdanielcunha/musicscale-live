@@ -1144,3 +1144,32 @@ export async function configureX32Mixer(host: string): Promise<X32MixerSnapshot>
     { method: 'POST', body: JSON.stringify({ host }) }, 5000
   );
 }
+
+export interface SoundcraftNativeNodeState {
+  model: 'Soundcraft Si Expression 3';
+  venue: string;
+  consoleIp: string;
+  wifiIp: string;
+  transport: string;
+  connected: false;
+  controlCertified: false;
+  note: string;
+  probe: null | {
+    stage: string;
+    wifiIp: string | null;
+    wifiInterface: string | null;
+    consoleIp: string;
+    reachable: boolean;
+    packetsReceived: number;
+    consoleDeviceId?: number;
+    tcpFromConsole?: boolean;
+    explanation: string;
+    checkedAt: string;
+  };
+}
+export function getSoundcraftNativeState(baseUrl: string, token: string):
+  Promise<SoundcraftNativeNodeState> {
+  return requestJson(baseUrl, '/audio/soundcraft/state', {
+    headers: { Authorization: 'Bearer ' + token }
+  }, 5000);
+}

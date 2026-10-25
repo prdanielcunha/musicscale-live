@@ -4,6 +4,7 @@ import { homedir, hostname, networkInterfaces } from 'node:os';
 import { existsSync } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { X32Mixer, type MixerParameter, validMixerHost } from './x32Mixer';
+import { probeSoundcraftSi, SOUNDCRAFT_INDUSTRIAL, type SoundcraftProbe } from './soundcraftHiqnet';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import {
   CAPABILITIES,
@@ -192,6 +193,7 @@ const eventLogStore = new LiveEventLogStore(join(STATE_DIR, 'events.json'));
 const liveChatStore = new LiveChatStore(join(STATE_DIR, 'chat.json'));
 const nodeProfileStore = new NodeProfileStore(join(STATE_DIR, 'profile.json'), hostname());
 const x32Mixer = new X32Mixer();
+let soundcraftLastProbe: (SoundcraftProbe & { checkedAt: string }) | null = null;
 const X32_CONFIG_PATH = join(STATE_DIR, 'x32-mixer.json');
 let nodeDisplayName = hostname();
 const liveDropStore = new LiveDropStore(
@@ -1783,6 +1785,27 @@ async function start(): Promise<void> {
       return sendHtml(res, 200, localConsoleHtml());
     }
 
+    if (req.method === 'GET' && url.pathname === '/audio/soundcraft/state') {
+      const session = await authorize(req);
+      if (!session) return send(res, 401, { error: 'unauthorized' });
+      return send(res, 200, {
+        model: SOUNDCRAFT_INDUSTRIAL.model,
+        venue: 'OBPC Industrial — Londrina',
+        consoleIp: SOUNDCRAFT_INDUSTRIAL.consoleIp,
+        wifiIp: SOUNDCRAFT_INDUSTRIAL.preferredWifiIp,
+        transport: 'HiQnet nativo / LAN (sem intermediário pago)',
+        probe: soundcraftLastProbe,
+        connected: false, // Never imply audio control from a discovery-only result.
+        controlCertified: false,
+        note: 'A descoberta HiQnet não comprova acesso a faders; controle bloqueado até teste físico.'
+      });
+    }
+    if (req.method === 'GET' && url.pathname === '/local/audio/soundcraft/probe') {
+      if (!isLoopback(req)) return send(res, 403, { error: 'local_only' });
+      const result = await probeSoundcraftSi();
+      soundcraftLastProbe = { ...result, checkedAt: new Date().toISOString() };
+      return send(res, 200, soundcraftLastProbe);
+    }
     if (req.method === 'GET' && url.pathname === '/audio/x32/state') {
       const session = await authorize(req);
       if (!session) return send(res, 401, { error: 'unauthorized' });
